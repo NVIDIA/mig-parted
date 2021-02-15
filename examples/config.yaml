@@ -1,0 +1,78 @@
+version: v1
+mig-configs:
+  all-disabled:
+    - devices: all
+      mig-enabled: false
+
+  all-enabled:
+    - devices: all
+      mig-enabled: true
+      mig-devices: {}
+
+  all-1g.5gb:
+    - devices: all
+      mig-enabled: true
+      mig-devices:
+        "1g.5gb": 7
+
+  all-2g.10gb:
+    - devices: all
+      mig-enabled: true
+      mig-devices:
+        "2g.10gb": 3
+
+  all-3g.20gb:
+    - devices: all
+      mig-enabled: true
+      mig-devices:
+        "3g.20gb": 2
+
+  all-balanced:
+    - devices: all
+      mig-enabled: true
+      mig-devices:
+        "1g.5gb": 2
+        "2g.10gb": 1
+        "3g.20gb": 1
+
+  custom-config-0:
+    - devices: [0,4]
+      mig-enabled: true
+      mig-devices:
+        "1g.5gb": 7
+    - devices: [1,5]
+      mig-enabled: true
+      mig-devices:
+        "2g.10gb": 3
+    - devices: [2,6]
+      mig-enabled: true
+      mig-devices:
+        "3g.20gb": 2
+    - devices: [3,7]
+      mig-enabled: true
+      mig-devices:
+        "1g.5gb": 2
+        "2g.10gb": 1
+        "3g.20gb": 1
+
+  custom-config-1:
+    - devices: [0,1,2,3]
+      mig-enabled: false
+    - devices: [4]
+      mig-enabled: true
+      mig-devices:
+        "1g.5gb": 7
+    - devices: [5]
+      mig-enabled: true
+      mig-devices:
+        "2g.10gb": 3
+    - devices: [6]
+      mig-enabled: true
+      mig-devices:
+        "3g.20gb": 2
+    - devices: [7]
+      mig-enabled: true
+      mig-devices:
+        "1g.5gb": 2
+        "2g.10gb": 1
+        "3g.20gb": 1
