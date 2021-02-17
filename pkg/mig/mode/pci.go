@@ -182,7 +182,7 @@ func (m *pciMigModeManager) isMigModeChangePending(bar0 mmio.Mmio) bool {
 }
 
 func (m *pciMigModeManager) IsMigCapable(gpu int) (bool, error) {
-	bar0, err := m.openBar0AndWaitForBoot(gpu)
+	bar0, err := m.openBar0(gpu)
 	if err != nil {
 		return false, err
 	}
