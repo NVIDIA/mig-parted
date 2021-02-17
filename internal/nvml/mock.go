@@ -56,7 +56,7 @@ var MockA100MIGProfiles = struct {
 			OfaCount:            0,
 			MemorySizeMB:        5120,
 		},
-		GPU_INSTANCE_PROFILE_2_SLICE: GpuInstanceProfileInfo{
+		GPU_INSTANCE_PROFILE_2_SLICE: {
 			Id:                  GPU_INSTANCE_PROFILE_2_SLICE,
 			IsP2pSupported:      0,
 			SliceCount:          2,
@@ -69,7 +69,7 @@ var MockA100MIGProfiles = struct {
 			OfaCount:            0,
 			MemorySizeMB:        10240,
 		},
-		GPU_INSTANCE_PROFILE_3_SLICE: GpuInstanceProfileInfo{
+		GPU_INSTANCE_PROFILE_3_SLICE: {
 			Id:                  GPU_INSTANCE_PROFILE_3_SLICE,
 			IsP2pSupported:      0,
 			SliceCount:          3,
@@ -82,7 +82,7 @@ var MockA100MIGProfiles = struct {
 			OfaCount:            0,
 			MemorySizeMB:        20480,
 		},
-		GPU_INSTANCE_PROFILE_4_SLICE: GpuInstanceProfileInfo{
+		GPU_INSTANCE_PROFILE_4_SLICE: {
 			Id:                  GPU_INSTANCE_PROFILE_4_SLICE,
 			IsP2pSupported:      0,
 			SliceCount:          4,
@@ -95,7 +95,7 @@ var MockA100MIGProfiles = struct {
 			OfaCount:            0,
 			MemorySizeMB:        20480,
 		},
-		GPU_INSTANCE_PROFILE_7_SLICE: GpuInstanceProfileInfo{
+		GPU_INSTANCE_PROFILE_7_SLICE: {
 			Id:                  GPU_INSTANCE_PROFILE_7_SLICE,
 			IsP2pSupported:      0,
 			SliceCount:          7,

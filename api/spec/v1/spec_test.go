@@ -27,7 +27,7 @@ import (
 func TestMarshallUnmarshall(t *testing.T) {
 	spec := Spec{
 		Version: "v1",
-		MigConfigs: map[string][]MigConfigSpec{
+		MigConfigs: map[string]MigConfigSpecSlice{
 			"all-disabled": []MigConfigSpec{
 				{
 					DeviceFilter: "A100-SXM4-40GB",
