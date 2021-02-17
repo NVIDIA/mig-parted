@@ -150,6 +150,7 @@ There are two common methods.
 
 #### Run `go install`:
 ```
+go get github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
 GOBIN=$(pwd) go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
 ```
 
