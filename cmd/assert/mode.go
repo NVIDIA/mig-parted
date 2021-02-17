@@ -29,23 +29,27 @@ func AssertMigMode(c *Context) error {
 	manager := mode.NewPciMigModeManager()
 
 	return apply.WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
+		if mc.MigEnabled {
+			log.Debugf("    Asserting MIG mode: %v", mode.Enabled)
+		} else {
+			log.Debugf("    Asserting MIG mode: %v", mode.Disabled)
+		}
+
 		capable, err := manager.IsMigCapable(i)
 		if err != nil {
 			return fmt.Errorf("error checking MIG capable: %v", err)
 		}
 		log.Debugf("    MIG capable: %v\n", capable)
 
+		if !capable && !mc.MigEnabled {
+			return nil
+		}
+
 		m, err := manager.GetMigMode(i)
 		if err != nil {
 			return fmt.Errorf("error getting MIG mode: %v", err)
 		}
 		log.Debugf("    Current MIG mode: %v", m)
-
-		if mc.MigEnabled {
-			log.Debugf("    Asserting MIG mode: %v", mode.Enabled)
-		} else {
-			log.Debugf("    Asserting MIG mode: %v", mode.Disabled)
-		}
 
 		if mc.MigEnabled && m == mode.Disabled {
 			return fmt.Errorf("current mode different than mode being asserted")
