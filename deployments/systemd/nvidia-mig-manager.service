@@ -1,0 +1,12 @@
+[Unit]
+Description=Configure MIG on NVIDIA GPUs
+DefaultDependencies=no
+After=sysinit.target local-fs.target 
+Before=basic.target nvidia-persistenced.service
+
+[Service]
+Type=oneshot
+ExecStart=-/bin/bash /etc/nvidia-mig-manager/service.sh
+
+[Install]
+WantedBy=basic.target
