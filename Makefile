@@ -25,17 +25,20 @@ endif
 IMAGE_TAG ?= $(GOLANG_VERSION)
 BUILDIMAGE ?= $(IMAGE):$(IMAGE_TAG)-devel
 
-TARGETS := build test assert-fmt fmt lint vet check all
+TARGETS := binary build all check fmt assert-fmt lint vet test
 DOCKER_TARGETS := $(patsubst %, docker-%, $(TARGETS))
 .PHONY: $(TARGETS) $(DOCKER_TARGETS)
 
 GOOS := linux
 
-all: check build
-check: assert-fmt lint vet
+binary:
+	GOOS=$(GOOS) go build ./cmd/nvidia-mig-parted
 
 build:
 	GOOS=$(GOOS) go build ./...
+
+all: check build binary
+check: assert-fmt lint vet
 
 # Apply go fmt to the codebase
 fmt:
