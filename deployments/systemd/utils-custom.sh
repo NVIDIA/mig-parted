@@ -122,6 +122,7 @@ function nvidia-mig-manager::service::stop_k8s_components() {
 	local container_images=(
 		k8s-device-plugin
 		gpu-feature-discovery
+		dcgm-exporter
 	)
 	nvidia-mig-manager::service::kill_k8s_containers_via_runtime_by_image container_images
 	if [ "${?}" != "0" ]; then
