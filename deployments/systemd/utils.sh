@@ -133,9 +133,27 @@ function nvidia-mig-manager::service::insert_modules() {
 }
 
 function nvidia-mig-manager::service::kill_k8s_containers_via_runtime_by_image() {
-	local -n __images="${1}"
+	nvidia-mig-manager::service::kill_k8s_containers_via_docker_by_image "${1}"
+	if [ "${?}" != "0" ]; then
+		return 1
+	fi
+	nvidia-mig-manager::service::kill_k8s_containers_via_containerd_by_image "${1}"
+	if [ "${?}" != "0" ]; then
+		return 1
+	fi
+	return 0
+}
 
-	for i in ${__images[@]}; do
+function nvidia-mig-manager::service::kill_k8s_containers_via_docker_by_image() {
+	local images=()
+	local -n __image_names="${1}"
+
+	for i in ${__image_names[@]}; do
+		images+=("${i}")
+		images+=("$(docker images --format "{{.ID}} {{.Repository}}" | grep "${i}" | cut -d' ' -f1 | tr '\n' ' ')")
+	done
+
+	for i in ${images[@]}; do
 		local containers="$(docker ps --format "{{.ID}} {{.Image}}" | grep "${i}" | cut -d' ' -f1 | tr '\n' ' ')"
 		if [ "${containers}" != "" ]; then
 			docker kill ${containers}
@@ -148,7 +166,21 @@ function nvidia-mig-manager::service::kill_k8s_containers_via_runtime_by_image()
 				return 1
 			fi
 		fi
+	done
 
+	return 0
+}
+
+function nvidia-mig-manager::service::kill_k8s_containers_via_containerd_by_image() {
+	local images=()
+	local -n __image_names="${1}"
+
+	for i in ${__image_names[@]}; do
+		images+=("${i}")
+		images+=("$(ctr -n k8s.io image ls | grep "${i}" | tr -s ' ' | cut -d' ' -f3 | tr '\n' ' ')")
+	done
+
+	for i in ${images[@]}; do
 		local containers="$(ctr -n k8s.io container ls "image~=${i}" -q)"
 		if [ "${containers}" != "" ]; then
 			ctr -n k8s.io tasks kill -a -s SIGKILL ${containers}
