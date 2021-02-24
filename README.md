@@ -28,6 +28,11 @@ mig-configs:
     - devices: all
       mig-enabled: false
 
+  all-enabled:
+    - devices: all
+      mig-enabled: true
+      mig-devices: {}
+
   all-1g.5gb:
     - devices: all
       mig-enabled: true
@@ -95,7 +100,7 @@ $ nvidia-mig-parted apply -f examples/config.yaml -c all-balanced
 $ nvidia-mig-parted apply -f examples/config.yaml -c custom-config
 ```
 
-The currently applied configuration can then be exported with:
+The currently applied configuration can then be looked up with:
 ```
 $ nvidia-mig-parted export
 version: v1
@@ -124,34 +129,37 @@ $ echo $?
 1
 ```
 
-**Note:** The `assert` feature is most useful in combination with the
-`--mode-only` flag (described in [this
-section](#switching-mig-mode-without-the-nvidia-driver-loaded) below) to verify
-that MIG mode is already set properly on all GPUs and skip rebooting the node
-when running under GPU passthrough virtualization. On first boot the assertion
-will fail, and the node will be configured and rebooted. After reboot, the
-assertion will succeed and the reconfiguration / reboot is skipped.
+**Note:** The `nvidia-mig-parted` tool alone does not take care of making sure
+that your node is in a state where MIG mode changes and MIG device
+configurations will apply cleanly. Moreover, it does not ensure that MIG device
+configurations will persist across node reboots.
 
-```
-#!/usr/bin/env bash 
-
-nvidia-mig-parted assert --mode-only -f examples/config.yaml -c all-enabled
-if [ "$?" != "0" ]; then 
-	nvidia-mig-parted apply --mode-only -f examples/config.yaml -c all-enabled
-	reboot
-fi
-```
+To help with this, a `systemd` service and a set of support scripts have been
+developed to wrap `nvidia-mig-parted` and provide these much desired features.
+Please see the README.md under [deployments/systemd](deployments/systemd) for
+more details.
 
 ## Installing `nvidia-mig-parted`
 
 At the moment, there is no common distribution platform for
 `nvidia-mig-parted`, and the only way to get it is to build it from source.
-There are two common methods.
+Below are some common methods.
 
-#### Run `go install`:
+#### Use `docker` with `go get` and `go install`:
 ```
-go get github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
-GOBIN=$(pwd) go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
+docker run \
+    -v $(pwd):/dest \
+    golang:1.15 \
+    sh -c "
+    GO111MODULE=off go get -u github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
+    GOBIN=/dest     go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
+    "
+```
+
+#### Run `go get` and `go install` directly:
+```
+GO111MODULE=off go get -u github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
+GOBIN=$(pwd)    go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
 ```
 
 #### Clone the repo and build it:
@@ -161,7 +169,7 @@ cd mig-parted
 go build ./cmd/nvidia-mig-parted
 ```
 
-When followed exactly, both of these methods should generate a binary called
+When followed exactly, any of these methods should generate a binary called
 `nvidia-mig-parted` in your current directory. Once this is done, it is advised
 that you move this binary to somewhere in your path so you can follow the
 commands below verbatim.
@@ -169,7 +177,7 @@ commands below verbatim.
 ## Quick Start
 
 Before going into the details of every possible option for `nvidia-mig-parted`
-its useful to walk through a few examples of its most common usage. All
+it's useful to walk through a few examples of its most common usage. All
 commands below use the example configuration file found under
 `examples/config.yaml` of this repo.
 
@@ -252,54 +260,3 @@ mig-configs:
     mig-devices: {}
 EOF
 ```
-
-## Switching MIG mode **without** the NVIDIA driver loaded
-One important feature of `nvidia-mig-parted` is that it can toggle the MIG mode
-of a set of GPUs independent of partitioning them into a set of MIG devices.
-
-For example, this can be done via calls to:
-```
-$ nvidia-mig-parted apply --mode-only -f examples/config.yaml -c all-disabled
-$ nvidia-mig-parted apply --mode-only -f examples/config.yaml -c all-enabled
-$ nvidia-mig-parted apply --mode-only -f examples/config.yaml -c custom-config
-...
-```
-
-Under the hood, `nvidia-mig-parted` will scan the selected configuration and
-only apply the `mig-enabled` directive for each GPU (skipping configuration of
-the MIG devices specified).
-
-A subsequent call without the `--mode-only` flag is then needed to
-trigger the MIG devices to actually get created.
-
-Moreover, it is able to perform the MIG mode switch on a GPU ***without*** having
-the NVIDIA GPU driver loaded. This is important for several reasons, outlined below.
-
-As described in the [MIG user
-guide](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/index.html#enable-mig-mode),
-enabling and disabling MIG mode is a heavy weight operation that (in all cases)
-requires a GPU reset and (in some cases) requires a full node reboot (i.e. when
-running in a VM with GPU passthrough). Moreover, it is not always possible to
-perform a GPU reset (even if it is technically allowed) because the NVIDIA
-driver will block the reset if there are any clients currently attached to the
-GPU. Depending on what software is installed along side the NVIDIA driver,
-enumerating these clients, disconnecting them, and reattaching them is often
-cumbersome (if not impossible) to do correctly.
-
-Having the ability to change MIG mode without the driver installed, gives
-administrator's the flexibility to perform this switch without making any
-assumptions about the rest of the software stack running on the node.
-
-For example, the MIG mode switch can be done very early on in the node boot
-process, before any other software comes online. Once the rest of the stack
-comes up, subsequent calls to `nvidia-mig-parted ` can be made made that change
-the set of MIG devices that are present, but no longer require a MIG mode
-switch or a GPU reset.
-
-In other scenarios (most notably in the cloud), it may be desirable to
-"pre-enable" MIG for GPUs attached to nodes that have no GPU driver installed
-in their base OS. In such a scenario, something like Amazon's `cloud-config` or
-GCP's `cloud-init` script can be used to ensure MIG mode is configured as
-desired (and perform a node reboot if necessary). Once the node is up, the user
-can then install the nvidia-driver themselves and proceed with configuring any
-MIG devices.
