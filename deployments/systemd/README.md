@@ -34,9 +34,10 @@ scripts that wrap `nvidia-mig-parted` to provide the following features:
 To install the `nvidia-mig-manager.service` simply run `./install.sh` from the
 directory where this README is located.
 
-**Note:** At the moment, `go` 1.15 is a prerequisite to this installation
-because it downloads and builds the latest `nvidia-mig-parted` before
-installing it. We plan to relax this requirement in the near future.
+**Note:** At the moment, `docker` is a prerequisite to this installation
+because it runs a container with `go` in it to download and build the latest
+`nvidia-mig-parted` before installing it. We plan to relax this requirement in
+the near future.
 
 The following files will be added as part of this installation: 
 

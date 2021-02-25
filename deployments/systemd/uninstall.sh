@@ -20,7 +20,7 @@ SERVICE_NAME="${SERVICE_ROOT}.service"
 MIG_PARTED_NAME="nvidia-mig-parted"
 MIG_PARTED_GO_GET_PATH="github.com/NVIDIA/mig-parted/cmd/${MIG_PARTED_NAME}"
 
-BINARY_DIR="/usr/bin/"
+BINARY_DIR="/usr/bin"
 SYSTEMD_DIR="/usr/lib/systemd/system"
 DATA_DIR="/var/lib/${SERVICE_ROOT}"
 CONFIG_DIR="/etc/${SERVICE_ROOT}"

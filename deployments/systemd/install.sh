@@ -14,13 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+: ${DOCKER:=docker}
+
 SERVICE_ROOT="nvidia-mig-manager"
 SERVICE_NAME="${SERVICE_ROOT}.service"
 
 MIG_PARTED_NAME="nvidia-mig-parted"
 MIG_PARTED_GO_GET_PATH="github.com/NVIDIA/mig-parted/cmd/${MIG_PARTED_NAME}"
 
-BINARY_DIR="/usr/bin/"
+BINARY_DIR="/usr/bin"
 SYSTEMD_DIR="/usr/lib/systemd/system"
 DATA_DIR="/var/lib/${SERVICE_ROOT}"
 CONFIG_DIR="/etc/${SERVICE_ROOT}"
@@ -32,8 +34,19 @@ mkdir -p ${DATA_DIR}
 mkdir -p ${CONFIG_DIR}
 mkdir -p ${OVERRIDE_DIR}
 
-GO111MODULE=off     go get -u ${MIG_PARTED_GO_GET_PATH}
-GOBIN=${BINARY_DIR} go install ${MIG_PARTED_GO_GET_PATH}
+chmod a+rx ${BINARY_DIR}
+chmod a+rx ${SYSTEMD_DIR}
+chmod a+rx ${DATA_DIR}
+chmod a+rx ${CONFIG_DIR}
+chmod a+rx ${OVERRIDE_DIR}
+
+${DOCKER} run \
+    -v ${BINARY_DIR}:/dest \
+    golang:1.15 \
+    sh -c "
+    GO111MODULE=off go get -u github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
+    GOBIN=/dest     go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
+    "
 
 cp ${SERVICE_NAME} ${SYSTEMD_DIR}
 cp override.conf   ${OVERRIDE_DIR}
