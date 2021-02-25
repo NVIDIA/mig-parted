@@ -34,6 +34,12 @@ mkdir -p ${DATA_DIR}
 mkdir -p ${CONFIG_DIR}
 mkdir -p ${OVERRIDE_DIR}
 
+chmod a+rx ${BINARY_DIR}
+chmod a+rx ${SYSTEMD_DIR}
+chmod a+rx ${DATA_DIR}
+chmod a+rx ${CONFIG_DIR}
+chmod a+rx ${OVERRIDE_DIR}
+
 ${DOCKER} run \
     -v ${BINARY_DIR}:/dest \
     golang:1.15 \
