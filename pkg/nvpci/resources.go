@@ -48,3 +48,17 @@ func (mr *MemoryResource) Open() (mmio.Mmio, error) {
 	}
 	return nil, fmt.Errorf("unknown endianness for mmio: %v\n", err)
 }
+
+func (mr *MemoryResource) OpenReadOnly() (mmio.Mmio, error) {
+	ro, err := mmio.OpenRO(mr.Path, 0, int(mr.End-mr.Start+1))
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file for mmio: %v\n", err)
+	}
+	switch ro.Read32(pmcEndianRegister) {
+	case pmcBigEndian:
+		return ro.BigEndian(), nil
+	case pmcLittleEndian:
+		return ro.LittleEndian(), nil
+	}
+	return nil, fmt.Errorf("unknown endianness for mmio: %v\n", err)
+}
