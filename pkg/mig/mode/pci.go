@@ -80,6 +80,29 @@ func (m *pciMigModeManager) openBar0(gpu int) (mmio.Mmio, error) {
 	return bar0, nil
 }
 
+func (m *pciMigModeManager) openBar0ReadOnly(gpu int) (mmio.Mmio, error) {
+	gpus, err := m.nvpci.GetGPUs()
+	if err != nil {
+		return nil, fmt.Errorf("error getting list of GPUs: %v", err)
+	}
+
+	if gpu >= len(gpus) {
+		return nil, fmt.Errorf("GPU index out of range: %v", gpu)
+	}
+
+	device := gpus[gpu]
+	if len(device.Resources) < 1 {
+		return nil, fmt.Errorf("missing bar0 MMIO resource")
+	}
+
+	bar0, err := device.Resources[0].OpenReadOnly()
+	if err != nil {
+		return nil, fmt.Errorf("error opening bar0 MMIO resource: %v", err)
+	}
+
+	return bar0, nil
+}
+
 func (m *pciMigModeManager) tryCloseBar0(bar0 mmio.Mmio) {
 	err := bar0.Close()
 	if err != nil {
@@ -106,6 +129,25 @@ func (m *pciMigModeManager) waitForBoot(bar0 mmio.Mmio) error {
 
 func (m *pciMigModeManager) openBar0AndWaitForBoot(gpu int) (_ mmio.Mmio, rerr error) {
 	bar0, err := m.openBar0(gpu)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if rerr != nil {
+			m.tryCloseBar0(bar0)
+		}
+	}()
+
+	err = m.waitForBoot(bar0)
+	if err != nil {
+		return nil, fmt.Errorf("error waiting for GPU to boot: %v", err)
+	}
+
+	return bar0, nil
+}
+
+func (m *pciMigModeManager) openBar0ReadOnlyAndWaitForBoot(gpu int) (_ mmio.Mmio, rerr error) {
+	bar0, err := m.openBar0ReadOnly(gpu)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +224,7 @@ func (m *pciMigModeManager) isMigModeChangePending(bar0 mmio.Mmio) bool {
 }
 
 func (m *pciMigModeManager) IsMigCapable(gpu int) (bool, error) {
-	bar0, err := m.openBar0(gpu)
+	bar0, err := m.openBar0ReadOnly(gpu)
 	if err != nil {
 		return false, err
 	}
@@ -191,7 +233,7 @@ func (m *pciMigModeManager) IsMigCapable(gpu int) (bool, error) {
 }
 
 func (m *pciMigModeManager) GetMigMode(gpu int) (MigMode, error) {
-	bar0, err := m.openBar0AndWaitForBoot(gpu)
+	bar0, err := m.openBar0ReadOnlyAndWaitForBoot(gpu)
 	if err != nil {
 		return -1, err
 	}
@@ -208,23 +250,20 @@ func (m *pciMigModeManager) GetMigMode(gpu int) (MigMode, error) {
 }
 
 func (m *pciMigModeManager) SetMigMode(gpu int, mode MigMode) error {
+	capable, err := m.IsMigCapable(gpu)
+	if err != nil {
+		return fmt.Errorf("error checking if GPU is MIG capable: %v", err)
+	}
+
+	if !capable {
+		return fmt.Errorf("non Mig-capable GPU")
+	}
+
 	bar0, err := m.openBar0AndWaitForBoot(gpu)
 	if err != nil {
 		return err
 	}
 	defer m.tryCloseBar0(bar0)
-
-	if !m.isMigCapable(bar0) {
-		return fmt.Errorf("non Mig-capable GPU")
-	}
-
-	enabled := m.isMigModeEnabled(bar0)
-	if enabled && mode == Enabled {
-		return nil
-	}
-	if !enabled && mode == Disabled {
-		return nil
-	}
 
 	switch mode {
 	case Disabled:
@@ -244,7 +283,7 @@ func (m *pciMigModeManager) SetMigMode(gpu int, mode MigMode) error {
 }
 
 func (m *pciMigModeManager) IsMigModeChangePending(gpu int) (bool, error) {
-	bar0, err := m.openBar0AndWaitForBoot(gpu)
+	bar0, err := m.openBar0ReadOnlyAndWaitForBoot(gpu)
 	if err != nil {
 		return false, err
 	}
