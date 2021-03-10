@@ -30,17 +30,17 @@ set -x
 
 nvidia-mig-manager::service::persist_config_across_reboot "${selected_config}"
 if [ "${?}" != "0" ]; then
-    (set +x; echo "Error persisting config across reboots")
-    exit 1
+	(set +x; echo "Error persisting config across reboots")
+	exit 1
 fi
 nvidia-mig-manager::service::apply_mode "${config_file}" "${selected_config}"
 if [ "$?" != 0 ]; then
-    (set +x; echo "Error applying MIG mode")
+	(set +x; echo "Error applying MIG mode")
 	exit 1
 fi
 nvidia-mig-manager::service::apply_config "${config_file}" "${selected_config}"
 if [ "$?" != 0 ]; then
-    (set +x; echo "Error applying MIG config")
+	(set +x; echo "Error applying MIG config")
 	exit 1
 fi
 nvidia-mig-parted export

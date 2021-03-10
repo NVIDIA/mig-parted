@@ -199,73 +199,73 @@ function nvidia-mig-manager::service::kill_k8s_containers_via_containerd_by_imag
 }
 
 function nvidia-mig-manager::service::apply_mode() {
-    local config_file="${1}"
-    local selected_config="${2}"
+	local config_file="${1}"
+	local selected_config="${2}"
 
-    nvidia-mig-parted assert --mode-only -f "${config_file}" -c "${selected_config}"
-    if [ "${?}" == "0" ]; then
-    	nvidia-mig-manager::service::post_apply_mode
-    	if [ "${?}" != "0" ]; then
-    	    (set +x; echo "There was an error running post-apply-mode")
-    	    return 1
-    	fi
-        return 0
-    fi
+	nvidia-mig-parted assert --mode-only -f "${config_file}" -c "${selected_config}"
+	if [ "${?}" == "0" ]; then
+		nvidia-mig-manager::service::post_apply_mode
+		if [ "${?}" != "0" ]; then
+			(set +x; echo "There was an error running post-apply-mode")
+			return 1
+		fi
+		return 0
+	fi
 
-    local attempt=0
-    local total=10
-    (set +x; echo "Attempting to apply MIG mode setting with GPU reset (will try up to ${total} times)")
-    until [ ${attempt} -ge ${total} ]; do
+	local attempt=0
+	local total=10
+	(set +x; echo "Attempting to apply MIG mode setting with GPU reset (will try up to ${total} times)")
+	until [ ${attempt} -ge ${total} ]; do
 		attempt=$((attempt+1))
-    	(set +x; echo "Attempt ${attempt} of ${total}")
+		(set +x; echo "Attempt ${attempt} of ${total}")
 
 		if [ "${attempt}" != 1 ]; then
 			sleep "$((attempt*30))"
 		fi
 
-    	nvidia-mig-manager::service::pre_apply_mode
-    	if [ "${?}" != "0" ]; then
-    	    (set +x; echo "There was an error running pre-apply-mode")
-    	    continue
-    	fi
-
-    	nvidia-mig-parted apply --mode-only --skip-reset -f "${config_file}" -c "${selected_config}"
-    	if [ "${?}" != "0" ]; then
-    	    (set +x; echo "There was an error setting the desired MIG mode to pending")
+		nvidia-mig-manager::service::pre_apply_mode
+		if [ "${?}" != "0" ]; then
+			(set +x; echo "There was an error running pre-apply-mode")
 			continue
-    	fi
+		fi
 
-    	nvidia-mig-manager::service::assert_gpu_reset_available
-    	if [ "${?}" != "0" ]; then
-    	    (set +x;
+		nvidia-mig-parted apply --mode-only --skip-reset -f "${config_file}" -c "${selected_config}"
+		if [ "${?}" != "0" ]; then
+			(set +x; echo "There was an error setting the desired MIG mode to pending")
+			continue
+		fi
+
+		nvidia-mig-manager::service::assert_gpu_reset_available
+		if [ "${?}" != "0" ]; then
+			(set +x;
 			echo "There is no GPU reset available to complete the MIG mode change"
-    	    echo "A reboot is required to persist it")
+			echo "A reboot is required to persist it")
 
-    		nvidia-mig-manager::service::post_apply_mode
-    		if [ "${?}" != "0" ]; then
-    		    (set +x; echo "There was an error running post-apply-mode")
-    		    continue
-    		fi
-    	    break
-    	fi
+			nvidia-mig-manager::service::post_apply_mode
+			if [ "${?}" != "0" ]; then
+				(set +x; echo "There was an error running post-apply-mode")
+				continue
+			fi
+			break
+		fi
 
 		modprobe nvidia
 		sleep "$((attempt*30))"
 		nvidia-smi -r
-    	if [ "${?}" != "0" ]; then
-    	    (set +x; echo "There was an error resetting the GPUs")
-    	    continue
-    	fi
+		if [ "${?}" != "0" ]; then
+			(set +x; echo "There was an error resetting the GPUs")
+			continue
+		fi
 
-    	nvidia-mig-manager::service::post_apply_mode
-    	if [ "${?}" != "0" ]; then
-    	    (set +x; echo "There was an error running post-apply-mode")
-    	    continue
-    	fi
+		nvidia-mig-manager::service::post_apply_mode
+		if [ "${?}" != "0" ]; then
+			(set +x; echo "There was an error running post-apply-mode")
+			continue
+		fi
 
 		return 0
 	done
-    return 1
+	return 1
 }
 
 function nvidia-mig-manager::service::apply_config() {
@@ -294,12 +294,12 @@ function nvidia-mig-manager::service::apply_config() {
 		return 0
 	fi
 
-    local attempt=0
-    local total=10
-    (set +x; echo "Attempting to apply MIG config (will try up to ${total} times)")
-    until [ ${attempt} -ge ${total} ]; do
+	local attempt=0
+	local total=10
+	(set +x; echo "Attempting to apply MIG config (will try up to ${total} times)")
+	until [ ${attempt} -ge ${total} ]; do
 		attempt=$((attempt+1))
-    	(set +x; echo "Attempt ${attempt} of ${total}")
+		(set +x; echo "Attempt ${attempt} of ${total}")
 
 		if [ "${attempt}" != 1 ]; then
 			sleep "$((attempt*30))"

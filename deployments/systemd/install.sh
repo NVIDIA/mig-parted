@@ -41,12 +41,12 @@ chmod a+rx ${CONFIG_DIR}
 chmod a+rx ${OVERRIDE_DIR}
 
 ${DOCKER} run \
-    -v ${BINARY_DIR}:/dest \
-    golang:1.15 \
-    sh -c "
-    GO111MODULE=off go get -u github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
-    GOBIN=/dest     go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
-    "
+	-v ${BINARY_DIR}:/dest \
+	golang:1.15 \
+	sh -c "
+	GO111MODULE=off go get -u github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
+	GOBIN=/dest     go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
+	"
 
 cp ${SERVICE_NAME} ${SYSTEMD_DIR}
 cp override.conf   ${OVERRIDE_DIR}
