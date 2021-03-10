@@ -56,5 +56,16 @@ cp utils-custom.sh ${CONFIG_DIR}
 cp apply-config.sh ${CONFIG_DIR}
 cp config.yaml     ${CONFIG_DIR}
 
+chmod a+r ${SYSTEMD_DIR}/${SERVICE_NAME}
+chmod a+r ${OVERRIDE_DIR}/override.conf
+chmod a+r ${CONFIG_DIR}/service.sh
+chmod a+r ${CONFIG_DIR}/utils.sh
+chmod a+r ${CONFIG_DIR}/utils-custom.sh
+chmod a+r ${CONFIG_DIR}/apply-config.sh
+chmod a+r ${CONFIG_DIR}/config.yaml
+
+chmod ug+x ${CONFIG_DIR}/service.sh
+chmod ug+x ${CONFIG_DIR}/apply-config.sh
+
 systemctl daemon-reload
 systemctl enable ${SERVICE_NAME}
