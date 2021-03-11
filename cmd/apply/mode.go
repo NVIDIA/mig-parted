@@ -53,6 +53,11 @@ func ApplyMigMode(c *Context) error {
 		}
 		log.Debugf("    MIG capable: %v\n", capable)
 
+		if !capable && !mc.MigEnabled {
+			log.Debugf("    Skipping -- non MIG-capable GPU with MIG mode disabled")
+			return nil
+		}
+
 		m, err := manager.GetMigMode(i)
 		if err != nil {
 			return fmt.Errorf("error getting MIG mode: %v", err)
