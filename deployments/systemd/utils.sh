@@ -223,30 +223,25 @@ function nvidia-mig-manager::service::apply_mode() {
 			sleep "$((attempt*30))"
 		fi
 
+		nvidia-mig-manager::service::assert_gpu_reset_available
+		if [ "${?}" != "0" ]; then
+			nvidia-mig-parted apply --mode-only --skip-reset -f "${config_file}" -c "${selected_config}"
+			if [ "${?}" != "0" ]; then
+				(set +x; echo "There was an error setting the desired MIG mode to pending")
+				continue
+			fi
+
+			(set +x;
+			echo "There is no GPU reset available to complete the MIG mode change"
+			echo "A reboot is required to apply it")
+
+			return 1
+		fi
+
 		nvidia-mig-manager::service::pre_apply_mode
 		if [ "${?}" != "0" ]; then
 			(set +x; echo "There was an error running pre-apply-mode")
 			continue
-		fi
-
-		nvidia-mig-parted apply --mode-only --skip-reset -f "${config_file}" -c "${selected_config}"
-		if [ "${?}" != "0" ]; then
-			(set +x; echo "There was an error setting the desired MIG mode to pending")
-			continue
-		fi
-
-		nvidia-mig-manager::service::assert_gpu_reset_available
-		if [ "${?}" != "0" ]; then
-			(set +x;
-			echo "There is no GPU reset available to complete the MIG mode change"
-			echo "A reboot is required to persist it")
-
-			nvidia-mig-manager::service::post_apply_mode
-			if [ "${?}" != "0" ]; then
-				(set +x; echo "There was an error running post-apply-mode")
-				continue
-			fi
-			break
 		fi
 
 		nvidia-mig-parted apply --mode-only -f "${config_file}" -c "${selected_config}"
@@ -263,6 +258,7 @@ function nvidia-mig-manager::service::apply_mode() {
 
 		return 0
 	done
+
 	return 1
 }
 
