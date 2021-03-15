@@ -18,6 +18,16 @@ CURRDIR="$(cd "$( dirname $(readlink -f "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 &
 
 source ${CURRDIR}/utils-custom.sh
 
+function nvidia-mig-manager::service::reverse_array() {
+	# first argument is the array to reverse
+	# second is the reversed array
+	local -n arr="${1}"
+	local -n rev="${2}"
+	for i in "${arr[@]}"; do
+		rev=("${i}" "${rev[@]}")
+	done
+}
+
 function nvidia-mig-manager::service::assert_module_loaded() {
 	local module="${1}"
 	cat /proc/modules | grep -e "^${module} "
