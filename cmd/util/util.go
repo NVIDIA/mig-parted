@@ -77,8 +77,13 @@ func IsNvidiaModuleLoaded() (bool, error) {
 	return false, nil
 }
 
-func NvidiaSmiReset() error {
-	cmd := exec.Command("nvidia-smi", "-r")
-	_, err := cmd.CombinedOutput()
-	return err
+func NvidiaSmiReset(gpus ...string) (string, error) {
+	var cmd *exec.Cmd
+	if len(gpus) == 0 {
+		return "", fmt.Errorf("no gpus specified")
+	} else {
+		cmd = exec.Command("nvidia-smi", "-r", "-i", strings.Join(gpus, ","))
+	}
+	output, err := cmd.CombinedOutput()
+	return string(output), err
 }

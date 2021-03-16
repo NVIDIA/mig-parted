@@ -90,21 +90,30 @@ func ApplyMigMode(c *Context) error {
 
 	if !c.Flags.SkipReset && util.Any(pending) {
 		log.Debugf("At least one mode change pending")
-		log.Debugf("Resetting all GPUs...")
+		log.Debugf("Resetting GPUs...")
 		if nvidiaModuleLoaded {
 			log.Debugf("  NVIDIA kernel module loaded")
-			log.Debugf("  Using NVML to perform GPU reset")
-			err := util.NvidiaSmiReset()
+			log.Debugf("  Using nvidia-smi to perform GPU reset")
+			var pci []string
+			for _, gpu := range gpus {
+				if gpu.Is3DController() {
+					pci = append(pci, gpu.Address)
+				}
+			}
+			output, err := util.NvidiaSmiReset(pci...)
 			if err != nil {
+				log.Errorf("%v", output)
 				return fmt.Errorf("error resetting all GPUs: %v", err)
 			}
 		} else {
 			log.Debugf("  No NVIDIA kernel module loaded")
 			log.Debugf("  Using PCIe to perform GPU reset")
 			for i, gpu := range gpus {
-				err = gpu.Reset()
-				if err != nil {
-					return fmt.Errorf("error resetting GPU %v: %v", i, err)
+				if pending[i] {
+					err = gpu.Reset()
+					if err != nil {
+						return fmt.Errorf("error resetting GPU %v: %v", i, err)
+					}
 				}
 			}
 		}

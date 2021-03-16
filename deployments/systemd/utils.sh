@@ -249,11 +249,9 @@ function nvidia-mig-manager::service::apply_mode() {
 			break
 		fi
 
-		modprobe nvidia
-		sleep "$((attempt*30))"
-		nvidia-smi -r
+		nvidia-mig-parted apply --mode-only -f "${config_file}" -c "${selected_config}"
 		if [ "${?}" != "0" ]; then
-			(set +x; echo "There was an error resetting the GPUs")
+			(set +x; echo "There was an error resetting the GPUs to activate the desired MIG mode")
 			continue
 		fi
 
