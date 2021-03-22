@@ -19,7 +19,7 @@ package mmio
 import (
 	"fmt"
 
-	"github.com/NVIDIA/mig-parted/internal/bytes"
+	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci/bytes"
 )
 
 type mockMmio struct {

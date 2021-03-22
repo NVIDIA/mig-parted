@@ -20,9 +20,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/NVIDIA/mig-parted/internal/mmio"
-	"github.com/NVIDIA/mig-parted/pkg/nvpci"
 	log "github.com/sirupsen/logrus"
+
+	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
+	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci/mmio"
 )
 
 const (

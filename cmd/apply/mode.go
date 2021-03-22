@@ -22,8 +22,9 @@ import (
 	"github.com/NVIDIA/mig-parted/api/spec/v1"
 	"github.com/NVIDIA/mig-parted/cmd/util"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
-	"github.com/NVIDIA/mig-parted/pkg/nvpci"
 	"github.com/NVIDIA/mig-parted/pkg/types"
+
+	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
 )
 
 func ApplyMigMode(c *Context) error {
