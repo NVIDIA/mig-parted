@@ -24,10 +24,11 @@ import (
 	"strings"
 
 	"github.com/NVIDIA/mig-parted/api/spec/v1"
-	"github.com/NVIDIA/mig-parted/pkg/nvpci"
 	"github.com/NVIDIA/mig-parted/pkg/types"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
+
+	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
 
 	"sigs.k8s.io/yaml"
 )

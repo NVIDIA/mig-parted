@@ -20,8 +20,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/NVIDIA/mig-parted/pkg/nvpci"
 	"github.com/stretchr/testify/require"
+
+	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
 )
 
 type mockPciMigModeManager struct {
