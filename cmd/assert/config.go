@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/NVIDIA/mig-parted/api/spec/v1"
-	"github.com/NVIDIA/mig-parted/cmd/apply"
 	"github.com/NVIDIA/mig-parted/cmd/util"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
 	"github.com/NVIDIA/mig-parted/pkg/types"
@@ -43,7 +42,7 @@ func AssertMigConfig(c *Context) error {
 	}
 
 	matched := make([]bool, len(gpus))
-	err = apply.WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
+	err = WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
 		capable, err := manager.IsMigCapable(i)
 		if err != nil {
 			return fmt.Errorf("error checking MIG capable: %v", err)

@@ -17,12 +17,21 @@
 package assert
 
 import (
+	"bufio"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"strings"
 
-	"github.com/NVIDIA/mig-parted/cmd/apply"
+	"github.com/NVIDIA/mig-parted/api/spec/v1"
 	"github.com/NVIDIA/mig-parted/cmd/util"
+	"github.com/NVIDIA/mig-parted/pkg/types"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
+
+	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
+
+	"sigs.k8s.io/yaml"
 )
 
 var log = logrus.New()
@@ -31,8 +40,18 @@ func GetLogger() *logrus.Logger {
 	return log
 }
 
-type Flags = apply.Flags
-type Context = apply.Context
+type Flags struct {
+	ConfigFile     string
+	SelectedConfig string
+	SkipReset      bool
+	ModeOnly       bool
+}
+
+type Context struct {
+	*cli.Context
+	Flags     *Flags
+	MigConfig v1.MigConfigSpecSlice
+}
 
 func BuildCommand() *cli.Command {
 	// Create a flags struct to hold our flags
@@ -75,20 +94,20 @@ func BuildCommand() *cli.Command {
 }
 
 func assertWrapper(c *cli.Context, f *Flags) error {
-	err := apply.CheckFlags(f)
+	err := CheckFlags(f)
 	if err != nil {
 		cli.ShowSubcommandHelp(c)
 		return err
 	}
 
 	log.Debugf("Parsing config file...")
-	spec, err := apply.ParseConfigFile(f)
+	spec, err := ParseConfigFile(f)
 	if err != nil {
 		return fmt.Errorf("error parsing config file: %v", err)
 	}
 
 	log.Debugf("Selecting specific MIG config...")
-	migConfig, err := apply.GetSelectedMigConfig(f, spec)
+	migConfig, err := GetSelectedMigConfig(f, spec)
 	if err != nil {
 		return fmt.Errorf("error selecting MIG config: %v", err)
 	}
@@ -116,5 +135,97 @@ func assertWrapper(c *cli.Context, f *Flags) error {
 	}
 
 	fmt.Println("Selected MIG configuration currently applied")
+	return nil
+}
+
+func CheckFlags(f *Flags) error {
+	var missing []string
+	if f.ConfigFile == "" {
+		missing = append(missing, "config-file")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required flags '%v'", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+func ParseConfigFile(f *Flags) (*v1.Spec, error) {
+	var err error
+	var configYaml []byte
+
+	if f.ConfigFile == "-" {
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			configYaml = append(configYaml, scanner.Bytes()...)
+			configYaml = append(configYaml, '\n')
+		}
+	} else {
+		configYaml, err = ioutil.ReadFile(f.ConfigFile)
+		if err != nil {
+			return nil, fmt.Errorf("read error: %v", err)
+		}
+	}
+
+	var spec v1.Spec
+	err = yaml.Unmarshal(configYaml, &spec)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal error: %v", err)
+	}
+
+	return &spec, nil
+}
+
+func GetSelectedMigConfig(f *Flags, spec *v1.Spec) (v1.MigConfigSpecSlice, error) {
+	if len(spec.MigConfigs) > 1 && f.SelectedConfig == "" {
+		return nil, fmt.Errorf("missing required flag 'selected-config' when more than one config available")
+	}
+
+	if len(spec.MigConfigs) == 1 && f.SelectedConfig == "" {
+		for c := range spec.MigConfigs {
+			f.SelectedConfig = c
+		}
+	}
+
+	if _, exists := spec.MigConfigs[f.SelectedConfig]; !exists {
+		return nil, fmt.Errorf("selected mig-config not present: %v", f.SelectedConfig)
+	}
+
+	return spec.MigConfigs[f.SelectedConfig], nil
+}
+
+func WalkSelectedMigConfigForEachGPU(migConfig v1.MigConfigSpecSlice, f func(*v1.MigConfigSpec, int, types.DeviceID) error) error {
+	nvpci := nvpci.New()
+	gpus, err := nvpci.GetGPUs()
+	if err != nil {
+		return fmt.Errorf("Error enumerating GPUs: %v", err)
+	}
+
+	for _, mc := range migConfig {
+		if mc.DeviceFilter == "" {
+			log.Debugf("Walking MigConfig for (devices=%v)", mc.Devices)
+		} else {
+			log.Debugf("Walking MigConfig for (device-filter=%v, devices=%v)", mc.DeviceFilter, mc.Devices)
+		}
+
+		for i, gpu := range gpus {
+			deviceID := types.NewDeviceID(gpu.Device, gpu.Vendor)
+
+			if !mc.MatchesDeviceFilter(deviceID) {
+				continue
+			}
+
+			if !mc.MatchesDevices(i) {
+				continue
+			}
+
+			log.Debugf("  GPU %v: %v", i, deviceID)
+
+			err = f(&mc, i, deviceID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
