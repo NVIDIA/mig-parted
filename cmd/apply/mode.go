@@ -90,32 +90,35 @@ func ApplyMigMode(c *Context) error {
 		return err
 	}
 
-	if !c.Flags.SkipReset && util.Any(pending) {
-		log.Debugf("At least one mode change pending")
-		log.Debugf("Resetting GPUs...")
-		if nvidiaModuleLoaded {
-			log.Debugf("  NVIDIA kernel module loaded")
-			log.Debugf("  Using nvidia-smi to perform GPU reset")
-			var pci []string
-			for _, gpu := range gpus {
-				if gpu.Is3DController() {
-					pci = append(pci, gpu.Address)
-				}
+	if c.Flags.SkipReset || !util.Any(pending) {
+		return nil
+	}
+
+	log.Debugf("At least one mode change pending")
+	log.Debugf("Resetting GPUs...")
+
+	if nvidiaModuleLoaded {
+		log.Debugf("  NVIDIA kernel module loaded")
+		log.Debugf("  Using nvidia-smi to perform GPU reset")
+		var pci []string
+		for _, gpu := range gpus {
+			if gpu.Is3DController() {
+				pci = append(pci, gpu.Address)
 			}
-			output, err := util.NvidiaSmiReset(pci...)
-			if err != nil {
-				log.Errorf("%v", output)
-				return fmt.Errorf("error resetting all GPUs: %v", err)
-			}
-		} else {
-			log.Debugf("  No NVIDIA kernel module loaded")
-			log.Debugf("  Using PCIe to perform GPU reset")
-			for i, gpu := range gpus {
-				if pending[i] {
-					err = gpu.Reset()
-					if err != nil {
-						return fmt.Errorf("error resetting GPU %v: %v", i, err)
-					}
+		}
+		output, err := util.NvidiaSmiReset(pci...)
+		if err != nil {
+			log.Errorf("%v", output)
+			return fmt.Errorf("error resetting all GPUs: %v", err)
+		}
+	} else {
+		log.Debugf("  No NVIDIA kernel module loaded")
+		log.Debugf("  Using PCIe to perform GPU reset")
+		for i, gpu := range gpus {
+			if pending[i] {
+				err = gpu.Reset()
+				if err != nil {
+					return fmt.Errorf("error resetting GPU %v: %v", i, err)
 				}
 			}
 		}
