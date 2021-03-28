@@ -1,0 +1,18 @@
+version: v1
+hooks:
+    apply-start:
+    - workdir: "/etc/nvidia-mig-manager"
+      command: "/bin/bash"
+      args: ["-x", "-c", "source hooks.sh; apply-start ${MIG_PARTED_SELECTED_CONFIG}"]
+    pre-apply-mode:
+    - workdir: "/etc/nvidia-mig-manager"
+      command: "/bin/bash"
+      args: ["-x", "-c", "source hooks.sh; pre-apply-mode"]
+    pre-apply-config:
+    - workdir: "/etc/nvidia-mig-manager"
+      command: "/bin/bash"
+      args: ["-x", "-c", "source hooks.sh; pre-apply-config"]
+    apply-exit:
+    - workdir: "/etc/nvidia-mig-manager"
+      command: "/bin/bash"
+      args: ["-x", "-c", "source hooks.sh; apply-exit"]
