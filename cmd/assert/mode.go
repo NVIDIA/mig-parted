@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/NVIDIA/mig-parted/api/spec/v1"
-	"github.com/NVIDIA/mig-parted/cmd/apply"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
 	"github.com/NVIDIA/mig-parted/pkg/types"
 )
@@ -28,7 +27,7 @@ import (
 func AssertMigMode(c *Context) error {
 	manager := mode.NewPciMigModeManager()
 
-	return apply.WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
+	return WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
 		if mc.MigEnabled {
 			log.Debugf("    Asserting MIG mode: %v", mode.Enabled)
 		} else {
@@ -43,7 +42,7 @@ func AssertMigMode(c *Context) error {
 
 		if !capable && !mc.MigEnabled {
 			log.Debugf("    Skipping -- non MIG-capable GPU with MIG mode disabled")
-                        return nil
+			return nil
 		}
 
 		if !capable && !mc.MigEnabled {
