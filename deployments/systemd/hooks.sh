@@ -14,7 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-custom_driver_services=(
+CURRDIR="$(cd "$( dirname $(readlink -f "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 && pwd)"
+
+source ${CURRDIR}/utils.sh
+
+driver_services=(
 	nvsm.service
 	nvsm-mqtt.service
 	nvsm-core.service
@@ -24,76 +28,84 @@ custom_driver_services=(
 	dcgm.service
 )
 
-custom_k8s_services=(
+k8s_services=(
 	dcgm-exporter.service
 	kubelet.service
 )
 
-custom_k8s_pods=(
+k8s_pod_images=(
 	k8s-device-plugin
 	gpu-feature-discovery
 	dcgm-exporter
 )
 
-function nvidia-mig-manager::service::pre_apply_mode() {
-	nvidia-mig-manager::service::stop_k8s_components
-	if [ "${?}" != "0" ]; then
-		return 1
-	fi
-	nvidia-mig-manager::service::stop_driver_services
-	if [ "${?}" != "0" ]; then
-		return 1
-	fi
-	return 0
-}
-
-function nvidia-mig-manager::service::post_apply_mode() {
-	nvidia-mig-manager::service::start_driver_services
-	if [ "${?}" != "0" ]; then
-		return 1
-	fi
-	nvidia-mig-manager::service::start_k8s_components
+function apply-start() {
+	local selected_config="${1}"
+	nvidia-mig-manager::service::persist_config_across_reboot ${selected_config}
 	if [ "${?}" != "0" ]; then
 		return 1
 	fi
 	return 0
 }
 
-function nvidia-mig-manager::service::pre_apply_config() {
-	nvidia-mig-manager::service::stop_k8s_components
+function pre-apply-mode() {
+	stop_k8s_components
+	if [ "${?}" != "0" ]; then
+		return 1
+	fi
+	stop_driver_services
+	if [ "${?}" != "0" ]; then
+		return 1
+	fi
+	return 0
+}
+
+function pre-apply-config() {
+	stop_k8s_components
 	return ${?}
 }
 
-function nvidia-mig-manager::service::post_apply_config() {
-	nvidia-mig-manager::service::start_k8s_components
-	return ${?}
+function apply-exit() {
+	start_driver_services
+	if [ "${?}" != "0" ]; then
+		return 1
+	fi
+	start_k8s_components
+	if [ "${?}" != "0" ]; then
+		return 1
+	fi
 }
 
-function nvidia-mig-manager::service::stop_driver_services() {
+function stop_driver_services() {
 	local services=()
 	nvidia-mig-manager::service::reverse_array \
-		custom_driver_services \
+		driver_services \
 		services
 	nvidia-mig-manager::service::stop_systemd_services services
 	return ${?}
 }
 
-function nvidia-mig-manager::service::start_driver_services() {
-	nvidia-mig-manager::service::start_systemd_services custom_driver_services
+function start_driver_services() {
+	nvidia-mig-manager::service::start_systemd_services driver_services
 	return ${?}
 }
 
-function nvidia-mig-manager::service::stop_k8s_components() {
+function stop_k8s_components() {
 	local services=()
 	nvidia-mig-manager::service::reverse_array \
-		custom_k8s_services \
+		k8s_services \
 		services
 	nvidia-mig-manager::service::stop_systemd_services services
 	if [ "${?}" != "0" ]; then
 		return 1
 	fi
 
-	nvidia-mig-manager::service::kill_k8s_containers_via_runtime_by_image custom_k8s_pods
+	nvidia-mig-manager::service::kill_k8s_containers_via_docker_by_image k8s_pod_images
+	if [ "${?}" != "0" ]; then
+		return 1
+	fi
+
+	nvidia-mig-manager::service::kill_k8s_containers_via_containerd_by_image k8s_pod_images
 	if [ "${?}" != "0" ]; then
 		return 1
 	fi
@@ -101,7 +113,7 @@ function nvidia-mig-manager::service::stop_k8s_components() {
 	return 0
 }
 
-function nvidia-mig-manager::service::start_k8s_components() {
-	nvidia-mig-manager::service::start_systemd_services custom_k8s_services
+function start_k8s_components() {
+	nvidia-mig-manager::service::start_systemd_services k8s_services
 	return ${?}
 }

@@ -1,24 +1,24 @@
 # The `nvidia-mig-manager.service`
 
 The `nvidia-mig-manager.service` is a `systemd` service and a set of support
-scripts that wrap `nvidia-mig-parted` to provide the following features:
+hooks that extend `nvidia-mig-parted` to provide the following features:
 
 1. When applying a MIG mode change, shutdown (and restart) a *user-specific*
    set of NVIDIA driver clients so that a GPU reset can be applied to persist
    the MIG mode setting. A list of common clients is provided by default, but
-   users can customize this list to their own particular needs. Use the
-   provided `apply-config.sh` instead of `nvidia-mig-parted` directly to make
-   sure this feature is applied.
+   users can customize this list to their own particular needs. Please see the
+   provided `hooks.sh` and `hooks.yaml` files for details on what is run and
+   how to change it.
 
 1. When applying a MIG device configuration, shutdown (and restart) a *user-specific*
    set of services so that they will pick up any MIG device changes once they
    come back online. Common services such as the `k8s-device-plugin`,
-   `gpu-feature-discovery` and `dcgm-exporter` are provided by deefault, but
-   this list can be customized as needed. Use the provided `apply-config.sh`
-   instead of `nvidia-mig-parted` directly to make sure this feature is applied.
+   `gpu-feature-discovery` and `dcgm-exporter` are provided by default, but
+   this list can be customized as needed. Please see the provided `hooks.sh`
+   and `hooks.yaml` files for details on what is run and how to change it.
 
 1. Persist MIG device configurations across node reboots. So long as the
-   provided `apply-config.sh` script is used to perform any desired MIG
+   provided `hooks.yaml` file is used when performing any desired MIG
    configurations, those changes will be reapplied every time the node reboots.
 
 1. Apply MIG mode changes ***without*** requiring the NVIDIA driver to be
@@ -44,33 +44,48 @@ The following files will be added as part of this installation:
 * `/usr/bin/nvidia-mig-parted`
 * `/usr/lib/systemd/system/nvidia-mig-manager.service`
 * `/etc/systemd/system/nvidia-mig-manager.service.d/override.conf`
-* `/etc/nvidia-mig-manager/config.yaml`
-* `/etc/nvidia-mig-manager/service.sh`
-* `/etc/nvidia-mig-manager/apply-config.sh`
+* `/etc/profile.d/mig-parted.sh`
 * `/etc/nvidia-mig-manager/utils.sh`
-* `/etc/nvidia-mig-manager/utils-custom.sh`
+* `/etc/nvidia-mig-manager/service.sh`
+* `/etc/nvidia-mig-manager/hooks.sh`
+* `/etc/nvidia-mig-manager/hooks.yaml`
+* `/etc/nvidia-mig-manager/config.yaml`
 
 Users should only need to customize the `config.yaml` (to add any user-specific
-MIG configurations they would like to apply) and the `utils-custom.sh` file (to
-add any user specific services that need to be shutdown and restarted when
-applying a MIG configuration).
+MIG configurations they would like to apply) and the `hooks.sh` and
+`hooks.yaml` files (to add any user specific services that need to be shutdown
+and restarted when applying a MIG configuration).
 
 Once installed, new MIG configurations can be applied at any time by running
-`/etc/nvidia-mig-manager/apply-config.sh` with the name of one of the
-configurations from `/etc/nvidia-mig-manager/config.yaml`.
+`nvidia-mig-parted apply` and pointing it at the `config.yaml` and `hooks.yaml`
+files in `/etc/nvidia-mig-manager`.
 
-As noted above, using this script will do everything it can to ensure that the
-new configuration is applied cleanly. If for some reason the config just won't
-seem to apply (because the full set of services that need to be stopped /
-started are too difficult to enumerate), the node can always be rebooted (as a
-*very* last resort), at which point the config should now be in place.
+By default, environment variables for the config and hooks files are set in
+`/etc/profile.d/mig-parted.sh` as part of this installation. Meaning that
+once this service is installed, anytime you login, these variables should be
+set for you:
+```
+export MIG_PARTED_CONFIG_FILE=/etc/nvidia-mig-manager/config.yaml
+export MIG_PARTED_HOOKS_FILE=/etc/nvidia-mig-manager/hooks.yaml
+```
 
-Below are some examples of how one might run `apply-config.sh` in a production
-setting:
+As noted above, these hooks do everything they can to ensure that the services
+are started and stopped so that the new configuration is applied cleanly. If
+for some reason the config just won't seem to apply (because the full set of
+services that need to be stopped / started are too difficult to enumerate), the
+node can always be rebooted (as a *very* last resort), at which point the
+config should now be in place.
+
+Below are some examples of how one might run this in a production setting:
 ```
 # Using ansible
 - name: Apply a new MIG configuration 
-  command: /etc/nvidia-mig-manager/apply-config.sh all-1g.5gb
+  environment:
+      MIG_PARTED_DEBUG: false
+      MIG_PARTED_HOOKS_FILE: /etc/nvidia-mig-manager/hooks.yaml
+      MIG_PARTED_CONFIG_FILE: /etc/nvidia-mig-manager/config.yaml
+      MIG_PARTED_SELECTED_CONFIG: all-1g.5gb
+  command: /usr/bin/nvidia-mig-parted apply
 
 # Using docker
 docker run \
@@ -79,8 +94,12 @@ docker run \
     --ipc=host \
     --pid=host \
     -v /:/host \
+    -e MIG_PARTED_DEBUG=false \
+    -e MIG_PARTED_HOOKS_FILE=/etc/nvidia-mig-manager/hooks.yaml \
+    -e MIG_PARTED_CONFIG_FILE=/etc/nvidia-mig-manager/config.yaml \
+    -e MIG_PARTED_SELECTED_CONFIG=all-1g.5gb \
     library/alpine \
-    sh -c "exec chroot /host bash /etc/nvidia-mig-manager/apply-config.sh all-1g.5gb"
+    sh -c "exec chroot /host /usr/bin/nvidia-mig-parted apply"
 
 # Using kubernetes
 cat <<EOF | kubectl apply -f -
@@ -96,7 +115,16 @@ spec:
   - name: nvidia-mig-parted
     image: library/alpine
     imagePullPolicy: IfNotPresent
-    command: ["sh", "-c", "exec chroot /host bash /etc/nvidia-mig-manager/apply-config.sh all-1g.5gb"]
+    env:
+    - name: MIG_PARTED_DEBUG
+      value: "false"
+    - name: MIG_PARTED_HOOKS_FILE
+      value: "/etc/nvidia-mig-manager/hooks.yaml"
+    - name: MIG_PARTED_CONFIG_FILE
+      value: "/etc/nvidia-mig-manager/config.yaml"
+    - name: MIG_PARTED_SELECTED_CONFIG
+      value: "all-1g.5gb"
+    command: ["sh", "-c", "exec chroot /host nvidia-mig-parted apply"]
     securityContext:
       privileged: true
     volumeMounts:

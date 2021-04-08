@@ -27,18 +27,21 @@ SYSTEMD_DIR="/usr/lib/systemd/system"
 DATA_DIR="/var/lib/${SERVICE_ROOT}"
 CONFIG_DIR="/etc/${SERVICE_ROOT}"
 OVERRIDE_DIR="/etc/systemd/system/${SERVICE_NAME}.d"
+PROFILED_DIR="/etc/profile.d"
 
 mkdir -p ${BINARY_DIR}
 mkdir -p ${SYSTEMD_DIR}
 mkdir -p ${DATA_DIR}
 mkdir -p ${CONFIG_DIR}
 mkdir -p ${OVERRIDE_DIR}
+mkdir -p ${PROFILED_DIR}
 
 chmod a+rx ${BINARY_DIR}
 chmod a+rx ${SYSTEMD_DIR}
 chmod a+rx ${DATA_DIR}
 chmod a+rx ${CONFIG_DIR}
 chmod a+rx ${OVERRIDE_DIR}
+chmod a+rx ${PROFILED_DIR}
 
 ${DOCKER} run \
 	-v ${BINARY_DIR}:/dest \
@@ -49,23 +52,24 @@ ${DOCKER} run \
 	"
 
 cp ${SERVICE_NAME} ${SYSTEMD_DIR}
+cp mig-parted.sh   ${PROFILED_DIR}
 cp override.conf   ${OVERRIDE_DIR}
 cp service.sh      ${CONFIG_DIR}
 cp utils.sh        ${CONFIG_DIR}
-cp utils-custom.sh ${CONFIG_DIR}
-cp apply-config.sh ${CONFIG_DIR}
+cp hooks.sh        ${CONFIG_DIR}
+cp hooks.yaml      ${CONFIG_DIR}
 cp config.yaml     ${CONFIG_DIR}
 
 chmod a+r ${SYSTEMD_DIR}/${SERVICE_NAME}
+chmod a+r ${PROFILED_DIR}/mig-parted.sh
 chmod a+r ${OVERRIDE_DIR}/override.conf
 chmod a+r ${CONFIG_DIR}/service.sh
 chmod a+r ${CONFIG_DIR}/utils.sh
-chmod a+r ${CONFIG_DIR}/utils-custom.sh
-chmod a+r ${CONFIG_DIR}/apply-config.sh
+chmod a+r ${CONFIG_DIR}/hooks.sh
+chmod a+r ${CONFIG_DIR}/hooks.yaml
 chmod a+r ${CONFIG_DIR}/config.yaml
 
 chmod ug+x ${CONFIG_DIR}/service.sh
-chmod ug+x ${CONFIG_DIR}/apply-config.sh
 
 systemctl daemon-reload
 systemctl enable ${SERVICE_NAME}

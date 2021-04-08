@@ -25,6 +25,7 @@ SYSTEMD_DIR="/usr/lib/systemd/system"
 DATA_DIR="/var/lib/${SERVICE_ROOT}"
 CONFIG_DIR="/etc/${SERVICE_ROOT}"
 OVERRIDE_DIR="/etc/systemd/system/${SERVICE_NAME}.d"
+PROFILED_DIR="/etc/profile.d"
 
 systemctl disable ${SERVICE_NAME}
 systemctl daemon-reload
@@ -35,3 +36,4 @@ rm -rf ${OVERRIDE_DIR}
 
 rm ${BINARY_DIR}/${MIG_PARTED_NAME}
 rm ${SYSTEMD_DIR}/${SERVICE_NAME}
+rm ${PROFILED_DIR}/mig-parted.sh
