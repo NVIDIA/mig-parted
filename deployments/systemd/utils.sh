@@ -122,13 +122,20 @@ function nvidia-mig-manager::service::kill_k8s_containers_via_containerd_by_imag
 	done
 
 	for i in ${images[@]}; do
-		local containers="$(ctr -n k8s.io container ls "image~=${i}" -q)"
-		if [ "${containers}" != "" ]; then
-			ctr -n k8s.io tasks kill -a -s SIGKILL ${containers}
+		local tasks="$(ctr -n k8s.io task ls "image~=${i}" -q)"
+		if [ "${tasks}" != "" ]; then
+			ctr -n k8s.io task kill -a -s SIGKILL ${tasks}
 			if [ "${?}" != "0" ]; then
 				return 1
 			fi
 			sleep 10
+			ctr -n k8s.io task rm -f ${tasks}
+			if [ "${?}" != "0" ]; then
+				return 1
+			fi
+		fi
+		local containers="$(ctr -n k8s.io container ls "image~=${i}" -q)"
+		if [ "${containers}" != "" ]; then
 			ctr -n k8s.io container rm ${containers}
 			if [ "${?}" != "0" ]; then
 				return 1
