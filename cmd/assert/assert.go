@@ -45,6 +45,7 @@ type Flags struct {
 	SelectedConfig string
 	SkipReset      bool
 	ModeOnly       bool
+	ValidConfig    bool
 }
 
 type Context struct {
@@ -88,6 +89,13 @@ func BuildCommand() *cli.Command {
 			Destination: &assertFlags.ModeOnly,
 			EnvVars:     []string{"MIG_PARTED_MODE_CHANGE_ONLY"},
 		},
+		&cli.BoolFlag{
+			Name:        "valid-config",
+			Aliases:     []string{"a"},
+			Usage:       "Only assert that the config file is valid and the selected config is present in it",
+			Destination: &assertFlags.ValidConfig,
+			EnvVars:     []string{"MIG_PARTED_VALID_CONFIG"},
+		},
 	}
 
 	return &assert
@@ -110,6 +118,11 @@ func assertWrapper(c *cli.Context, f *Flags) error {
 	migConfig, err := GetSelectedMigConfig(f, spec)
 	if err != nil {
 		return fmt.Errorf("error selecting MIG config: %v", err)
+	}
+
+	if f.ValidConfig {
+		fmt.Println("Selected MIG configuration is valid")
+		return nil
 	}
 
 	context := Context{
