@@ -84,7 +84,7 @@ func BuildCommand() *cli.Command {
 		&cli.BoolFlag{
 			Name:        "mode-only",
 			Aliases:     []string{"m"},
-			Usage:       "Only assert the MIG mode setting from the config, not the configured MIG devices",
+			Usage:       "Only assert the MIG mode setting from the selected config, not the configured MIG devices",
 			Destination: &assertFlags.ModeOnly,
 			EnvVars:     []string{"MIG_PARTED_MODE_CHANGE_ONLY"},
 		},
@@ -125,13 +125,16 @@ func assertWrapper(c *cli.Context, f *Flags) error {
 		return fmt.Errorf("Assertion failure: selected configuration not currently applied")
 	}
 
-	if !f.ModeOnly {
-		log.Debugf("Asserting MIG device configuration...")
-		err = AssertMigConfig(&context)
-		if err != nil {
-			log.Debug(util.Capitalize(err.Error()))
-			return fmt.Errorf("Assertion failure: selected configuration not currently applied")
-		}
+	if f.ModeOnly {
+		fmt.Println("Selected MIG mode settings from configuration currently applied")
+		return nil
+	}
+
+	log.Debugf("Asserting MIG device configuration...")
+	err = AssertMigConfig(&context)
+	if err != nil {
+		log.Debug(util.Capitalize(err.Error()))
+		return fmt.Errorf("Assertion failure: selected configuration not currently applied")
 	}
 
 	fmt.Println("Selected MIG configuration currently applied")
