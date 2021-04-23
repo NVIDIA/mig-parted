@@ -217,7 +217,7 @@ func WalkSelectedMigConfigForEachGPU(migConfig v1.MigConfigSpecSlice, f func(*v1
 	}
 
 	for _, mc := range migConfig {
-		if mc.DeviceFilter == "" {
+		if mc.DeviceFilter == nil {
 			log.Debugf("Walking MigConfig for (devices=%v)", mc.Devices)
 		} else {
 			log.Debugf("Walking MigConfig for (device-filter=%v, devices=%v)", mc.DeviceFilter, mc.Devices)

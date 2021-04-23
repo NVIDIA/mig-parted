@@ -31,7 +31,7 @@ type Spec struct {
 }
 
 type MigConfigSpec struct {
-	DeviceFilter string          `json:"device-filter,omitempty" yaml:"device-filter,omitempty"`
+	DeviceFilter interface{}     `json:"device-filter,omitempty" yaml:"device-filter,flow,omitempty"`
 	Devices      interface{}     `json:"devices"                 yaml:"devices,flow"`
 	MigEnabled   bool            `json:"mig-enabled"             yaml:"mig-enabled"`
 	MigDevices   types.MigConfig `json:"mig-devices"             yaml:"mig-devices"`
@@ -117,12 +117,19 @@ func (s *MigConfigSpec) UnmarshalJSON(b []byte) error {
 	for k, v := range spec {
 		switch k {
 		case "device-filter":
-			var filter string
-			err := json.Unmarshal(v, &filter)
-			if err != nil {
-				return err
+			var str string
+			err1 := json.Unmarshal(v, &str)
+			if err1 == nil {
+				result.DeviceFilter = str
+				break
 			}
-			result.DeviceFilter = filter
+			var strslice []string
+			err2 := json.Unmarshal(v, &strslice)
+			if err2 == nil {
+				result.DeviceFilter = strslice
+				break
+			}
+			return fmt.Errorf("(%v, %v)", err1, err2)
 		case "devices":
 			var str string
 			err1 := json.Unmarshal(v, &str)

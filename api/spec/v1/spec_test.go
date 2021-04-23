@@ -94,6 +94,23 @@ func TestMarshallUnmarshall(t *testing.T) {
 					},
 				},
 			},
+			"multi-device-filter": []MigConfigSpec{
+				{
+					DeviceFilter: []string{"A100-SXM4-40GB", "A100-PCIE-40GB"},
+					Devices:      []int{0, 1, 2, 3},
+					MigEnabled:   false,
+				},
+				{
+					DeviceFilter: []string{"A100-SXM4-40GB", "A100-PCIE-40GB"},
+					Devices:      []int{4, 5, 6, 7},
+					MigEnabled:   true,
+					MigDevices: types.MigConfig{
+						"1g.5gb":  2,
+						"2g.10gb": 1,
+						"3g.20gb": 1,
+					},
+				},
+			},
 		},
 	}
 
@@ -232,6 +249,18 @@ func TestMigConfigSpec(t *testing.T) {
 			"Well formed with filter",
 			`{
 				"device-filter": "MODEL",
+				"devices": "all",
+				"mig-enabled": true,
+				"mig-devices": {
+					"1g.5gb": 2
+				}
+			}`,
+			false,
+		},
+		{
+			"Well formed with multi-filter",
+			`{
+				"device-filter": ["MODEL1", "MODEL2"],
 				"devices": "all",
 				"mig-enabled": true,
 				"mig-devices": {
