@@ -17,64 +17,29 @@
 package v1
 
 import (
-	"sort"
-
 	"github.com/NVIDIA/mig-parted/pkg/types"
 )
 
-func (specs MigConfigSpecSlice) Normalize() MigConfigSpecSlice {
-	dfCounts := make(map[string]int)
-	for _, s := range specs {
-		dfCounts[s.DeviceFilter]++
-	}
-
-	var merged []MigConfigSpec
-OUTER:
-	for _, s := range specs {
-		if len(merged) == 0 {
-			merged = append(merged, s)
-			continue
-		}
-		for i, m := range merged {
-			if s.DeviceFilter != m.DeviceFilter {
-				continue
-			}
-			if s.MigEnabled != m.MigEnabled {
-				continue
-			}
-			if !s.MigDevices.Equals(m.MigDevices) {
-				continue
-			}
-			switch devices := s.Devices.(type) {
-			case []int:
-				merged[i].Devices = append(m.Devices.([]int), devices...)
-				sort.Ints(merged[i].Devices.([]int))
-				if len(merged[i].Devices.([]int)) == dfCounts[merged[i].DeviceFilter] {
-					merged[i].Devices = "all"
-				}
-			}
-			continue OUTER
-		}
-		merged = append(merged, s)
-	}
-
-	if len(dfCounts) == 1 {
-		for i := range merged {
-			merged[i].DeviceFilter = ""
-		}
-	}
-
-	return merged
-}
-
 func (ms *MigConfigSpec) MatchesDeviceFilter(deviceID types.DeviceID) bool {
-	if ms.DeviceFilter == "" {
+	var deviceFilter []string
+	switch df := ms.DeviceFilter.(type) {
+	case string:
+		if df != "" {
+			deviceFilter = append(deviceFilter, df)
+		}
+	case []string:
+		deviceFilter = df
+	}
+
+	if len(deviceFilter) == 0 {
 		return true
 	}
 
-	newDeviceID, _ := types.NewDeviceIDFromString(ms.DeviceFilter)
-	if newDeviceID == deviceID {
-		return true
+	for _, df := range deviceFilter {
+		newDeviceID, _ := types.NewDeviceIDFromString(df)
+		if newDeviceID == deviceID {
+			return true
+		}
 	}
 
 	return false
