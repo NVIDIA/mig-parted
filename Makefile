@@ -96,3 +96,19 @@ $(DOCKER_TARGETS): docker-%: .build-image
 		--user $$(id -u):$$(id -g) \
 		$(BUILDIMAGE) \
 			make $(*)
+
+# Deployment targets are forwarded to the Makefile in the following directory
+DEPLOYMENT_DIR = deployments/gpu-operator
+
+DEPLOYMENT_TARGETS = ubuntu20.04 ubi8
+BUILD_DEPLOYMENT_TARGETS := $(patsubst %, build-%, $(DEPLOYMENT_TARGETS))
+PUSH_DEPLOYMENT_TARGETS := $(patsubst %, push-%, $(DEPLOYMENT_TARGETS))
+.PHONY:
+
+$(BUILD_DEPLOYMENT_TARGETS): build-%:
+	@echo "Running 'make $(*)' in $(DEPLOYMENT_DIR)"
+	make -C $(DEPLOYMENT_DIR) $(*)
+
+$(PUSH_DEPLOYMENT_TARGETS): %:
+	@echo "Running 'make $(*)' in $(DEPLOYMENT_DIR)"
+	make -C $(DEPLOYMENT_DIR) $(*)
