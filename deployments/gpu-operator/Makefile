@@ -16,6 +16,7 @@ VERSION ?= v0.1.0
 
 DOCKER ?= docker
 GOLANG_VERSION ?= 1.15
+CUDA_BASE_IMAGE ?= nvcr.io/nvidia/cuda:11.3.0-base
 BUILD_DIR ?= ../..
 
 ifeq ($(IMAGE),)
@@ -24,36 +25,35 @@ IMAGE := $(REGISTRY)/k8s-mig-manager
 endif
 
 ##### Public rules #####
+DEFAULT_PUSH_TARGET := ubuntu20.04
+TARGETS := $(DEFAULT_PUSH_TARGET) ubi8
+PUSH_TARGETS := $(patsubst %, push-%, $(TARGETS))
+BUILD_TARGETS := $(patsubst %, build-%, $(TARGETS))
 
-all: ubuntu20.04 ubi8
+.PHONY: $(TARGETS) $(PUSH_TARGETS) $(BUILD_TARGETS) $(TEST_TARGETS)
 
-push:
-	$(DOCKER) push "$(IMAGE):$(VERSION)-ubuntu20.04"
-	$(DOCKER) push "$(IMAGE):$(VERSION)-ubi8"
+all: $(TARGETS)
 
+$(PUSH_TARGETS): push-%:
+	$(DOCKER) push "$(IMAGE):$(VERSION)-$(*)"
+
+# For the default push target we also push the short and latest tags
+push-$(DEFAULT_PUSH_TARGET): push-short push-latest
 push-short:
-	$(DOCKER) tag "$(IMAGE):$(VERSION)-ubuntu20.04" "$(IMAGE):$(VERSION)"
+	$(DOCKER) tag "$(IMAGE):$(VERSION)-$(DEFAULT_PUSH_TARGET)" "$(IMAGE):$(VERSION)"
 	$(DOCKER) push "$(IMAGE):$(VERSION)"
 
 push-latest:
-	$(DOCKER) tag "$(IMAGE):$(VERSION)-ubuntu20.04" "$(IMAGE):latest"
+	$(DOCKER) tag "$(IMAGE):$(VERSION)-$(DEFAULT_PUSH_TARGET)" "$(IMAGE):latest"
 	$(DOCKER) push "$(IMAGE):latest"
 
-ubuntu20.04:
+
+$(TARGETS): %: build-%
+$(BUILD_TARGETS): build-%:
 	$(DOCKER) build --pull \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:11.3.0-base-ubuntu20.04 \
-		--tag $(IMAGE):$(VERSION)-ubuntu20.04 \
+		--build-arg BASE_IMAGE=$(CUDA_BASE_IMAGE)-$(*) \
+		--tag $(IMAGE):$(VERSION)-$(*) \
 		--file Dockerfile \
 		$(BUILD_DIR)
-
-ubi8:
-	$(DOCKER) build --pull \
-		--build-arg VERSION=$(VERSION) \
-		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:11.3.0-base-ubi8 \
-		--tag $(IMAGE):$(VERSION)-ubi8 \
-		--file Dockerfile \
-		$(BUILD_DIR)
-
