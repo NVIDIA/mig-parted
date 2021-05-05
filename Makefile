@@ -71,7 +71,7 @@ test:
 # Note: This image is local only
 .PHONY: .build-image .pull-build-image .push-build-image
 .build-image: docker/Dockerfile.devel
-	if [[ x"$(SKIP_IMAGE_BUILD)" == x"" ]]; then \
+	if [ x"$(SKIP_IMAGE_BUILD)" = x"" ]; then \
 		$(DOCKER) build \
 			--progress=plain \
 			--build-arg GOLANG_VERSION="$(GOLANG_VERSION)" \
