@@ -1,0 +1,24 @@
+Source: nvidia-mig-manager
+Section: @SECTION@utils
+Priority: optional
+Maintainer: NVIDIA CORPORATION <cudatools@nvidia.com>
+Standards-Version: 3.9.8
+Homepage: https://github.com/NVIDIA/mig-parted/deployments/systemd
+Vcs-Git: https://github.com/NVIDIA/mig-parted
+Vcs-Browser: https://github.com/NVIDIA/mig-parted
+Build-Depends: debhelper (>= 9)
+
+Package: nvidia-mig-manager
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: NVIDIA MIG Partition Editor and Systemd Service
+ The NVIDIA MIG Partition Editor allows administrators to declaratively define a
+ set of possible MIG configurations they would like applied to all GPUs on a
+ node. At runtime, they then point nvidia-mig-parted at one of these
+ configurations, and nvidia-mig-parted takes care of applying it. In this way,
+ the same configuration file can be spread across all nodes in a cluster, and a
+ runtime flag (or environment variable) can be used to decide which of these
+ configurations to actually apply to a node at any given time.
+ .
+ The nvidia-mig-manager.service is a systemd service and a set of support hooks
+ that extend nvidia-mig-parted to provide additional features.

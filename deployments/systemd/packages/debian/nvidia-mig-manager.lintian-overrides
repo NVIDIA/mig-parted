@@ -1,0 +1,6 @@
+file-in-etc-not-marked-as-conffile
+binary-without-manpage
+systemd-service-file-refers-to-unusual-wantedby-target
+script-not-executable
+new-package-should-close-itp-bug
+hardening-no-pie
