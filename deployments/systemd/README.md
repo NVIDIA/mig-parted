@@ -44,7 +44,7 @@ The following files will be added as part of this installation:
 * `/usr/bin/nvidia-mig-parted`
 * `/usr/lib/systemd/system/nvidia-mig-manager.service`
 * `/etc/systemd/system/nvidia-mig-manager.service.d/override.conf`
-* `/etc/profile.d/mig-parted.sh`
+* `/etc/profile.d/nvidia-mig-parted.sh`
 * `/etc/nvidia-mig-manager/utils.sh`
 * `/etc/nvidia-mig-manager/service.sh`
 * `/etc/nvidia-mig-manager/hooks.sh`

@@ -51,17 +51,17 @@ ${DOCKER} run \
 	GOBIN=/dest     go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
 	"
 
-cp ${SERVICE_NAME} ${SYSTEMD_DIR}
-cp mig-parted.sh   ${PROFILED_DIR}
-cp override.conf   ${OVERRIDE_DIR}
-cp service.sh      ${CONFIG_DIR}
-cp utils.sh        ${CONFIG_DIR}
-cp hooks.sh        ${CONFIG_DIR}
-cp hooks.yaml      ${CONFIG_DIR}
-cp config.yaml     ${CONFIG_DIR}
+cp ${SERVICE_NAME}       ${SYSTEMD_DIR}
+cp ${MIG_PARTED_NAME}.sh ${PROFILED_DIR}
+cp override.conf         ${OVERRIDE_DIR}
+cp service.sh            ${CONFIG_DIR}
+cp utils.sh              ${CONFIG_DIR}
+cp hooks.sh              ${CONFIG_DIR}
+cp hooks.yaml            ${CONFIG_DIR}
+cp config.yaml           ${CONFIG_DIR}
 
 chmod a+r ${SYSTEMD_DIR}/${SERVICE_NAME}
-chmod a+r ${PROFILED_DIR}/mig-parted.sh
+chmod a+r ${PROFILED_DIR}/${MIG_PARTED_NAME}.sh
 chmod a+r ${OVERRIDE_DIR}/override.conf
 chmod a+r ${CONFIG_DIR}/service.sh
 chmod a+r ${CONFIG_DIR}/utils.sh
