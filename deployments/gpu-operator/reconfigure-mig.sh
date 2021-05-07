@@ -121,7 +121,8 @@ kubectl label --overwrite \
 	node ${NODE_NAME} \
 	nvidia.com/gpu.deploy.device-plugin=false \
 	nvidia.com/gpu.deploy.gpu-feature-discovery=false \
-	nvidia.com/gpu.deploy.dcgm-exporter=false
+	nvidia.com/gpu.deploy.dcgm-exporter=false \
+	nvidia.com/gpu.deploy.operator-validator=false
 if [ "${?}" != "0" ]; then
 	echo "Unable to tear down GPU operator components by setting their daemonset labels"
 	exit_failed
@@ -147,6 +148,13 @@ kubectl wait --for=delete pod \
 	--field-selector "spec.nodeName=${NODE_NAME}" \
 	-n gpu-operator-resources \
 	-l app=nvidia-dcgm-exporter
+
+echo "Waiting for operator-validator to shutdown"
+kubectl wait --for=delete pod \
+	--timeout=5m \
+	--field-selector "spec.nodeName=${NODE_NAME}" \
+	-n gpu-operator-resources \
+	-l app=nvidia-operator-validator
 
 echo "Applying the MIG mode change from the selected config to the node"
 echo "If the -r option was passed, the node will be automatically rebooted if this is not successful"
@@ -174,16 +182,12 @@ kubectl label --overwrite \
 	node ${NODE_NAME} \
 	nvidia.com/gpu.deploy.device-plugin=true \
 	nvidia.com/gpu.deploy.gpu-feature-discovery=true \
-	nvidia.com/gpu.deploy.dcgm-exporter=true
+	nvidia.com/gpu.deploy.dcgm-exporter=true \
+	nvidia.com/gpu.deploy.operator-validator=true
 if [ "${?}" != "0" ]; then
 	echo "Unable to bring up GPU operator components by setting their daemonset labels"
 	exit_failed
 fi
-
-echo "Deleting the nvidia-device-plugin validation pod so that it will rerun on the new MIG configuration"
-kubectl delete pod \
-	-n gpu-operator-resources \
-	-l app=nvidia-device-plugin-validation
 
 if [ "${apply_exit_code}" != "0" ]; then
 	exit_failed
