@@ -12,5 +12,164 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+##
+## Variables that control where build artifacts are places for scanning and testing:
+## CI_REGISTRY
+## CI_REGISTRY_IMAGE
+## CI_REGISTRY_USER
+## CI_REGISTRY_PASSWORD
+##
+## Variables that control where release artifacts go:
+## NGC_REGISTRY
+## NGC_REGISTRY_IMAGE
+## NGC_REGISTRY_USER
+## NGC_REGISTRY_TOKEN
+## REGISTRY_TOKEN
+## REGISTRY_USER
+## REGISTRY_IMAGE
+## DOCKERHUB_REGISTRY
+
+# We include the public gitlab CI definition to reuse the steps defined there
 include:
   - .common-ci.yml
+
+stages:
+  - pull
+  - scan
+  - release
+
+default:
+  tags:
+    - type/docker
+    - docker/privileged
+    - cnt
+    - container-dev
+    - os/linux
+
+variables:
+  SOURCE_REGISTRY: registry.gitlab.com/mig-parted/staging
+  SOURCE_IMAGE: k8s-mig-manager
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+
+.pull-source-image:
+  before_script:
+    - '[[ -z "${SOURCE_VERSION}" ]] || export IN_VERSION="${SOURCE_VERSION}" '
+    - 'echo Version: ${IN_VERSION#v} ; [[ -n "${IN_VERSION#v}" ]] || exit 1'
+    - 'echo Dist: ${DIST} ; [[ -n "${DIST}" ]] || exit 1'
+
+    - 'echo Pulling "${IN_IMAGE}:${IN_VERSION#v}-${DIST}"'
+
+    - docker pull ${IN_IMAGE}:${IN_VERSION#v}-${DIST}
+
+# .mig-manager-ci-input-image sets the IN_* variables to those of the public CI registry
+.mig-manager-public-ci-input-image:
+  variables:
+    IN_IMAGE: "${SOURCE_REGISTRY}/${SOURCE_IMAGE}"
+    IN_VERSION: "${CI_COMMIT_SHA}"
+
+# .pull-mig-manager pulls the sha-tagged image from the public CI to the
+# internal CI registry. This allow follow-on stages to work as if the image was
+# built in the internal CI.
+.pull-mig-manager:
+  stage: pull
+  variables:
+    USE_DOCKER_PUSH: "yes"
+  extends:
+    - .pull-source-image
+    - .mig-manager-public-ci-input-image
+    - .push-mig-manager
+    - .mig-manager-ci-output-image
+
+
+# Define the external release steps for NGC and Dockerhub
+.mig-manager-dockerhub-output-image:
+  variables:
+    OUT_REGISTRY_USER: ${REGISTRY_USER}
+    OUT_REGISTRY_TOKEN: ${REGISTRY_TOKEN}
+    OUT_REGISTRY: ${DOCKERHUB_REGISTRY}
+    OUT_IMAGE: ${REGISTRY_IMAGE}
+
+
+.mig-manager-ngc-output-image:
+  variables:
+    OUT_REGISTRY_USER: ${NGC_REGISTRY_USER}
+    OUT_REGISTRY_TOKEN: ${NGC_REGISTRY_TOKEN}
+    OUT_REGISTRY: ${NGC_REGISTRY}
+    OUT_IMAGE: ${NGC_REGISTRY_IMAGE}
+
+.release-mig-manager-ngc:
+  extends:
+    - .release-mig-manager-external
+    - .mig-manager-ngc-output-image
+
+.release-mig-manager-dockerhub:
+  extends:
+    - .release-mig-manager-external
+    - .mig-manager-dockerhub-output-image
+
+# The .scan-mig-manager step forms the base of the image scan operation performed before releasing
+# images.
+.scan-mig-manager:
+  stage: scan
+  extends:
+    - .pull-mig-manager
+    - .mig-manager-ci-input-image
+  variables:
+    OUT_IMAGE: k8s-mig-manager
+    OUT_VERSION: ${CI_COMMIT_SHA}
+  script:
+    - 'echo Dist: ${DIST} ; [[ -n "${DIST}" ]] || exit 1'
+
+    # Tag the output image (note the leading v is stripped from the VERSION)
+    - docker tag "${IN_IMAGE}:${IN_VERSION#v}-${DIST}" "${OUT_IMAGE}:${OUT_VERSION#v}-${DIST}"
+
+    - apk add --no-cache git
+    - apk add --no-cache python3 python3-dev py3-pip py3-wheel libmagic
+
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab-master.nvidia.com/sectooling/scanning/contamer.git
+    - pip3 install -r contamer/requirements.txt
+
+    - cd contamer
+    - python3 contamer.py -ls --fail-on-non-os ${CONTAMER_SUPPRESS_VULNS:+--suppress-vulns ${CONTAMER_SUPPRESS_VULNS}} -- "${OUT_IMAGE}:${OUT_VERSION#v}-${DIST}"
+
+
+scan-ubi8:
+  extends:
+    - .scan-mig-manager
+    - .dist-ubi8
+
+pull-ubi8:
+  extends:
+    - .pull-mig-manager
+    - .dist-ubi8
+
+release-ngc-ubi8:
+  extends:
+    - .release-mig-manager-ngc
+    - .dist-ubi8
+
+release-dockerhub-ubi8:
+  extends:
+    - .release-mig-manager-dockerhub
+    - .dist-ubi8
+
+scan-ubuntu20:
+  extends:
+    - .scan-mig-manager
+    - .dist-ubuntu20
+
+pull-ubuntu20:
+  extends:
+    - .pull-mig-manager
+    - .dist-ubuntu20
+
+release-ngc-ubuntu20:
+  extends:
+    - .release-mig-manager-ngc
+    - .dist-ubuntu20
+
+release-dockerhub-ubuntu20:
+  extends:
+    - .release-mig-manager-dockerhub
+    - .dist-ubuntu20

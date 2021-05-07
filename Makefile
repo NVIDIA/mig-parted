@@ -22,8 +22,8 @@ ifeq ($(IMAGE),)
 REGISTRY ?= nvidia
 IMAGE=$(REGISTRY)/mig-parted
 endif
-IMAGE_TAG ?= $(GOLANG_VERSION)
-BUILDIMAGE ?= $(IMAGE):$(IMAGE_TAG)-devel
+IMAGE_TAG ?= $(GOLANG_VERSION)-devel
+BUILDIMAGE ?= $(IMAGE):$(IMAGE_TAG)
 
 TARGETS := binary build all check fmt assert-fmt lint vet test
 DOCKER_TARGETS := $(patsubst %, docker-%, $(TARGETS))
@@ -67,11 +67,11 @@ vet:
 test:
 	go test $(MODULE)/...
 
+.PHONY: .build-image .pull-build-image .push-build-image
 # Generate an image for containerized builds
 # Note: This image is local only
-.PHONY: .build-image .pull-build-image .push-build-image
 .build-image: docker/Dockerfile.devel
-	if [[ x"$(SKIP_IMAGE_BUILD)" == x"" ]]; then \
+	if [ x"$(SKIP_IMAGE_BUILD)" = x"" ]; then \
 		$(DOCKER) build \
 			--progress=plain \
 			--build-arg GOLANG_VERSION="$(GOLANG_VERSION)" \
@@ -86,6 +86,7 @@ test:
 .push-build-image:
 	$(DOCKER) push $(BUILDIMAGE)
 
+
 $(DOCKER_TARGETS): docker-%: .build-image
 	@echo "Running 'make $(*)' in docker container $(BUILDIMAGE)"
 	$(DOCKER) run \
@@ -96,3 +97,19 @@ $(DOCKER_TARGETS): docker-%: .build-image
 		--user $$(id -u):$$(id -g) \
 		$(BUILDIMAGE) \
 			make $(*)
+
+# Deployment targets are forwarded to the Makefile in the following directory
+DEPLOYMENT_DIR = deployments/gpu-operator
+
+DEPLOYMENT_TARGETS = ubuntu20.04 ubi8
+BUILD_DEPLOYMENT_TARGETS := $(patsubst %, build-%, $(DEPLOYMENT_TARGETS))
+PUSH_DEPLOYMENT_TARGETS := $(patsubst %, push-%, $(DEPLOYMENT_TARGETS))
+.PHONY: $(DEPLOYMENT_TARGETS) $(BUILD_DEPLOYMENT_TARGETS) $(PUSH_DEPLOYMENT_TARGETS)
+
+$(BUILD_DEPLOYMENT_TARGETS): build-%:
+	@echo "Running 'make $(*)' in $(DEPLOYMENT_DIR)"
+	make -C $(DEPLOYMENT_DIR) $(*)
+
+$(PUSH_DEPLOYMENT_TARGETS): %:
+	@echo "Running 'make $(*)' in $(DEPLOYMENT_DIR)"
+	make -C $(DEPLOYMENT_DIR) $(*)
