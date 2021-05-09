@@ -24,6 +24,15 @@ function nvidia-mig-manager::service::reverse_array() {
 	done
 }
 
+function nvidia-mig-manager::service::assert_module_loaded() {
+   local module="${1}"
+   cat /proc/modules | grep -e "^${module} "
+   if [ "${?}" == "0" ]; then
+       return 0
+   fi
+   return 1
+}
+
 function nvidia-mig-manager::service::reboot() {
 	local statedir="/var/lib/nvidia-mig-manager"
 	mkdir -p "${statedir}"

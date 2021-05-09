@@ -23,4 +23,4 @@ Type=oneshot
 ExecStart=-/bin/bash /etc/nvidia-mig-manager/service.sh
 
 [Install]
-WantedBy=basic.target
+WantedBy=multi-user.target
