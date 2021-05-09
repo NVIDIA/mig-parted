@@ -27,7 +27,23 @@ endif
 
 ##### Public rules #####
 
-all: ubuntu18.04 ubuntu20.04 ubi8
+VALID_TARGETS = tarball ubuntu18.04 ubuntu20.04 ubi8
+
+all: $(VALID_TARGETS)
+.PHONY: all $(VALID_TARGETS)
+
+tarball:
+	$(DOCKER) build --pull \
+		--build-arg PACKAGE_NAME=$(NAME) \
+		--build-arg PACKAGE_VERSION=$(VERSION) \
+		--build-arg PACKAGE_REVISION=$(REVISION) \
+		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
+		--tag $(IMAGE):v$(VERSION)-tarball \
+		--file Dockerfile.tarball \
+		$(BUILD_DIR)
+	$(DOCKER) run \
+		-v $$(pwd)/dist/$(@):/dist \
+		$(IMAGE):v$(VERSION)-$(@)
 
 ubuntu18.04:
 	$(DOCKER) build --pull \
