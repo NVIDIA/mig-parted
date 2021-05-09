@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+set -e
+
+if [ -n "${DISTRIB}" ]; then
+    sed -i "s;UNRELEASED;${DISTRIB};" debian/changelog
+fi
+sed -i "s;@SECTION@;${SECTION:+$SECTION/};g" debian/control

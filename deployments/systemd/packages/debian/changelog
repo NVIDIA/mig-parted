@@ -1,0 +1,5 @@
+nvidia-mig-manager (0.1.0-1) UNRELEASED; urgency=medium
+
+  * Initial release of debian package for v0.1.0
+
+ -- NVIDIA CORPORATION <cudatools@nvidia.com>  Fri, 07 May 2021 03:58:16 +0000

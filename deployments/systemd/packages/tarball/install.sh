@@ -18,9 +18,7 @@
 
 SERVICE_ROOT="nvidia-mig-manager"
 SERVICE_NAME="${SERVICE_ROOT}.service"
-
 MIG_PARTED_NAME="nvidia-mig-parted"
-MIG_PARTED_GO_GET_PATH="github.com/NVIDIA/mig-parted/cmd/${MIG_PARTED_NAME}"
 
 BINARY_DIR="/usr/bin"
 SYSTEMD_DIR="/usr/lib/systemd/system"
@@ -43,15 +41,8 @@ chmod a+rx ${CONFIG_DIR}
 chmod a+rx ${OVERRIDE_DIR}
 chmod a+rx ${PROFILED_DIR}
 
-${DOCKER} run \
-	-v ${BINARY_DIR}:/dest \
-	golang:1.15 \
-	sh -c "
-	GO111MODULE=off go get -u github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
-	GOBIN=/dest     go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
-	"
-
 cp ${SERVICE_NAME}       ${SYSTEMD_DIR}
+cp ${MIG_PARTED_NAME}    ${BINARY_DIR}
 cp ${MIG_PARTED_NAME}.sh ${PROFILED_DIR}
 cp override.conf         ${OVERRIDE_DIR}
 cp service.sh            ${CONFIG_DIR}
@@ -69,6 +60,7 @@ chmod a+r ${CONFIG_DIR}/hooks.sh
 chmod a+r ${CONFIG_DIR}/hooks.yaml
 chmod a+r ${CONFIG_DIR}/config.yaml
 
+chmod a+x ${BINARY_DIR}/${MIG_PARTED_NAME}
 chmod ug+x ${CONFIG_DIR}/service.sh
 
 systemctl daemon-reload

@@ -36,4 +36,4 @@ rm -rf ${OVERRIDE_DIR}
 
 rm ${BINARY_DIR}/${MIG_PARTED_NAME}
 rm ${SYSTEMD_DIR}/${SERVICE_NAME}
-rm ${PROFILED_DIR}/mig-parted.sh
+rm ${PROFILED_DIR}/${MIG_PARTED_NAME}.sh

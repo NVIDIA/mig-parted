@@ -1,0 +1,7 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: nvidia-mig-manager
+Source: https://github.com/NVIDIA/mig-parted/deployments/systemd
+
+Files: *
+Copyright: 2021 NVIDIA CORPORATION <cudatools@nvidia.com>
+License: Apache-2.0
