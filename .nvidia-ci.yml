@@ -47,7 +47,7 @@ default:
     - os/linux
 
 variables:
-  SOURCE_REGISTRY: registry.gitlab.com/mig-parted/staging
+  SOURCE_REGISTRY: registry.gitlab.com/nvidia/cloud-native/mig-parted/staging
   SOURCE_IMAGE: k8s-mig-manager
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
