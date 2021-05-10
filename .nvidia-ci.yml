@@ -63,21 +63,21 @@ variables:
     - docker pull ${IN_IMAGE}:${IN_VERSION}-${DIST}
 
 # .mig-manager-ci-input-image sets the IN_* variables to those of the public CI registry
-.mig-manager-public-ci-input-image:
+.mig-manager-source-ci-input-image:
   variables:
     IN_IMAGE: "${SOURCE_REGISTRY}/${SOURCE_IMAGE}"
     IN_VERSION: "${CI_COMMIT_SHA}"
 
-# .pull-mig-manager pulls the sha-tagged image from the public CI to the
+# .pull-source-mig-manager pulls the sha-tagged image from the public CI to the
 # internal CI registry. This allow follow-on stages to work as if the image was
 # built in the internal CI.
-.pull-mig-manager:
+.pull-source-mig-manager:
   stage: pull
   variables:
     USE_DOCKER_PUSH: "yes"
   extends:
     - .pull-source-image
-    - .mig-manager-public-ci-input-image
+    - .mig-manager-source-ci-input-image
     - .push-mig-manager
     - .mig-manager-ci-output-image
 
@@ -141,7 +141,7 @@ scan-ubi8:
 
 pull-ubi8:
   extends:
-    - .pull-mig-manager
+    - .pull-source-mig-manager
     - .dist-ubi8
 
 release-ngc-ubi8:
@@ -161,7 +161,7 @@ scan-ubuntu20:
 
 pull-ubuntu20:
   extends:
-    - .pull-mig-manager
+    - .pull-source-mig-manager
     - .dist-ubuntu20
 
 release-ngc-ubuntu20:
