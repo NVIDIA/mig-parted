@@ -38,14 +38,10 @@ $(PUSH_TARGETS): push-%:
 	$(DOCKER) push "$(IMAGE):$(VERSION)-$(*)"
 
 # For the default push target we also push the short and latest tags
-push-$(DEFAULT_PUSH_TARGET): push-short push-latest
+push-$(DEFAULT_PUSH_TARGET): push-short
 push-short:
 	$(DOCKER) tag "$(IMAGE):$(VERSION)-$(DEFAULT_PUSH_TARGET)" "$(IMAGE):$(VERSION)"
 	$(DOCKER) push "$(IMAGE):$(VERSION)"
-
-push-latest:
-	$(DOCKER) tag "$(IMAGE):$(VERSION)-$(DEFAULT_PUSH_TARGET)" "$(IMAGE):latest"
-	$(DOCKER) push "$(IMAGE):latest"
 
 
 $(TARGETS): %: build-%
