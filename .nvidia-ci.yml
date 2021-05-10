@@ -55,12 +55,12 @@ variables:
 .pull-source-image:
   before_script:
     - '[[ -z "${SOURCE_VERSION}" ]] || export IN_VERSION="${SOURCE_VERSION}" '
-    - 'echo Version: ${IN_VERSION#v} ; [[ -n "${IN_VERSION#v}" ]] || exit 1'
+    - 'echo Version: ${IN_VERSION} ; [[ -n "${IN_VERSION}" ]] || exit 1'
     - 'echo Dist: ${DIST} ; [[ -n "${DIST}" ]] || exit 1'
 
-    - 'echo Pulling "${IN_IMAGE}:${IN_VERSION#v}-${DIST}"'
+    - 'echo Pulling "${IN_IMAGE}:${IN_VERSION}-${DIST}"'
 
-    - docker pull ${IN_IMAGE}:${IN_VERSION#v}-${DIST}
+    - docker pull ${IN_IMAGE}:${IN_VERSION}-${DIST}
 
 # .mig-manager-ci-input-image sets the IN_* variables to those of the public CI registry
 .mig-manager-public-ci-input-image:
@@ -122,7 +122,7 @@ variables:
     - 'echo Dist: ${DIST} ; [[ -n "${DIST}" ]] || exit 1'
 
     # Tag the output image (note the leading v is stripped from the VERSION)
-    - docker tag "${IN_IMAGE}:${IN_VERSION#v}-${DIST}" "${OUT_IMAGE}:${OUT_VERSION#v}-${DIST}"
+    - docker tag "${IN_IMAGE}:${IN_VERSION}-${DIST}" "${OUT_IMAGE}:${OUT_VERSION}-${DIST}"
 
     - apk add --no-cache git
     - apk add --no-cache python3 python3-dev py3-pip py3-wheel libmagic
@@ -131,7 +131,7 @@ variables:
     - pip3 install -r contamer/requirements.txt
 
     - cd contamer
-    - python3 contamer.py -ls --fail-on-non-os ${CONTAMER_SUPPRESS_VULNS:+--suppress-vulns ${CONTAMER_SUPPRESS_VULNS}} -- "${OUT_IMAGE}:${OUT_VERSION#v}-${DIST}"
+    - python3 contamer.py -ls --fail-on-non-os ${CONTAMER_SUPPRESS_VULNS:+--suppress-vulns ${CONTAMER_SUPPRESS_VULNS}} -- "${OUT_IMAGE}:${OUT_VERSION}-${DIST}"
 
 
 scan-ubi8:
