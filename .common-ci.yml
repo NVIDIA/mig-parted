@@ -66,13 +66,12 @@ default:
 
     - 'echo "Deploying ${IN_IMAGE}:${IN_VERSION}-${DIST} as ${OUT_IMAGE}:${OUT_VERSION}-${DIST}"'
 
-    # Tag the output image (note the leading v is stripped from the VERSION)
+    # Tag the output image
     - docker tag "${IN_IMAGE}:${IN_VERSION}-${DIST}" "${OUT_IMAGE}:${OUT_VERSION}-${DIST}"
 
     - '[[ -z "${OUT_REGISTRY}" ]] || docker login -u "${OUT_REGISTRY_USER}" -p "${OUT_REGISTRY_TOKEN}" "${OUT_REGISTRY}"'
 
     # Invoke the make target. This includes logic for pushing short / latest versions
-    # Note: The leading v is stripped from the version
     - '[[ -n "${USE_DOCKER_PUSH}" ]] || make IMAGE="${OUT_IMAGE}" VERSION="${OUT_VERSION}" push-${DIST}'
     - '[[ -z "${USE_DOCKER_PUSH}" ]] || docker push "${OUT_IMAGE}:${OUT_VERSION}-${DIST}"'
 
