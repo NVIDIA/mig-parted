@@ -31,26 +31,26 @@ default:
 # generated docker image name.
 .build-mig-manager:
   before_script:
-    - 'echo Version: ${IN_VERSION#v} ; [[ -n "${IN_VERSION#v}" ]] || exit 1'
+    - 'echo Version: ${IN_VERSION} ; [[ -n "${IN_VERSION}" ]] || exit 1'
     - 'echo Dist: ${DIST} ; [[ -n "${DIST}" ]] || exit 1'
 
     - apk add --no-cache make bash
 
-    - 'echo "Building ${IN_IMAGE}:${IN_VERSION#v}-${DIST}"'
+    - 'echo "Building ${IN_IMAGE}:${IN_VERSION}-${DIST}"'
 
     # This generates an image: ${IN_IMAGE}:${IN_VERSION}-${DIST}
-    - make IMAGE="${IN_IMAGE}" VERSION="${IN_VERSION#v}" build-${DIST}
+    - make IMAGE="${IN_IMAGE}" VERSION="${IN_VERSION}" build-${DIST}
 
 # The .pull-mig-manager dummy step pulls the image IN_IMAGE:IN_VERSION-DIST
 .pull-mig-manager:
   before_script:
-    - 'echo Version: ${IN_VERSION#v} ; [[ -n "${IN_VERSION#v}" ]] || exit 1'
+    - 'echo Version: ${IN_VERSION} ; [[ -n "${IN_VERSION}" ]] || exit 1'
     - 'echo Dist: ${DIST} ; [[ -n "${DIST}" ]] || exit 1'
 
     - '[[ -z "${IN_REGISTRY}" ]] || docker login -u "${IN_REGISTRY_USER}" -p "${IN_REGISTRY_TOKEN}" "${IN_REGISTRY}"'
-    - 'echo Pulling "${IN_IMAGE}:${IN_VERSION#v}-${DIST}"'
+    - 'echo Pulling "${IN_IMAGE}:${IN_VERSION}-${DIST}"'
 
-    - docker pull ${IN_IMAGE}:${IN_VERSION#v}-${DIST}
+    - docker pull ${IN_IMAGE}:${IN_VERSION}-${DIST}
     # Log out of the input registry
     - '[[ -z "${IN_REGISTRY}" ]] || docker logout'
 
@@ -58,23 +58,23 @@ default:
 # and pushes it to the putput registry
 .push-mig-manager:
   script:
-    - 'echo Version: ${IN_VERSION#v} ; [[ -n "${IN_VERSION#v}" ]] || exit 1'
-    - 'echo Version: ${OUT_VERSION#v} ; [[ -n "${OUT_VERSION#v}" ]] || exit 1'
+    - 'echo Version: ${IN_VERSION} ; [[ -n "${IN_VERSION}" ]] || exit 1'
+    - 'echo Version: ${OUT_VERSION} ; [[ -n "${OUT_VERSION}" ]] || exit 1'
     - 'echo Dist: ${DIST} ; [[ -n "${DIST}" ]] || exit 1'
 
     - apk add --no-cache make bash
 
-    - 'echo "Deploying ${IN_IMAGE}:${IN_VERSION#v}-${DIST} as ${OUT_IMAGE}:${OUT_VERSION#v}-${DIST}"'
+    - 'echo "Deploying ${IN_IMAGE}:${IN_VERSION}-${DIST} as ${OUT_IMAGE}:${OUT_VERSION}-${DIST}"'
 
     # Tag the output image (note the leading v is stripped from the VERSION)
-    - docker tag "${IN_IMAGE}:${IN_VERSION#v}-${DIST}" "${OUT_IMAGE}:${OUT_VERSION#v}-${DIST}"
+    - docker tag "${IN_IMAGE}:${IN_VERSION}-${DIST}" "${OUT_IMAGE}:${OUT_VERSION}-${DIST}"
 
     - '[[ -z "${OUT_REGISTRY}" ]] || docker login -u "${OUT_REGISTRY_USER}" -p "${OUT_REGISTRY_TOKEN}" "${OUT_REGISTRY}"'
 
     # Invoke the make target. This includes logic for pushing short / latest versions
     # Note: The leading v is stripped from the version
-    - '[[ -n "${USE_DOCKER_PUSH}" ]] || make IMAGE="${OUT_IMAGE}" VERSION="${OUT_VERSION#v}" push-${DIST}'
-    - '[[ -z "${USE_DOCKER_PUSH}" ]] || docker push "${OUT_IMAGE}:${OUT_VERSION#v}-${DIST}"'
+    - '[[ -n "${USE_DOCKER_PUSH}" ]] || make IMAGE="${OUT_IMAGE}" VERSION="${OUT_VERSION}" push-${DIST}'
+    - '[[ -z "${USE_DOCKER_PUSH}" ]] || docker push "${OUT_IMAGE}:${OUT_VERSION}-${DIST}"'
 
     - '[[ -z "${OUT_REGISTRY}" ]] || docker logout'
 
