@@ -81,5 +81,8 @@ systemctl disable nvidia-mig-manager.service
 systemctl daemon-reload
 
 %changelog
+* Wed May 19 2021 NVIDIA CORPORATION <cudatools@nvidia.com> 0.1.1-1
+- Update packaged config.yaml to include more supported devices
+
 * Fri May 07 2021 NVIDIA CORPORATION <cudatools@nvidia.com> 0.1.0-1
 - Initial release of rpm package for v0.1.0
