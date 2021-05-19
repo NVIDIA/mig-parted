@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 WITH_REBOOT="false"
+HOST_ROOT_MOUNT="/host"
 NODE_NAME=""
 MIG_CONFIG_FILE=""
 SELECTED_MIG_CONFIG=""
@@ -16,9 +17,10 @@ function usage() {
   echo "    -n <node>            The kubernetes node to change the MIG configuration on"
   echo "    -f <config-file>     The mig-parted configuration file"
   echo "    -c <selected-config> The selected mig-parted configuration to apply to the node"
+  echo "    -m <host-root-mount> Target path where host root directory is mounted"
 }
 
-while getopts "hrn:f:c:d:" opt; do
+while getopts "hrn:f:c:m:" opt; do
   case ${opt} in
     h ) # process option h
       usage; exit 0
@@ -35,7 +37,10 @@ while getopts "hrn:f:c:d:" opt; do
     c ) # process option c
       SELECTED_MIG_CONFIG=${OPTARG}
       ;;
-    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> [ -r ]"
+    m ) # process option m
+      HOST_ROOT_MOUNT=${OPTARG}
+      ;;
+    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> [ -m <host-root-mount> -r ]"
       ;;
   esac
 done
@@ -169,7 +174,7 @@ if [ "${?}" != "0" ] && [ "${WITH_REBOOT}" = "true" ]; then
 		echo "Exiting so as not to reboot multiple times unexpectedly"
 		exit_failed
 	fi
-	reboot
+	chroot ${HOST_ROOT_MOUNT} reboot
 	exit 0
 fi
 
