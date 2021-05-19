@@ -1,3 +1,9 @@
+nvidia-mig-manager (0.1.1-1) UNRELEASED; urgency=medium
+
+  * Update packaged config.yaml to include more supported devices
+
+ -- NVIDIA CORPORATION <cudatools@nvidia.com>  Wed, 19 May 2021 14:08:28 +0000
+
 nvidia-mig-manager (0.1.0-1) UNRELEASED; urgency=medium
 
   * Initial release of debian package for v0.1.0
