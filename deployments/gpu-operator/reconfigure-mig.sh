@@ -169,7 +169,7 @@ if [ "${?}" != "0" ] && [ "${WITH_REBOOT}" = "true" ]; then
 		echo "Exiting so as not to reboot multiple times unexpectedly"
 		exit_failed
 	fi
-	reboot
+	chroot /host reboot
 	exit 0
 fi
 
