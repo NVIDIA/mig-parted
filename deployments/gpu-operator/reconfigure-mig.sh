@@ -40,7 +40,7 @@ while getopts "hrn:f:c:d:" opt; do
     m ) # process option m
       HOST_ROOT_MOUNT=${OPTARG}
       ;;
-    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> [ -r ]"
+    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> [ -r ] [ -m ]"
       ;;
   esac
 done

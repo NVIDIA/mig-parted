@@ -25,7 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -37,6 +37,7 @@ const (
 	MigConfigLabel = "nvidia.com/mig.config"
 
 	DefaultReconfigureScript = "/usr/bin/reconfigure-mig.sh"
+	DefaultHostRootMount     = "/host"
 )
 
 var (
@@ -45,6 +46,7 @@ var (
 	configFileFlag        string
 	reconfigureScriptFlag string
 	withRebootFlag        bool
+	hostRootMountFlag     string
 )
 
 type SyncableMigConfig struct {
@@ -116,6 +118,14 @@ func main() {
 			Destination: &reconfigureScriptFlag,
 			EnvVars:     []string{"RECONFIGURE_SCRIPT"},
 		},
+		&cli.StringFlag{
+			Name:        "host-root-mount",
+			Aliases:     []string{"m"},
+			Value:       DefaultHostRootMount,
+			Usage:       "target path where host root directory is mounted",
+			Destination: &hostRootMountFlag,
+			EnvVars:     []string{"HOST_ROOT_MOUNT"},
+		},
 		&cli.BoolFlag{
 			Name:        "with-reboot",
 			Aliases:     []string{"r"},
@@ -181,6 +191,9 @@ func runScript(migConfigValue string) error {
 	}
 	if withRebootFlag {
 		args = append(args, "-r")
+	}
+	if hostRootMountFlag != "" {
+		args = append(args, "-m")
 	}
 	cmd := exec.Command(reconfigureScriptFlag, args...)
 	cmd.Stdout = os.Stdout
