@@ -17,10 +17,10 @@ function usage() {
   echo "    -n <node>            The kubernetes node to change the MIG configuration on"
   echo "    -f <config-file>     The mig-parted configuration file"
   echo "    -c <selected-config> The selected mig-parted configuration to apply to the node"
-  echo "    -m                   Target path where host root directory is mounted"
+  echo "    -m <host-root-mount> Target path where host root directory is mounted"
 }
 
-while getopts "hrn:f:c:d:" opt; do
+while getopts "hrn:f:c:m:" opt; do
   case ${opt} in
     h ) # process option h
       usage; exit 0
@@ -40,7 +40,7 @@ while getopts "hrn:f:c:d:" opt; do
     m ) # process option m
       HOST_ROOT_MOUNT=${OPTARG}
       ;;
-    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> [ -r ] [ -m ]"
+    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> [ -m <host-root-mount> -r ]"
       ;;
   esac
 done

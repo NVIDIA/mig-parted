@@ -25,7 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -188,6 +188,7 @@ func runScript(migConfigValue string) error {
 		"-n", nodeNameFlag,
 		"-f", configFileFlag,
 		"-c", migConfigValue,
+		"-m", hostRootMountFlag,
 	}
 	if withRebootFlag {
 		args = append(args, "-r")
