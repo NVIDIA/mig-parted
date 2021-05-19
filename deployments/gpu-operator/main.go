@@ -193,9 +193,6 @@ func runScript(migConfigValue string) error {
 	if withRebootFlag {
 		args = append(args, "-r")
 	}
-	if hostRootMountFlag != "" {
-		args = append(args, "-m")
-	}
 	cmd := exec.Command(reconfigureScriptFlag, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
