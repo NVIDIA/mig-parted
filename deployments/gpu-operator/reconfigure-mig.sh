@@ -79,9 +79,22 @@ function exit_success() {
 	__set_state_and_exit "success" 0
 }	
 
-function exit_failed() {
+function exit_failed_no_restart_gpu_clients() {
 	__set_state_and_exit "failed" 1
-}	
+}
+
+function exit_failed() {
+	echo "Restarting all GPU clients previouly shutdown by reenabling their component-specific nodeSelector labels"
+	kubectl label --overwrite \
+		node ${NODE_NAME} \
+		nvidia.com/gpu.deploy.device-plugin=true \
+		nvidia.com/gpu.deploy.gpu-feature-discovery=true \
+		nvidia.com/gpu.deploy.dcgm-exporter=true
+		if [ "${?}" != "0" ]; then
+			echo "Unable to bring up GPU operator components by setting their daemonset labels"
+		fi
+	__set_state_and_exit "failed" 1
+}
 
 echo "Asserting that the requested configuration is present in the configuration file"
 nvidia-mig-parted assert --valid-config -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
@@ -126,8 +139,7 @@ kubectl label --overwrite \
 	node ${NODE_NAME} \
 	nvidia.com/gpu.deploy.device-plugin=false \
 	nvidia.com/gpu.deploy.gpu-feature-discovery=false \
-	nvidia.com/gpu.deploy.dcgm-exporter=false \
-	nvidia.com/gpu.deploy.operator-validator=false
+	nvidia.com/gpu.deploy.dcgm-exporter=false
 if [ "${?}" != "0" ]; then
 	echo "Unable to tear down GPU operator components by setting their daemonset labels"
 	exit_failed
@@ -154,13 +166,6 @@ kubectl wait --for=delete pod \
 	-n gpu-operator-resources \
 	-l app=nvidia-dcgm-exporter
 
-echo "Waiting for operator-validator to shutdown"
-kubectl wait --for=delete pod \
-	--timeout=5m \
-	--field-selector "spec.nodeName=${NODE_NAME}" \
-	-n gpu-operator-resources \
-	-l app=nvidia-operator-validator
-
 echo "Applying the MIG mode change from the selected config to the node"
 echo "If the -r option was passed, the node will be automatically rebooted if this is not successful"
 nvidia-mig-parted -d apply --mode-only -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
@@ -180,22 +185,25 @@ fi
 
 echo "Applying the selected MIG config to the node"
 nvidia-mig-parted -d apply -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
-apply_exit_code="${?}"
+if [ "${?}" != "0" ]; then
+	exit_failed
+fi
 
 echo "Restarting all GPU clients previouly shutdown by reenabling their component-specific nodeSelector labels"
 kubectl label --overwrite \
 	node ${NODE_NAME} \
 	nvidia.com/gpu.deploy.device-plugin=true \
 	nvidia.com/gpu.deploy.gpu-feature-discovery=true \
-	nvidia.com/gpu.deploy.dcgm-exporter=true \
-	nvidia.com/gpu.deploy.operator-validator=true
+	nvidia.com/gpu.deploy.dcgm-exporter=true
 if [ "${?}" != "0" ]; then
 	echo "Unable to bring up GPU operator components by setting their daemonset labels"
-	exit_failed
+	exit_failed_no_restart_gpu_clients
 fi
 
-if [ "${apply_exit_code}" != "0" ]; then
-	exit_failed
-fi
+echo "Restarting validator pod to re-run all validations"
+kubectl delete pod \
+	--field-selector "spec.nodeName=${NODE_NAME}" \
+	-n gpu-operator-resources \
+	-l app=nvidia-operator-validator
 
 exit_success
