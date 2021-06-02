@@ -6,6 +6,10 @@ NODE_NAME=""
 MIG_CONFIG_FILE=""
 SELECTED_MIG_CONFIG=""
 
+NDP_ORIGINAL_STATE="true"
+GFD_ORIGINAL_STATE="true"
+DCGM_ORIGINAL_STATE="true"
+
 function usage() {
   echo "USAGE:"
   echo "    ${0} -h "
@@ -87,14 +91,30 @@ function exit_failed() {
 	echo "Restarting all GPU clients previouly shutdown by reenabling their component-specific nodeSelector labels"
 	kubectl label --overwrite \
 		node ${NODE_NAME} \
-		nvidia.com/gpu.deploy.device-plugin=true \
-		nvidia.com/gpu.deploy.gpu-feature-discovery=true \
-		nvidia.com/gpu.deploy.dcgm-exporter=true
+		nvidia.com/gpu.deploy.device-plugin=${NDP_ORIGINAL_STATE} \
+		nvidia.com/gpu.deploy.gpu-feature-discovery=${GFD_ORIGINAL_STATE} \
+		nvidia.com/gpu.deploy.dcgm-exporter=${DCGM_ORIGINAL_STATE}
 		if [ "${?}" != "0" ]; then
 			echo "Unable to bring up GPU operator components by setting their daemonset labels"
 		fi
 	__set_state_and_exit "failed" 1
 }
+
+NDP_ORIGINAL_STATE=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.device-plugin}')
+if [ "${?}" != "0" ]; then
+  echo "Unable to get the NVIDIA_DEVICE_PLUGIN state"
+	__set_state_and_exit "failed" 1
+fi
+GFD_ORIGINAL_STATE=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.gpu-feature-discovery}')
+if [ "${?}" != "0" ]; then
+  echo "Unable to get the GPU_FEATURE_DISCOVERY state"
+	__set_state_and_exit "failed" 1
+fi
+DCGM_ORIGINAL_STATE=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.dcgm-exporter}')
+if [ "${?}" != "0" ]; then
+  echo "Unable to get the DCGM_EXPORTER state"
+	__set_state_and_exit "failed" 1
+fi
 
 echo "Asserting that the requested configuration is present in the configuration file"
 nvidia-mig-parted assert --valid-config -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
@@ -192,9 +212,9 @@ fi
 echo "Restarting all GPU clients previouly shutdown by reenabling their component-specific nodeSelector labels"
 kubectl label --overwrite \
 	node ${NODE_NAME} \
-	nvidia.com/gpu.deploy.device-plugin=true \
-	nvidia.com/gpu.deploy.gpu-feature-discovery=true \
-	nvidia.com/gpu.deploy.dcgm-exporter=true
+	nvidia.com/gpu.deploy.device-plugin=${NDP_ORIGINAL_STATE} \
+	nvidia.com/gpu.deploy.gpu-feature-discovery=${GFD_ORIGINAL_STATE} \
+	nvidia.com/gpu.deploy.dcgm-exporter=${DCGM_ORIGINAL_STATE}
 if [ "${?}" != "0" ]; then
 	echo "Unable to bring up GPU operator components by setting their daemonset labels"
 	exit_failed_no_restart_gpu_clients
