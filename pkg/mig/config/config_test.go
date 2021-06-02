@@ -112,7 +112,7 @@ func TestClearMigConfig(t *testing.T) {
 			err := manager.SetMigConfig(0, tc.config)
 			require.Nil(t, err, "Unexpected failure from SetMigConfig")
 
-			err = manager.ClearMigConfig(0)
+			err, _ = manager.ClearMigConfig(0, []types.MigProfile{})
 			require.Nil(t, err, "Unexpected failure from ClearMigConfig")
 
 			config, err := manager.GetMigConfig(0)
