@@ -39,7 +39,7 @@ because it runs a container with `go` in it to download and build the latest
 `nvidia-mig-parted` before installing it. We plan to relax this requirement in
 the near future.
 
-The following files will be added as part of this installation: 
+The following files will be added as part of this installation:
 
 * `/usr/bin/nvidia-mig-parted`
 * `/usr/lib/systemd/system/nvidia-mig-manager.service`
@@ -61,13 +61,22 @@ Once installed, new MIG configurations can be applied at any time by running
 files in `/etc/nvidia-mig-manager`.
 
 By default, environment variables for the config and hooks files are set in
-`/etc/profile.d/mig-parted.sh` as part of this installation. Meaning that
+`/etc/profile.d/nvidia-mig-parted.sh` as part of this installation. Meaning that
 once this service is installed, anytime you login, these variables should be
 set for you:
 ```
 export MIG_PARTED_CONFIG_FILE=/etc/nvidia-mig-manager/config.yaml
 export MIG_PARTED_HOOKS_FILE=/etc/nvidia-mig-manager/hooks.yaml
 ```
+
+**NOTE:** The files in `/etc/profile.d/` are not sourced when running commands
+under `sudo`. If elevated permissions are required to run `nvidia-mig-manager`
+the `--config-file` (`-f`) and `--hooks-file` (`-k`) options must be explicitly specified as
+follows:
+```bash
+nvidia-mig-parted apply -f /etc/nvidia-mig-manager/config.yaml -k /etc/nvidia-mig-manager/hooks.yaml
+```
+(An alternative is to ensure that the required environment variables are passed to `sudo`)
 
 As noted above, these hooks do everything they can to ensure that the services
 are started and stopped so that the new configuration is applied cleanly. If
@@ -79,7 +88,7 @@ config should now be in place.
 Below are some examples of how one might run this in a production setting:
 ```
 # Using ansible
-- name: Apply a new MIG configuration 
+- name: Apply a new MIG configuration
   environment:
       MIG_PARTED_DEBUG: false
       MIG_PARTED_HOOKS_FILE: /etc/nvidia-mig-manager/hooks.yaml
@@ -149,6 +158,10 @@ $ nvidia-mig-parted apply --mode-only -f examples/config.yaml -c all-enabled
 $ nvidia-mig-parted apply --mode-only -f examples/config.yaml -c custom-config
 ...
 ```
+**Note**: As is the case with the regular use of `apply`, it may be required to
+explicitly specify the hooks file as `/etc/nvidia-mig-manager/hooks.yaml` or
+ensure that the `MIG_PARTED_HOOKS_FILE` environment variable is forwarded when
+executing the command with `sudo`.
 
 Under the hood, `nvidia-mig-parted` will scan the selected configuration and
 only apply the `mig-enabled` directive for each GPU (skipping configuration of
