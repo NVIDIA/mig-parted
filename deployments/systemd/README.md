@@ -76,7 +76,7 @@ follows:
 ```bash
 nvidia-mig-parted apply -f /etc/nvidia-mig-manager/config.yaml -k /etc/nvidia-mig-manager/hooks.yaml
 ```
-(An alternative is to ensure that the required environment variables are passed to `sudo`)
+(An alternative is to ensure that the required environment variables are passed to `sudo` by using `sudo -E` instead)
 
 As noted above, these hooks do everything they can to ensure that the services
 are started and stopped so that the new configuration is applied cleanly. If
@@ -161,7 +161,7 @@ $ nvidia-mig-parted apply --mode-only -f examples/config.yaml -c custom-config
 **Note**: As is the case with the regular use of `apply`, it may be required to
 explicitly specify the hooks file as `/etc/nvidia-mig-manager/hooks.yaml` or
 ensure that the `MIG_PARTED_HOOKS_FILE` environment variable is forwarded when
-executing the command with `sudo`.
+executing the command with `sudo` by using `sudo -E` instead.
 
 Under the hood, `nvidia-mig-parted` will scan the selected configuration and
 only apply the `mig-enabled` directive for each GPU (skipping configuration of
