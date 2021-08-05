@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION ?= v0.1.1
+VERSION ?= v0.1.2
 
 DOCKER ?= docker
 GOLANG_VERSION ?= 1.15
-CUDA_BASE_IMAGE ?= nvcr.io/nvidia/cuda:11.3.0-base
+CUDA_BASE_IMAGE ?= nvcr.io/nvidia/cuda:11.4.1-base
 BUILD_DIR ?= ../..
 
 ifeq ($(IMAGE),)
