@@ -40,7 +40,7 @@ func main() {
 	c.UseShortOptionHandling = true
 	c.EnableBashCompletion = true
 	c.Usage = "Manage MIG partitions across the full set of NVIDIA GPUs on a node"
-	c.Version = "0.1.1"
+	c.Version = "0.1.2"
 
 	// Setup the flags for this command
 	c.Flags = []cli.Flag{

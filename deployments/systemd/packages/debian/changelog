@@ -1,3 +1,10 @@
+nvidia-mig-manager (0.1.2-1) UNRELEASED; urgency=medium
+
+  * Do not start nvidia-mig-manager.service when installing the .deb
+  * Restore lost assert_gpu_reset_available() function
+
+ -- NVIDIA CORPORATION <cudatools@nvidia.com>  Thu, 05 Aug 2021 23:00:41 +0000
+
 nvidia-mig-manager (0.1.1-1) UNRELEASED; urgency=medium
 
   * Update packaged config.yaml to include more supported devices
