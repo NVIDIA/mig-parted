@@ -33,6 +33,24 @@ function nvidia-mig-manager::service::assert_module_loaded() {
    return 1
 }
 
+function nvidia-mig-manager::service::assert_gpu_reset_available() {
+	local devices_path="/sys/bus/pci/devices"
+	for d in $(ls "${devices_path}"); do
+		local vendor="$(cat "${devices_path}/${d}/vendor")"
+		if [ "${vendor}" != "0x10de" ]; then
+			continue
+		fi
+		local class="$(cat "${devices_path}/${d}/class")"
+		if [ "${class}" != "0x030200" ]; then
+			continue
+		fi
+		if [ ! -f "${devices_path}/${d}/reset" ]; then
+			return 1
+		fi
+	done
+	return 0
+}
+
 function nvidia-mig-manager::service::reboot() {
 	local statedir="/var/lib/nvidia-mig-manager"
 	mkdir -p "${statedir}"
