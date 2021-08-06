@@ -84,6 +84,7 @@ systemctl daemon-reload
 * Thu Aug 05 2021 NVIDIA CORPORATION <cudatools@nvidia.com> 0.1.2-1
 - Do not start nvidia-mig-manager.service when installing the .deb
 - Restore lost assert_gpu_reset_available() function
+- Add nvidia-dcgm.service to driver_services array
 
 * Wed May 19 2021 NVIDIA CORPORATION <cudatools@nvidia.com> 0.1.1-1
 - Update packaged config.yaml to include more supported devices
