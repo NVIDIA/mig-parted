@@ -26,6 +26,7 @@ driver_services=(
 	nvsm-notifier.service
 	nv_peer_mem.service
 	dcgm.service
+	nvidia-dcgm.service
 )
 
 k8s_services=(
