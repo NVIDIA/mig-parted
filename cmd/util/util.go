@@ -20,10 +20,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os/exec"
+	"strconv"
 	"strings"
 
+	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/mig/config"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
+	log "github.com/sirupsen/logrus"
+)
+
+const (
+	minSupportedNVML = 11
 )
 
 type CombinedMigManager interface {
@@ -75,6 +82,42 @@ func IsNvidiaModuleLoaded() (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func IsNVMLVersionSupported() (bool, error) {
+	nvmlLib := nvml.New()
+
+	ret := nvmlLib.Init()
+	if ret.Value() != nvml.SUCCESS {
+		return false, fmt.Errorf("error initializing NVML: %v", ret)
+	}
+	defer func() {
+		ret := nvmlLib.Shutdown()
+		if ret.Value() != nvml.SUCCESS {
+			log.Warnf("error shutting down NVML: %v", ret)
+		}
+	}()
+
+	sversion, ret := nvmlLib.SystemGetNVMLVersion()
+	if ret.Value() != nvml.SUCCESS {
+		return false, fmt.Errorf("error getting getting version: %v", ret)
+	}
+
+	split := strings.Split(sversion, ".")
+	if len(split) == 0 {
+		return false, fmt.Errorf("unexpected empty version string")
+	}
+
+	iversion, err := strconv.Atoi(split[0])
+	if err != nil {
+		return false, fmt.Errorf("malformed version string '%s': %v", sversion, err)
+	}
+
+	if iversion < minSupportedNVML {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func NvidiaSmiReset(gpus ...string) (string, error) {
