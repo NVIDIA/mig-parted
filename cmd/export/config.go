@@ -29,31 +29,29 @@ import (
 )
 
 func ExportMigConfigs(c *Context) (*v1.Spec, error) {
-	nvidiaModuleLoaded, err := util.IsNvidiaModuleLoaded()
-	if err != nil {
-		return nil, fmt.Errorf("error checking if nvidia module loaded: %v", err)
-	}
-
 	nvpci := nvpci.New()
 	gpus, err := nvpci.GetGPUs()
 	if err != nil {
 		return nil, fmt.Errorf("error enumerating GPUs: %v", err)
 	}
 
-	manager := util.NewCombinedMigManager()
-
 	configSpecs := make(v1.MigConfigSpecSlice, len(gpus))
 	for i, gpu := range gpus {
 		deviceID := types.NewDeviceID(gpu.Device, gpu.Vendor)
 		deviceFilter := deviceID.String()
 
+		modeManager, err := util.NewMigModeManager()
+		if err != nil {
+			return nil, fmt.Errorf("error creating MIG Mode Manager: %v", err)
+		}
+
 		enabled := false
-		capable, err := manager.IsMigCapable(i)
+		capable, err := modeManager.IsMigCapable(i)
 		if err != nil {
 			return nil, fmt.Errorf("error checking MIG capable: %v", err)
 		}
 		if capable {
-			m, err := manager.GetMigMode(i)
+			m, err := modeManager.GetMigMode(i)
 			if err != nil {
 				return nil, fmt.Errorf("error checking MIG capable: %v", err)
 			}
@@ -62,11 +60,12 @@ func ExportMigConfigs(c *Context) (*v1.Spec, error) {
 
 		migDevices := types.MigConfig{}
 		if enabled {
-			if !nvidiaModuleLoaded {
-				return nil, fmt.Errorf("nvidia module must be loaded in order to query MIG device state")
+			configManager, err := util.NewMigConfigManager()
+			if err != nil {
+				return nil, fmt.Errorf("error creating MIG Config Manager: %v", err)
 			}
 
-			migDevices, err = manager.GetMigConfig(i)
+			migDevices, err = configManager.GetMigConfig(i)
 			if err != nil {
 				return nil, fmt.Errorf("error getting MIGConfig: %v", err)
 			}

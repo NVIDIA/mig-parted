@@ -20,18 +20,22 @@ import (
 	"fmt"
 
 	"github.com/NVIDIA/mig-parted/api/spec/v1"
+	"github.com/NVIDIA/mig-parted/cmd/util"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
 	"github.com/NVIDIA/mig-parted/pkg/types"
 )
 
 func AssertMigMode(c *Context) error {
-	manager := mode.NewPciMigModeManager()
-
 	return WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
 		if mc.MigEnabled {
 			log.Debugf("    Asserting MIG mode: %v", mode.Enabled)
 		} else {
 			log.Debugf("    Asserting MIG mode: %v", mode.Disabled)
+		}
+
+		manager, err := util.NewMigModeManager()
+		if err != nil {
+			return fmt.Errorf("error creating MIG mode Manager: %v", err)
 		}
 
 		capable, err := manager.IsMigCapable(i)

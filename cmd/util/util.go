@@ -33,18 +33,44 @@ const (
 	minSupportedNVML = 11
 )
 
-type CombinedMigManager interface {
-	mode.Manager
-	config.Manager
+func NewMigModeManager() (mode.Manager, error) {
+	nvidiaModuleLoaded, err := IsNvidiaModuleLoaded()
+	if err != nil {
+		return nil, fmt.Errorf("error checking if nvidia module loaded: %v", err)
+	}
+	if !nvidiaModuleLoaded {
+		return mode.NewPciMigModeManager(), nil
+	}
+
+	nvmlSupported, err := IsNVMLVersionSupported()
+	if err != nil {
+		return nil, fmt.Errorf("error checking NVML version: %v", err)
+	}
+	if !nvmlSupported {
+		return mode.NewPciMigModeManager(), nil
+	}
+
+	return mode.NewNvmlMigModeManager(), nil
 }
 
-func NewCombinedMigManager() CombinedMigManager {
-	type modeManager = mode.Manager
-	type configManager = config.Manager
-	return &struct {
-		modeManager
-		configManager
-	}{mode.NewPciMigModeManager(), config.NewNvmlMigConfigManager()}
+func NewMigConfigManager() (config.Manager, error) {
+	nvidiaModuleLoaded, err := IsNvidiaModuleLoaded()
+	if err != nil {
+		return nil, fmt.Errorf("error checking if nvidia module loaded: %v", err)
+	}
+	if !nvidiaModuleLoaded {
+		return nil, fmt.Errorf("nvidia module not loaded")
+	}
+
+	nvmlSupported, err := IsNVMLVersionSupported()
+	if err != nil {
+		return nil, fmt.Errorf("error checking NVML version: %v", err)
+	}
+	if !nvmlSupported {
+		return nil, fmt.Errorf("NVML version unsupported for performing MIG operations")
+	}
+
+	return config.NewNvmlMigConfigManager(), nil
 }
 
 func Any(set []bool) bool {

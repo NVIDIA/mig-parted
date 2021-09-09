@@ -34,13 +34,6 @@ func ApplyMigMode(c *Context) error {
 		return fmt.Errorf("error checking if nvidia module loaded: %v", err)
 	}
 
-	var manager mode.Manager
-	if nvidiaModuleLoaded {
-		manager = mode.NewNvmlMigModeManager()
-	} else {
-		manager = mode.NewPciMigModeManager()
-	}
-
 	nvpci := nvpci.New()
 	gpus, err := nvpci.GetGPUs()
 	if err != nil {
@@ -49,6 +42,11 @@ func ApplyMigMode(c *Context) error {
 
 	pending := make([]bool, len(gpus))
 	err = assert.WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
+		manager, err := util.NewMigModeManager()
+		if err != nil {
+			return fmt.Errorf("error creating MIG mode Manager: %v", err)
+		}
+
 		capable, err := manager.IsMigCapable(i)
 		if err != nil {
 			return fmt.Errorf("error checking MIG capable: %v", err)

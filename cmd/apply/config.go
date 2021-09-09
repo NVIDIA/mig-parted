@@ -27,15 +27,13 @@ import (
 )
 
 func ApplyMigConfig(c *Context) error {
-	nvidiaModuleLoaded, err := util.IsNvidiaModuleLoaded()
-	if err != nil {
-		return fmt.Errorf("error checking if nvidia module loaded: %v", err)
-	}
-
-	manager := util.NewCombinedMigManager()
-
 	return assert.WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
-		capable, err := manager.IsMigCapable(i)
+		modeManager, err := util.NewMigModeManager()
+		if err != nil {
+			return fmt.Errorf("error creating MIG mode Manager: %v", err)
+		}
+
+		capable, err := modeManager.IsMigCapable(i)
 		if err != nil {
 			return fmt.Errorf("error checking MIG capable: %v", err)
 		}
@@ -50,7 +48,7 @@ func ApplyMigConfig(c *Context) error {
 			return fmt.Errorf("cannot set MIG config on non MIG-capable GPU")
 		}
 
-		m, err := manager.GetMigMode(i)
+		m, err := modeManager.GetMigMode(i)
 		if err != nil {
 			return fmt.Errorf("error getting MIG mode: %v", err)
 		}
@@ -68,11 +66,12 @@ func ApplyMigConfig(c *Context) error {
 			return nil
 		}
 
-		if !nvidiaModuleLoaded {
-			return fmt.Errorf("nvidia module required to configure MIG devices: %v", err)
+		configManager, err := util.NewMigConfigManager()
+		if err != nil {
+			return fmt.Errorf("error creating MIG config Manager: %v", err)
 		}
 
-		current, err := manager.GetMigConfig(i)
+		current, err := configManager.GetMigConfig(i)
 		if err != nil {
 			return fmt.Errorf("error getting MIGConfig: %v", err)
 		}
@@ -84,7 +83,7 @@ func ApplyMigConfig(c *Context) error {
 			return nil
 		}
 
-		err = manager.SetMigConfig(i, mc.MigDevices)
+		err = configManager.SetMigConfig(i, mc.MigDevices)
 		if err != nil {
 			return fmt.Errorf("error setting MIGConfig: %v", err)
 		}
