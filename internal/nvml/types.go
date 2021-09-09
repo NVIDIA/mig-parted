@@ -23,6 +23,7 @@ import (
 type Interface interface {
 	Init() Return
 	Shutdown() Return
+	SystemGetNVMLVersion() (string, Return)
 	DeviceGetCount() (int, Return)
 	DeviceGetHandleByIndex(Index int) (Device, Return)
 }

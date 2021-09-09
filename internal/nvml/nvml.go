@@ -42,6 +42,11 @@ func (n *nvmlLib) Shutdown() Return {
 	return nvmlReturn(nvml.Shutdown())
 }
 
+func (n *nvmlLib) SystemGetNVMLVersion() (string, Return) {
+	s, r := nvml.SystemGetNVMLVersion()
+	return s, nvmlReturn(r)
+}
+
 func (n *nvmlLib) DeviceGetCount() (int, Return) {
 	c, r := nvml.DeviceGetCount()
 	return c, nvmlReturn(r)
