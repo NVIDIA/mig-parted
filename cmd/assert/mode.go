@@ -40,9 +40,8 @@ func AssertMigMode(c *Context) error {
 		}
 		log.Debugf("    MIG capable: %v\n", capable)
 
-		if !capable && !mc.MigEnabled {
-			log.Debugf("    Skipping -- non MIG-capable GPU with MIG mode disabled")
-			return nil
+		if !capable && mc.MigEnabled {
+			return fmt.Errorf("unable to assert MIG mode enabled on non MIG-capable GPU")
 		}
 
 		if !capable && !mc.MigEnabled {
