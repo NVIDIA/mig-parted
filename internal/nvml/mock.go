@@ -321,6 +321,10 @@ func (n *MockLunaServer) Shutdown() Return {
 	return MockReturn(SUCCESS)
 }
 
+func (n *MockLunaServer) SystemGetNVMLVersion() (string, Return) {
+	return "11.450.51", nvmlReturn(SUCCESS)
+}
+
 func (n *MockLunaServer) DeviceGetCount() (int, Return) {
 	return len(n.Devices), MockReturn(SUCCESS)
 }

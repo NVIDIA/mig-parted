@@ -28,13 +28,6 @@ import (
 )
 
 func AssertMigConfig(c *Context) error {
-	nvidiaModuleLoaded, err := util.IsNvidiaModuleLoaded()
-	if err != nil {
-		return fmt.Errorf("error checking if nvidia module loaded: %v", err)
-	}
-
-	manager := util.NewCombinedMigManager()
-
 	nvpci := nvpci.New()
 	gpus, err := nvpci.GetGPUs()
 	if err != nil {
@@ -43,7 +36,12 @@ func AssertMigConfig(c *Context) error {
 
 	matched := make([]bool, len(gpus))
 	err = WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
-		capable, err := manager.IsMigCapable(i)
+		modeManager, err := util.NewMigModeManager()
+		if err != nil {
+			return fmt.Errorf("error creating MIG Mode Manager: %v", err)
+		}
+
+		capable, err := modeManager.IsMigCapable(i)
 		if err != nil {
 			return fmt.Errorf("error checking MIG capable: %v", err)
 		}
@@ -53,7 +51,7 @@ func AssertMigConfig(c *Context) error {
 			return nil
 		}
 
-		m, err := manager.GetMigMode(i)
+		m, err := modeManager.GetMigMode(i)
 		if err != nil {
 			return fmt.Errorf("error getting MIG mode: %v", err)
 		}
@@ -63,11 +61,12 @@ func AssertMigConfig(c *Context) error {
 			return nil
 		}
 
-		if !nvidiaModuleLoaded {
-			return fmt.Errorf("nvidia module required to assert MIG device configuration: %v", err)
+		configManager, err := util.NewMigConfigManager()
+		if err != nil {
+			return fmt.Errorf("error creating MIG Config Manager: %v", err)
 		}
 
-		current, err := manager.GetMigConfig(i)
+		current, err := configManager.GetMigConfig(i)
 		if err != nil {
 			return fmt.Errorf("error getting MIGConfig: %v", err)
 		}

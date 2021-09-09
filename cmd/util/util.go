@@ -20,24 +20,57 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os/exec"
+	"strconv"
 	"strings"
 
+	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/mig/config"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
+	log "github.com/sirupsen/logrus"
 )
 
-type CombinedMigManager interface {
-	mode.Manager
-	config.Manager
+const (
+	minSupportedNVML = 11
+)
+
+func NewMigModeManager() (mode.Manager, error) {
+	nvidiaModuleLoaded, err := IsNvidiaModuleLoaded()
+	if err != nil {
+		return nil, fmt.Errorf("error checking if nvidia module loaded: %v", err)
+	}
+	if !nvidiaModuleLoaded {
+		return mode.NewPciMigModeManager(), nil
+	}
+
+	nvmlSupported, err := IsNVMLVersionSupported()
+	if err != nil {
+		return nil, fmt.Errorf("error checking NVML version: %v", err)
+	}
+	if !nvmlSupported {
+		return mode.NewPciMigModeManager(), nil
+	}
+
+	return mode.NewNvmlMigModeManager(), nil
 }
 
-func NewCombinedMigManager() CombinedMigManager {
-	type modeManager = mode.Manager
-	type configManager = config.Manager
-	return &struct {
-		modeManager
-		configManager
-	}{mode.NewPciMigModeManager(), config.NewNvmlMigConfigManager()}
+func NewMigConfigManager() (config.Manager, error) {
+	nvidiaModuleLoaded, err := IsNvidiaModuleLoaded()
+	if err != nil {
+		return nil, fmt.Errorf("error checking if nvidia module loaded: %v", err)
+	}
+	if !nvidiaModuleLoaded {
+		return nil, fmt.Errorf("nvidia module not loaded")
+	}
+
+	nvmlSupported, err := IsNVMLVersionSupported()
+	if err != nil {
+		return nil, fmt.Errorf("error checking NVML version: %v", err)
+	}
+	if !nvmlSupported {
+		return nil, fmt.Errorf("NVML version unsupported for performing MIG operations")
+	}
+
+	return config.NewNvmlMigConfigManager(), nil
 }
 
 func Any(set []bool) bool {
@@ -75,6 +108,42 @@ func IsNvidiaModuleLoaded() (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func IsNVMLVersionSupported() (bool, error) {
+	nvmlLib := nvml.New()
+
+	ret := nvmlLib.Init()
+	if ret.Value() != nvml.SUCCESS {
+		return false, fmt.Errorf("error initializing NVML: %v", ret)
+	}
+	defer func() {
+		ret := nvmlLib.Shutdown()
+		if ret.Value() != nvml.SUCCESS {
+			log.Warnf("error shutting down NVML: %v", ret)
+		}
+	}()
+
+	sversion, ret := nvmlLib.SystemGetNVMLVersion()
+	if ret.Value() != nvml.SUCCESS {
+		return false, fmt.Errorf("error getting getting version: %v", ret)
+	}
+
+	split := strings.Split(sversion, ".")
+	if len(split) == 0 {
+		return false, fmt.Errorf("unexpected empty version string")
+	}
+
+	iversion, err := strconv.Atoi(split[0])
+	if err != nil {
+		return false, fmt.Errorf("malformed version string '%s': %v", sversion, err)
+	}
+
+	if iversion < minSupportedNVML {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func NvidiaSmiReset(gpus ...string) (string, error) {
