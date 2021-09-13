@@ -101,15 +101,71 @@ function exit_failed() {
 	echo "Restarting all GPU clients previouly shutdown by reenabling their component-specific nodeSelector labels"
 	kubectl label --overwrite \
 		node ${NODE_NAME} \
-		nvidia.com/gpu.deploy.device-plugin=true \
-		nvidia.com/gpu.deploy.gpu-feature-discovery=true \
-		nvidia.com/gpu.deploy.dcgm-exporter=true \
-		nvidia.com/gpu.deploy.dcgm=true
+		nvidia.com/gpu.deploy.device-plugin=$(maybe_set_true ${PLUGIN_DEPLOYED}) \
+		nvidia.com/gpu.deploy.gpu-feature-discovery=$(maybe_set_true ${GFD_DEPLOYED}) \
+		nvidia.com/gpu.deploy.dcgm-exporter=$(maybe_set_true ${DCGM_EXPORTER_DEPLOYED}) \
+		nvidia.com/gpu.deploy.dcgm=$(maybe_set_true ${DCGM_DEPLOYED})
 		if [ "${?}" != "0" ]; then
 			echo "Unable to bring up GPU operator components by setting their daemonset labels"
 		fi
 	__set_state_and_exit "failed" 1
 }
+
+# Only return 'paused-*' if the value passed in is != 'false'. It should only
+# be 'false' if some external entity has forced it to this value, at which point
+# we want to honor it's existing value and not change it.
+function maybe_set_paused() {
+	local current_value="${1}"
+	if [  "${current_value}" = "false" ]; then
+		echo "false"
+	else
+		echo "paused-for-mig-change"
+	fi
+}
+
+# Only return 'true' if the value passed in is != 'false'. It should only
+# be 'false' if some external entity has forced it to this value, at which point
+# we want to honor it's existing value and not change it.
+function maybe_set_true() {
+	local current_value="${1}"
+	if [  "${current_value}" = "false" ]; then
+		echo "false"
+	else
+		echo "true"
+	fi
+}
+
+echo "Getting current value of the 'nvidia.com/gpu.deploy.device-plugin' node label"
+PLUGIN_DEPLOYED=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.device-plugin}')
+if [ "${?}" != "0" ]; then
+	echo "Unable to get the value of the 'nvidia.com/gpu.deploy.device-plugin' label"
+	exit_failed_no_restart_gpu_clients
+fi
+echo "Current value of 'nvidia.com/gpu.deploy.device-plugin=${PLUGIN_DEPLOYED}'"
+
+echo "Getting current value of the 'nvidia.com/gpu.deploy.gpu-feature-discovery' node label"
+GFD_DEPLOYED=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.gpu-feature-discovery}')
+if [ "${?}" != "0" ]; then
+	echo "Unable to get the value of the 'nvidia.com/gpu.deploy.gpu-feature-discovery' label"
+	exit_failed_no_restart_gpu_clients
+fi
+echo "Current value of 'nvidia.com/gpu.deploy.gpu-feature-discovery=${GFD_DEPLOYED}'"
+
+echo "Getting current value of the 'nvidia.com/gpu.deploy.dcgm-exporter' node label"
+DCGM_EXPORTER_DEPLOYED=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.dcgm-exporter}')
+if [ "${?}" != "0" ]; then
+	echo "Unable to get the value of the 'nvidia.com/gpu.deploy.dcgm-exporter' label"
+	exit_failed_no_restart_gpu_clients
+fi
+echo "Current value of 'nvidia.com/gpu.deploy.dcgm-exporter=${DCGM_EXPORTER_DEPLOYED}'"
+
+echo "Getting current value of the 'nvidia.com/gpu.deploy.dcgm' node label"
+DCGM_DEPLOYED=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.dcgm}')
+if [ "${?}" != "0" ]; then
+	echo "Unable to get the value of the 'nvidia.com/gpu.deploy.dcgm' label"
+	exit_failed_no_restart_gpu_clients
+fi
+echo "Current value of 'nvidia.com/gpu.deploy.dcgm=${DCGM_DEPLOYED}'"
 
 echo "Asserting that the requested configuration is present in the configuration file"
 nvidia-mig-parted assert --valid-config -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
@@ -152,10 +208,10 @@ fi
 echo "Shutting down all GPU clients on the current node by disabling their component-specific nodeSelector labels"
 kubectl label --overwrite \
 	node ${NODE_NAME} \
-	nvidia.com/gpu.deploy.device-plugin=false \
-	nvidia.com/gpu.deploy.gpu-feature-discovery=false \
-	nvidia.com/gpu.deploy.dcgm-exporter=false \
-	nvidia.com/gpu.deploy.dcgm=false
+	nvidia.com/gpu.deploy.device-plugin=$(maybe_set_paused ${PLUGIN_DEPLOYED}) \
+	nvidia.com/gpu.deploy.gpu-feature-discovery=$(maybe_set_paused ${GFD_DEPLOYED}) \
+	nvidia.com/gpu.deploy.dcgm-exporter=$(maybe_set_paused ${DCGM_EXPORTER_DEPLOYED}) \
+	nvidia.com/gpu.deploy.dcgm=$(maybe_set_paused ${DCGM_DEPLOYED})
 if [ "${?}" != "0" ]; then
 	echo "Unable to tear down GPU operator components by setting their daemonset labels"
 	exit_failed
@@ -215,10 +271,10 @@ fi
 echo "Restarting all GPU clients previouly shutdown by reenabling their component-specific nodeSelector labels"
 kubectl label --overwrite \
 	node ${NODE_NAME} \
-	nvidia.com/gpu.deploy.device-plugin=true \
-	nvidia.com/gpu.deploy.gpu-feature-discovery=true \
-	nvidia.com/gpu.deploy.dcgm-exporter=true \
-	nvidia.com/gpu.deploy.dcgm=true
+	nvidia.com/gpu.deploy.device-plugin=$(maybe_set_true ${PLUGIN_DEPLOYED}) \
+	nvidia.com/gpu.deploy.gpu-feature-discovery=$(maybe_set_true ${GFD_DEPLOYED}) \
+	nvidia.com/gpu.deploy.dcgm-exporter=$(maybe_set_true ${DCGM_EXPORTER_DEPLOYED}) \
+	nvidia.com/gpu.deploy.dcgm=$(maybe_set_true ${DCGM_DEPLOYED})
 if [ "${?}" != "0" ]; then
 	echo "Unable to bring up GPU operator components by setting their daemonset labels"
 	exit_failed_no_restart_gpu_clients
