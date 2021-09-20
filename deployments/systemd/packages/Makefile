@@ -51,7 +51,7 @@ ubuntu18.04:
 		--build-arg PACKAGE_VERSION=$(VERSION) \
 		--build-arg PACKAGE_REVISION=$(REVISION) \
 		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:11.4.1-base-ubuntu18.04 \
+		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:11.4.2-base-ubuntu18.04 \
 		--tag $(IMAGE):v$(VERSION)-ubuntu18.04 \
 		--file Dockerfile.ubuntu \
 		$(BUILD_DIR)
@@ -65,7 +65,7 @@ ubuntu20.04:
 		--build-arg PACKAGE_VERSION=$(VERSION) \
 		--build-arg PACKAGE_REVISION=$(REVISION) \
 		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:11.4.1-base-ubuntu20.04 \
+		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:11.4.2-base-ubuntu20.04 \
 		--tag $(IMAGE):v$(VERSION)-ubuntu20.04 \
 		--file Dockerfile.ubuntu \
 		$(BUILD_DIR)
@@ -79,7 +79,7 @@ ubi8:
 		--build-arg PACKAGE_VERSION=$(VERSION) \
 		--build-arg PACKAGE_REVISION=$(REVISION) \
 		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:11.4.1-base-ubi8 \
+		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:11.4.2-base-ubi8 \
 		--tag $(IMAGE):v$(VERSION)-ubi8 \
 		--file Dockerfile.ubi8 \
 		$(BUILD_DIR)

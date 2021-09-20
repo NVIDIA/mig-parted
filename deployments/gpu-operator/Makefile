@@ -16,7 +16,7 @@ VERSION ?= v0.1.2
 
 DOCKER ?= docker
 GOLANG_VERSION ?= 1.15
-CUDA_BASE_IMAGE ?= nvcr.io/nvidia/cuda:11.4.1-base
+CUDA_BASE_IMAGE ?= nvcr.io/nvidia/cuda:11.4.2-base
 BUILD_DIR ?= ../..
 
 ifeq ($(IMAGE),)
