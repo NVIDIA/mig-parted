@@ -13,7 +13,7 @@
 # limitations under the License.
 
 NAME = nvidia-mig-manager
-VERSION ?= 0.1.2
+VERSION ?= 0.1.3
 REVISION ?= 1
 
 DOCKER ?= docker

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION ?= v0.1.2
+VERSION ?= v0.1.3
 
 DOCKER ?= docker
 GOLANG_VERSION ?= 1.15

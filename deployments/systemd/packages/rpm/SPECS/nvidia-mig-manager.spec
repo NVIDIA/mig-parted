@@ -81,6 +81,13 @@ systemctl disable nvidia-mig-manager.service
 systemctl daemon-reload
 
 %changelog
+* Mon Sep 20 2021 NVIDIA CORPORATION <cudatools@nvidia.com> 0.1.3-1
+- Add default configs for the PG506-96GB card
+- Remove CombinedMigManager and add wrappers for Mode/Config Managers
+- Add a function to check the minimum NVML version required
+- Add SystemGetNVMLVersion() to the NVML interface
+- Fix small bug in assert logic for non MIG-capable GPUs
+
 * Thu Aug 05 2021 NVIDIA CORPORATION <cudatools@nvidia.com> 0.1.2-1
 - Do not start nvidia-mig-manager.service when installing the .deb
 - Restore lost assert_gpu_reset_available() function

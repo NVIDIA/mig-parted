@@ -1,3 +1,13 @@
+nvidia-mig-manager (0.1.3-1) UNRELEASED; urgency=medium
+
+  * Add default configs for the PG506-96GB card
+  * Remove CombinedMigManager and add wrappers for Mode/Config Managers
+  * Add a function to check the minimum NVML version required
+  * Add SystemGetNVMLVersion() to the NVML interface
+  * Fix small bug in assert logic for non MIG-capable GPUs
+
+ -- NVIDIA CORPORATION <cudatools@nvidia.com>  Mon, 20 Sep 2021 17:16:26 +0000
+
 nvidia-mig-manager (0.1.2-1) UNRELEASED; urgency=medium
 
   * Do not start nvidia-mig-manager.service when installing the .deb
