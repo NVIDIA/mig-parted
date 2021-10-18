@@ -100,7 +100,7 @@ function nvidia-mig-manager::service::start_systemd_services() {
 function nvidia-mig-manager::service::stop_systemd_services() {
 	local -n __services="${1}"
 	for s in ${__services[@]}; do
-		systemctl list-unit-files --state=enabled,generated | grep -F "${s}"
+		systemctl -q is-active "${s}"
 		if [ "${?}" != "0" ]; then
 			continue
 		fi
