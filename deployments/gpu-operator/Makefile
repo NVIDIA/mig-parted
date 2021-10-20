@@ -20,7 +20,7 @@ CUDA_BASE_IMAGE ?= nvcr.io/nvidia/cuda:11.4.2-base
 BUILD_DIR ?= ../..
 
 ifeq ($(IMAGE),)
-REGISTRY ?= nvcr.io/nvidia
+REGISTRY ?= nvcr.io/nvidia/cloud-native
 IMAGE := $(REGISTRY)/k8s-mig-manager
 endif
 
