@@ -15,32 +15,47 @@
 # limitations under the License.
 
 WITH_REBOOT="false"
-HOST_ROOT_MOUNT="/host"
+WITH_SHUTDOWN_HOST_GPU_CLIENTS="false"
+HOST_ROOT_MOUNT=""
+HOST_NVIDIA_DIR=""
+HOST_MIG_MANAGER_STATE_FILE=""
+HOST_GPU_CLIENT_SERVICES=""
+HOST_KUBELET_SERVICE=""
 NODE_NAME=""
 MIG_CONFIG_FILE=""
 SELECTED_MIG_CONFIG=""
 
+export SYSTEMD_LOG_LEVEL="info"
+
 function usage() {
   echo "USAGE:"
   echo "    ${0} -h "
-  echo "    ${0} -n <node> -f <config-file> -c <selected-config> [ -r ]"
+  echo "    ${0} -n <node> -f <config-file> -c <selected-config> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
   echo ""
   echo "OPTIONS:"
-  echo "    -h                   Display this help message"
-  echo "    -r                   Automatically reboot the node if changing the MIG mode fails for any reason"
-  echo "    -n <node>            The kubernetes node to change the MIG configuration on"
-  echo "    -f <config-file>     The mig-parted configuration file"
-  echo "    -c <selected-config> The selected mig-parted configuration to apply to the node"
-  echo "    -m <host-root-mount> Target path where host root directory is mounted"
+  echo "    -h                               Display this help message"
+  echo "    -r                               Automatically reboot the node if changing the MIG mode fails for any reason"
+  echo "    -d                               Automatically shutdown/restart any required host GPU clients across a MIG configuration"
+  echo "    -n <node>                        The kubernetes node to change the MIG configuration on"
+  echo "    -f <config-file>                 The mig-parted configuration file"
+  echo "    -c <selected-config>             The selected mig-parted configuration to apply to the node"
+  echo "    -m <host-root-mount>             Container path where host root directory is mounted"
+  echo "    -i <host-nvidia-dir>             Host path of the directory where NVIDIA managed software directory is typically located"
+  echo "    -o <host-mig-manager-state-file> Host path where the systemd mig-manager state file is located"
+  echo "    -g <host-gpu-client-services>    Comma separated list of host systemd services to shutdown/restart across a MIG reconfiguration"
+  echo "    -k <host-kubelet-service>        Name of the host's 'kubelet' systemd service which may need to be shutdown/restarted across a MIG mode reconfiguration"
 }
 
-while getopts "hrn:f:c:m:" opt; do
+while getopts "hrdn:f:c:m:i:o:g:k:" opt; do
   case ${opt} in
     h ) # process option h
       usage; exit 0
       ;;
     r ) # process option r
       WITH_REBOOT="true"
+      ;;
+    d ) # process option d
+      WITH_SHUTDOWN_HOST_GPU_CLIENTS="true"
       ;;
     n ) # process option n
       NODE_NAME=${OPTARG}
@@ -54,7 +69,19 @@ while getopts "hrn:f:c:m:" opt; do
     m ) # process option m
       HOST_ROOT_MOUNT=${OPTARG}
       ;;
-    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> [ -m <host-root-mount> -r ]"
+    i ) # process option i
+      HOST_NVIDIA_DIR=${OPTARG}
+      ;;
+    o ) # process option o
+      HOST_MIG_MANAGER_STATE_FILE=${OPTARG}
+      ;;
+    g ) # process option g
+      HOST_GPU_CLIENT_SERVICES=${OPTARG}
+      ;;
+    k ) # process option k
+      HOST_KUBELET_SERVICE=${OPTARG}
+      ;;
+    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
       ;;
   esac
 done
@@ -70,6 +97,18 @@ fi
 if [ "${SELECTED_MIG_CONFIG}" = "" ]; then
   echo "Error: missing -c <selected-config> flag"
   usage; exit 1
+fi
+
+HOST_GPU_CLIENT_SERVICES=(${HOST_GPU_CLIENT_SERVICES//,/ })
+HOST_GPU_CLIENT_SERVICES_STOPPED=()
+
+if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
+	mkdir -p "${HOST_ROOT_MOUNT}/${HOST_NVIDIA_DIR}/mig-manager/"
+	cp "$(which nvidia-mig-parted)" "${HOST_ROOT_MOUNT}/${HOST_NVIDIA_DIR}/mig-manager/"
+	cp "${MIG_CONFIG_FILE}" "${HOST_ROOT_MOUNT}/${HOST_NVIDIA_DIR}/mig-manager/config.yaml"
+	shopt -s expand_aliases
+	alias nvidia-mig-parted="chroot ${HOST_ROOT_MOUNT} ${HOST_NVIDIA_DIR}/mig-manager/nvidia-mig-parted"
+	MIG_CONFIG_FILE="${HOST_NVIDIA_DIR}/mig-manager/config.yaml"
 fi
 
 function __set_state_and_exit() {
@@ -98,6 +137,11 @@ function exit_failed_no_restart_gpu_clients() {
 }
 
 function exit_failed() {
+	if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
+		echo "Restarting all GPU clients previously shutdown on the host by restarting their systemd services"
+		host_start_systemd_services
+	fi
+
 	echo "Restarting all GPU clients previouly shutdown by reenabling their component-specific nodeSelector labels"
 	kubectl label --overwrite \
 		node ${NODE_NAME} \
@@ -133,6 +177,81 @@ function maybe_set_true() {
 	else
 		echo "true"
 	fi
+}
+
+function host_stop_systemd_services() {
+	local -n __services="HOST_GPU_CLIENT_SERVICES"
+	for s in ${__services[@]}; do
+		# If the service is "active"" we will attempt to shut it down and (if
+		# successful) we will track it to restart it later.
+		chroot ${HOST_ROOT_MOUNT} systemctl -q is-active "${s}"
+		if [ "${?}" = "0" ]; then
+			echo "Stopping "${s}" (active, will-restart)"
+			chroot ${HOST_ROOT_MOUNT} systemctl stop "${s}"
+			if [ "${?}" != "0" ]; then
+				return 1
+			fi
+			HOST_GPU_CLIENT_SERVICES_STOPPED=("${s}" ${HOST_GPU_CLIENT_SERVICES_STOPPED[@]})
+			continue
+		fi
+
+		# If the service is inactive, then we may or may not still want to track
+		# it to restart it later. The logic below decides when we should or not.
+
+		chroot ${HOST_ROOT_MOUNT} systemctl -q is-enabled "${s}" > /dev/null 2>&1
+		if [ "${?}" != "0" ]; then
+			echo "Skipping "${s}" (no-exist)"
+			continue
+		else
+			local type="$(chroot ${HOST_ROOT_MOUNT} systemctl show --property=Type "${s}")"
+			if [ "${type}" = "Type=oneshot" ]; then
+				echo "Skipping "${s}" (inactive, oneshot, no-restart)"
+				continue
+			fi
+			echo "Skipping "${s}" (inactive, will-restart)"
+			HOST_GPU_CLIENT_SERVICES_STOPPED=("${s}" ${HOST_GPU_CLIENT_SERVICES_STOPPED[@]})
+			continue
+		fi
+
+		chroot ${HOST_ROOT_MOUNT} systemctl -q is-failed "${s}"
+		if [ "${?}" = "0" ]; then
+			echo "Skipping "${s}" (is-failed, will-restart)"
+			HOST_GPU_CLIENT_SERVICES_STOPPED=("${s}" ${HOST_GPU_CLIENT_SERVICES_STOPPED[@]})
+			continue
+		fi
+
+		echo "Skipping "${s}" (inactive)"
+	done
+	return 0
+}
+
+function host_start_systemd_services() {
+	local -n __services="HOST_GPU_CLIENT_SERVICES_STOPPED"
+	local ret=0
+	for s in ${__services[@]}; do
+		echo "Starting "${s}""
+		chroot ${HOST_ROOT_MOUNT} systemctl start "${s}"
+		if [ "${?}" != "0" ]; then
+			echo "Error Starting "${s}": skipping, but continuing..."
+			ret=1
+		fi
+	done
+	return ${ret}
+}
+
+function host_persist_config() {
+local config=$(cat << EOF
+[Service]
+Environment="MIG_PARTED_SELECTED_CONFIG=${SELECTED_MIG_CONFIG}"
+EOF
+)
+	chroot ${HOST_ROOT_MOUNT} bash -c "
+		echo \"${config}\" > ${HOST_MIG_MANAGER_STATE_FILE};
+		systemctl daemon-reload"
+	if [ "${?}" != "0" ]; then
+		return 1
+	fi
+	return 0
 }
 
 echo "Getting current value of the 'nvidia.com/gpu.deploy.device-plugin' node label"
@@ -182,18 +301,35 @@ if [ "${?}" != "0" ]; then
 fi
 echo "Current value of 'nvidia.com/mig.config.state=${STATE}'"
 
-echo "Checking if the MIG mode setting in the selected config is currently applied or not"
-echo "If the state is 'rebooting', we expect this to always return true"
-nvidia-mig-parted assert --mode-only -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
-if [ "${?}" != "0" ] && [ "${STATE}" == "rebooting" ]; then
-	echo "MIG mode change did not take effect after rebooting"
-	exit_failed
-fi
-
 echo "Checking if the selected MIG config is currently applied or not"
 nvidia-mig-parted assert -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
 if [ "${?}" = "0" ]; then
 	exit_success
+fi
+
+if [ "${HOST_ROOT_MOUNT}" != "" ] && [ "${HOST_MIG_MANAGER_STATE_FILE}" != "" ]; then
+	if [ -f "${HOST_ROOT_MOUNT}/${HOST_MIG_MANAGER_STATE_FILE}" ]; then
+		echo "Persisting ${SELECTED_MIG_CONFIG} to ${HOST_MIG_MANAGER_STATE_FILE}"
+		host_persist_config
+		if [ "${?}" != "0" ]; then
+			echo "Unable to persist ${SELECTED_MIG_CONFIG} to ${HOST_MIG_MANAGER_STATE_FILE}"
+			exit_failed
+		fi
+	fi
+fi
+
+echo "Checking if the MIG mode setting in the selected config is currently applied or not"
+echo "If the state is 'rebooting', we expect this to always return true"
+nvidia-mig-parted assert --mode-only -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
+if [ "${?}" != "0" ]; then
+	if [ "${STATE}" = "rebooting" ]; then
+		echo "MIG mode change did not take effect after rebooting"
+		exit_failed
+	fi
+	if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
+		HOST_GPU_CLIENT_SERVICES+=(${HOST_KUBELET_SERVICE})
+	fi
+	MIG_MODE_CHANGE_REQUIRED="true"
 fi
 
 echo "Changing the 'nvidia.com/mig.config.state' node label to 'pending'"
@@ -205,7 +341,7 @@ if [ "${?}" != "0" ]; then
 	exit_failed
 fi
 
-echo "Shutting down all GPU clients on the current node by disabling their component-specific nodeSelector labels"
+echo "Shutting down all GPU clients in Kubernetes by disabling their component-specific nodeSelector labels"
 kubectl label --overwrite \
 	node ${NODE_NAME} \
 	nvidia.com/gpu.deploy.device-plugin=$(maybe_set_paused ${PLUGIN_DEPLOYED}) \
@@ -245,6 +381,25 @@ kubectl wait --for=delete pod \
 	-n gpu-operator-resources \
 	-l app=nvidia-dcgm
 
+if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
+	echo "Shutting down all GPU clients on the host by stopping their systemd services"
+	host_stop_systemd_services
+	if [ "${?}" != "0" ]; then
+		echo "Unable to shutdown GPU clients on host by stopping their systemd services"
+		exit_failed
+	fi
+	if [ "${MIG_MODE_CHANGE_REQUIRED}" = "true" ]; then
+		# This is a hack to accommodate for observed behaviour. Once we shut
+		# down the above services, there appears to be some settling time
+		# before we are able to reconnect to the fabric-manager to run the
+		# required GPU reset when changing MIG mode. It is unknown why this
+		# problem only appears when shutting down systemd services on the host
+		# with pre-installed drivers, and not when running with operator
+		# managed drivers.
+		sleep 30
+	fi
+fi
+
 echo "Applying the MIG mode change from the selected config to the node"
 echo "If the -r option was passed, the node will be automatically rebooted if this is not successful"
 nvidia-mig-parted -d apply --mode-only -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
@@ -268,7 +423,16 @@ if [ "${?}" != "0" ]; then
 	exit_failed
 fi
 
-echo "Restarting all GPU clients previouly shutdown by reenabling their component-specific nodeSelector labels"
+if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
+	echo "Restarting all GPU clients previously shutdown on the host by restarting their systemd services"
+	host_start_systemd_services
+	if [ "${?}" != "0" ]; then
+		echo "Unable to restart GPU clients on host by restarting their systemd services"
+		exit_failed_no_restart_gpu_clients
+	fi
+fi
+
+echo "Restarting all GPU clients previouly shutdown in Kubernetes by reenabling their component-specific nodeSelector labels"
 kubectl label --overwrite \
 	node ${NODE_NAME} \
 	nvidia.com/gpu.deploy.device-plugin=$(maybe_set_true ${PLUGIN_DEPLOYED}) \

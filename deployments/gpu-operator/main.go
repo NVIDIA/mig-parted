@@ -18,8 +18,10 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -30,24 +32,39 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"sigs.k8s.io/yaml"
 )
 
 const (
 	ResourceNodes  = "nodes"
 	MigConfigLabel = "nvidia.com/mig.config"
 
-	DefaultReconfigureScript = "/usr/bin/reconfigure-mig.sh"
-	DefaultHostRootMount     = "/host"
+	DefaultReconfigureScript         = "/usr/bin/reconfigure-mig.sh"
+	DefaultHostRootMount             = "/host"
+	DefaultHostNvidiaDir             = "/usr/local/nvidia"
+	DefaultHostMigManagerStateFile   = "/etc/systemd/system/nvidia-mig-manager.service.d/override.conf"
+	DefaultHostKubeletSystemdService = "kubelet.service"
 )
 
 var (
-	kubeconfigFlag        string
-	nodeNameFlag          string
-	configFileFlag        string
-	reconfigureScriptFlag string
-	withRebootFlag        bool
-	hostRootMountFlag     string
+	kubeconfigFlag                 string
+	nodeNameFlag                   string
+	configFileFlag                 string
+	reconfigureScriptFlag          string
+	withRebootFlag                 bool
+	withShutdownHostGPUClientsFlag bool
+	gpuClientsFileFlag             string
+	hostRootMountFlag              string
+	hostNvidiaDirFlag              string
+	hostMigManagerStateFileFlag    string
+	hostKubeletSystemdServiceFlag  string
 )
+
+type GPUClients struct {
+	Version         string   `json:"version"          yaml:"version"`
+	SystemdServices []string `json:"systemd-services" yaml:"systemd-services"`
+}
 
 type SyncableMigConfig struct {
 	cond     *sync.Cond
@@ -122,9 +139,41 @@ func main() {
 			Name:        "host-root-mount",
 			Aliases:     []string{"m"},
 			Value:       DefaultHostRootMount,
-			Usage:       "target path where host root directory is mounted",
+			Usage:       "container path where host root directory is mounted",
 			Destination: &hostRootMountFlag,
 			EnvVars:     []string{"HOST_ROOT_MOUNT"},
+		},
+		&cli.StringFlag{
+			Name:        "host-nvidia-dir",
+			Aliases:     []string{"i"},
+			Value:       DefaultHostNvidiaDir,
+			Usage:       "host path of the directory where NVIDIA managed software directory is typically located",
+			Destination: &hostNvidiaDirFlag,
+			EnvVars:     []string{"HOST_NVIDIA_DIR"},
+		},
+		&cli.StringFlag{
+			Name:        "host-mig-manager-state-file",
+			Aliases:     []string{"o"},
+			Value:       DefaultHostMigManagerStateFile,
+			Usage:       "host path where the host's systemd mig-manager state file is located",
+			Destination: &hostMigManagerStateFileFlag,
+			EnvVars:     []string{"HOST_MIG_MANAGER_STATE_FILE"},
+		},
+		&cli.StringFlag{
+			Name:        "host-kubelet-systemd-service",
+			Aliases:     []string{"k"},
+			Value:       DefaultHostKubeletSystemdService,
+			Usage:       "name of the host's 'kubelet' systemd service which may need to be shutdown/restarted across a MIG mode reconfiguration",
+			Destination: &hostKubeletSystemdServiceFlag,
+			EnvVars:     []string{"HOST_KUBELET_SYSTEMD_SERVICE"},
+		},
+		&cli.StringFlag{
+			Name:        "gpu-clients-file",
+			Aliases:     []string{"g"},
+			Value:       "",
+			Usage:       "the path to the file listing the GPU clients that need to be shutdown across a MIG configuration",
+			Destination: &gpuClientsFileFlag,
+			EnvVars:     []string{"GPU_CLIENTS_FILE"},
 		},
 		&cli.BoolFlag{
 			Name:        "with-reboot",
@@ -133,6 +182,14 @@ func main() {
 			Usage:       "reboot the node if changing the MIG mode fails for any reason",
 			Destination: &withRebootFlag,
 			EnvVars:     []string{"WITH_REBOOT"},
+		},
+		&cli.BoolFlag{
+			Name:        "with-shutdown-host-gpu-clients",
+			Aliases:     []string{"d"},
+			Value:       false,
+			Usage:       "shutdown/restart any required host GPU clients across a MIG configuration",
+			Destination: &withShutdownHostGPUClientsFlag,
+			EnvVars:     []string{"WITH_SHUTDOWN_HOST_GPU_CLIENTS"},
 		},
 	}
 
@@ -183,15 +240,45 @@ func start(c *cli.Context) error {
 	}
 }
 
+func parseGPUCLientsFile(file string) (*GPUClients, error) {
+	var err error
+	var yamlBytes []byte
+
+	yamlBytes, err = ioutil.ReadFile(file)
+	if err != nil {
+		return nil, fmt.Errorf("read error: %v", err)
+	}
+
+	var clients GPUClients
+	err = yaml.Unmarshal(yamlBytes, &clients)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal error: %v", err)
+	}
+
+	return &clients, nil
+}
+
 func runScript(migConfigValue string) error {
+	gpuClients, err := parseGPUCLientsFile(gpuClientsFileFlag)
+	if err != nil {
+		return fmt.Errorf("error parsing host's GPU clients file: %s", err)
+	}
+
 	args := []string{
 		"-n", nodeNameFlag,
 		"-f", configFileFlag,
 		"-c", migConfigValue,
 		"-m", hostRootMountFlag,
+		"-i", hostNvidiaDirFlag,
+		"-o", hostMigManagerStateFileFlag,
+		"-g", strings.Join(gpuClients.SystemdServices, ","),
+		"-k", hostKubeletSystemdServiceFlag,
 	}
 	if withRebootFlag {
 		args = append(args, "-r")
+	}
+	if withShutdownHostGPUClientsFlag {
+		args = append(args, "-d")
 	}
 	cmd := exec.Command(reconfigureScriptFlag, args...)
 	cmd.Stdout = os.Stdout
