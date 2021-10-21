@@ -77,6 +77,9 @@ func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
 		if ret.Value() == nvml.ERROR_NOT_SUPPORTED {
 			continue
 		}
+		if ret.Value() == nvml.ERROR_INVALID_ARGUMENT {
+			continue
+		}
 		if ret.Value() != nvml.SUCCESS {
 			return nil, fmt.Errorf("error getting GPU instance profile info for '%v': %v", i, ret)
 		}
@@ -91,6 +94,9 @@ func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
 				for k := 0; k < nvml.COMPUTE_INSTANCE_ENGINE_PROFILE_COUNT; k++ {
 					ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(j, k)
 					if ret.Value() == nvml.ERROR_NOT_SUPPORTED {
+						continue
+					}
+					if ret.Value() == nvml.ERROR_INVALID_ARGUMENT {
 						continue
 					}
 					if ret.Value() != nvml.SUCCESS {
@@ -239,6 +245,9 @@ func (m *nvmlMigConfigManager) ClearMigConfig(gpu int) error {
 		if ret.Value() == nvml.ERROR_NOT_SUPPORTED {
 			continue
 		}
+		if ret.Value() == nvml.ERROR_INVALID_ARGUMENT {
+			continue
+		}
 		if ret.Value() != nvml.SUCCESS {
 			return fmt.Errorf("error getting GPU instance profile info for '%v': %v", i, ret)
 		}
@@ -253,6 +262,9 @@ func (m *nvmlMigConfigManager) ClearMigConfig(gpu int) error {
 				for k := 0; k < nvml.COMPUTE_INSTANCE_ENGINE_PROFILE_COUNT; k++ {
 					ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(j, k)
 					if ret.Value() == nvml.ERROR_NOT_SUPPORTED {
+						continue
+					}
+					if ret.Value() == nvml.ERROR_INVALID_ARGUMENT {
 						continue
 					}
 					if ret.Value() != nvml.SUCCESS {
