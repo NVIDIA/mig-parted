@@ -100,7 +100,7 @@ function nvidia-mig-manager::service::start_systemd_services() {
 function nvidia-mig-manager::service::stop_systemd_services() {
 	local -n __services="${1}"
 	for s in ${__services[@]}; do
-		systemctl list-unit-files --state=enabled,generated | grep -F "${s}"
+		systemctl -q is-active "${s}"
 		if [ "${?}" != "0" ]; then
 			continue
 		fi
@@ -145,24 +145,21 @@ function nvidia-mig-manager::service::kill_k8s_containers_via_containerd_by_imag
 
 	for i in ${__image_names[@]}; do
 		images+=("${i}")
-		images+=("$(ctr -n k8s.io image ls | grep "${i}" | tr -s ' ' | cut -d' ' -f3 | tr '\n' ' ')")
+		images+=("$(ctr -n k8s.io image ls | grep "${i}" | tr -s ' ' | cut -d' ' -f1 | tr '\n' ' ')")
 	done
 
 	for i in ${images[@]}; do
-		local tasks="$(ctr -n k8s.io task ls "image~=${i}" -q)"
-		if [ "${tasks}" != "" ]; then
-			ctr -n k8s.io task kill -a -s SIGKILL ${tasks}
+		local containers="$(ctr -n k8s.io container ls "image~=${i}" -q)"
+		if [ "${containers}" != "" ]; then
+			ctr -n k8s.io task kill -a -s SIGKILL ${containers} || true
 			if [ "${?}" != "0" ]; then
 				return 1
 			fi
 			sleep 10
-			ctr -n k8s.io task rm -f ${tasks}
+			ctr -n k8s.io task rm -f ${containers} || true
 			if [ "${?}" != "0" ]; then
 				return 1
 			fi
-		fi
-		local containers="$(ctr -n k8s.io container ls "image~=${i}" -q)"
-		if [ "${containers}" != "" ]; then
 			ctr -n k8s.io container rm ${containers}
 			if [ "${?}" != "0" ]; then
 				return 1
