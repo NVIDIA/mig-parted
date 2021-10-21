@@ -112,27 +112,30 @@ variables:
 # images.
 .scan-mig-manager:
   stage: scan
+  image: "${PULSE_IMAGE}"
   extends:
     - .pull-mig-manager
     - .mig-manager-ci-input-image
   variables:
-    OUT_IMAGE: k8s-mig-manager
-    OUT_VERSION: ${CI_COMMIT_SHA}
+    IMAGE: "${IN_IMAGE}:${IN_VERSION}-${DIST}"
+    IMAGE_ARCHIVE: "k8s-mig-manager.tar"
   script:
     - 'echo Dist: ${DIST} ; [[ -n "${DIST}" ]] || exit 1'
-
-    # Tag the output image
-    - docker tag "${IN_IMAGE}:${IN_VERSION}-${DIST}" "${OUT_IMAGE}:${OUT_VERSION}-${DIST}"
-
-    - apk add --no-cache git
-    - apk add --no-cache python3 python3-dev py3-pip py3-wheel libmagic
-
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab-master.nvidia.com/sectooling/scanning/contamer.git
-    - pip3 install -r contamer/requirements.txt
-
-    - cd contamer
-    - python3 contamer.py -ls --fail-on-non-os ${CONTAMER_SUPPRESS_VULNS:+--suppress-vulns ${CONTAMER_SUPPRESS_VULNS}} -- "${OUT_IMAGE}:${OUT_VERSION}-${DIST}"
-
+    - docker save "${IMAGE}" -o "${IMAGE_ARCHIVE}"
+    - AuthHeader=$(echo -n $SSA_CLIENT_ID:$SSA_CLIENT_SECRET | base64 -w0)
+    - >
+      export SSA_TOKEN=$(curl --request POST --header "Authorization: Basic $AuthHeader" --header "Content-Type: application/x-www-form-urlencoded" ${SSA_ISSUER_URL} | jq ".access_token" |  tr -d '"')
+    - if [ -z "$SSA_TOKEN" ]; then exit 1; else echo "SSA_TOKEN set!"; fi
+    - pulse-cli -n $NSPECT_ID --pss $PSS_URL --ssa $SSA_TOKEN scan -i $IMAGE_ARCHIVE -p $CONTAINER_POLICY -o
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - pulse-cli.log
+      - licenses.json
+      - sbom.json
+      - vulns.json
+      - policy_evaluation.json
 
 scan-ubi8:
   extends:
