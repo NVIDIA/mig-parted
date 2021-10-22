@@ -115,6 +115,31 @@ function __set_state_and_exit() {
 	local state="${1}"
 	local exit_code="${2}"
 
+	if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
+		if [ "${NO_RESTART_HOST_SYSTEMD_SERVICES_ON_EXIT}" != "true" ]; then
+			echo "Restarting any GPU clients previously shutdown on the host by restarting their systemd services"
+			host_start_systemd_services
+			if [ "${?}" != "0" ]; then
+				echo "Unable to restart host systemd services"
+				exit_code=1
+			fi
+		fi
+	fi
+
+	if [ "${NO_RESTART_K8S_DAEMONSETS_ON_EXIT}" != "true" ]; then
+		echo "Restarting any GPU clients previously shutdown in Kubernetes by reenabling their component-specific nodeSelector labels"
+		kubectl label --overwrite \
+			node ${NODE_NAME} \
+			nvidia.com/gpu.deploy.device-plugin=$(maybe_set_true ${PLUGIN_DEPLOYED}) \
+			nvidia.com/gpu.deploy.gpu-feature-discovery=$(maybe_set_true ${GFD_DEPLOYED}) \
+			nvidia.com/gpu.deploy.dcgm-exporter=$(maybe_set_true ${DCGM_EXPORTER_DEPLOYED}) \
+			nvidia.com/gpu.deploy.dcgm=$(maybe_set_true ${DCGM_DEPLOYED})
+			if [ "${?}" != "0" ]; then
+				echo "Unable to bring up GPU operator components by setting their daemonset labels"
+				exit_code=1
+			fi
+	fi
+
 	echo "Changing the 'nvidia.com/mig.config.state' node label to '${state}'"
 	kubectl label --overwrite  \
 		node ${NODE_NAME} \
@@ -122,7 +147,7 @@ function __set_state_and_exit() {
 	if [ "${?}" != "0" ]; then
 		echo "Unable to set 'nvidia.com/mig.config.state' to \'${state}\'"
 		echo "Exiting with incorrect value in 'nvidia.com/mig.config.state'"
-		exit 1
+		exit_code=1
 	fi
 
 	exit ${exit_code}
@@ -132,26 +157,7 @@ function exit_success() {
 	__set_state_and_exit "success" 0
 }	
 
-function exit_failed_no_restart_gpu_clients() {
-	__set_state_and_exit "failed" 1
-}
-
 function exit_failed() {
-	if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
-		echo "Restarting all GPU clients previously shutdown on the host by restarting their systemd services"
-		host_start_systemd_services
-	fi
-
-	echo "Restarting all GPU clients previouly shutdown by reenabling their component-specific nodeSelector labels"
-	kubectl label --overwrite \
-		node ${NODE_NAME} \
-		nvidia.com/gpu.deploy.device-plugin=$(maybe_set_true ${PLUGIN_DEPLOYED}) \
-		nvidia.com/gpu.deploy.gpu-feature-discovery=$(maybe_set_true ${GFD_DEPLOYED}) \
-		nvidia.com/gpu.deploy.dcgm-exporter=$(maybe_set_true ${DCGM_EXPORTER_DEPLOYED}) \
-		nvidia.com/gpu.deploy.dcgm=$(maybe_set_true ${DCGM_DEPLOYED})
-		if [ "${?}" != "0" ]; then
-			echo "Unable to bring up GPU operator components by setting their daemonset labels"
-		fi
 	__set_state_and_exit "failed" 1
 }
 
@@ -180,8 +186,7 @@ function maybe_set_true() {
 }
 
 function host_stop_systemd_services() {
-	local -n __services="HOST_GPU_CLIENT_SERVICES"
-	for s in ${__services[@]}; do
+	for s in ${HOST_GPU_CLIENT_SERVICES[@]}; do
 		# If the service is "active"" we will attempt to shut it down and (if
 		# successful) we will track it to restart it later.
 		chroot ${HOST_ROOT_MOUNT} systemctl -q is-active "${s}"
@@ -198,18 +203,9 @@ function host_stop_systemd_services() {
 		# If the service is inactive, then we may or may not still want to track
 		# it to restart it later. The logic below decides when we should or not.
 
-		chroot ${HOST_ROOT_MOUNT} systemctl -q is-enabled "${s}" > /dev/null 2>&1
-		if [ "${?}" != "0" ]; then
+		local err="$(chroot ${HOST_ROOT_MOUNT} systemctl -q is-enabled "${s}" 2>&1)"
+		if [ "${err}" != "" ]; then
 			echo "Skipping "${s}" (no-exist)"
-			continue
-		else
-			local type="$(chroot ${HOST_ROOT_MOUNT} systemctl show --property=Type "${s}")"
-			if [ "${type}" = "Type=oneshot" ]; then
-				echo "Skipping "${s}" (inactive, oneshot, no-restart)"
-				continue
-			fi
-			echo "Skipping "${s}" (inactive, will-restart)"
-			HOST_GPU_CLIENT_SERVICES_STOPPED=("${s}" ${HOST_GPU_CLIENT_SERVICES_STOPPED[@]})
 			continue
 		fi
 
@@ -220,15 +216,63 @@ function host_stop_systemd_services() {
 			continue
 		fi
 
-		echo "Skipping "${s}" (inactive)"
+		chroot ${HOST_ROOT_MOUNT} systemctl -q is-enabled "${s}"
+		if [ "${?}" != "0" ]; then
+			echo "Skipping "${s}" (disabled)"
+			continue
+		fi
+
+		local type="$(chroot ${HOST_ROOT_MOUNT} systemctl show --property=Type "${s}")"
+		if [ "${type}" = "Type=oneshot" ]; then
+			echo "Skipping "${s}" (inactive, oneshot, no-restart)"
+			continue
+		fi
+
+		echo "Skipping "${s}" (inactive, will-restart)"
+		HOST_GPU_CLIENT_SERVICES_STOPPED=("${s}" ${HOST_GPU_CLIENT_SERVICES_STOPPED[@]})
 	done
 	return 0
 }
 
 function host_start_systemd_services() {
-	local -n __services="HOST_GPU_CLIENT_SERVICES_STOPPED"
 	local ret=0
-	for s in ${__services[@]}; do
+
+	# If HOST_GPU_CLIENT_SERVICES_STOPPED is empty, then it's possible that
+	# host_stop_systemd_services was never called, so let's double check to see
+	# if there's anything we should actually restart.
+	if [ "${#HOST_GPU_CLIENT_SERVICES_STOPPED[@]}" = "0" ]; then
+		for s in ${HOST_GPU_CLIENT_SERVICES[@]}; do
+			chroot ${HOST_ROOT_MOUNT} systemctl -q is-active "${s}"
+			if [ "${?}" = "0" ]; then
+				continue
+			fi
+
+			local err="$(chroot ${HOST_ROOT_MOUNT} systemctl -q is-enabled "${s}" 2>&1)"
+			if [ "${err}" != "" ]; then
+				continue
+			fi
+
+			chroot ${HOST_ROOT_MOUNT} systemctl -q is-failed "${s}"
+			if [ "${?}" = "0" ]; then
+				HOST_GPU_CLIENT_SERVICES_STOPPED=("${s}" ${HOST_GPU_CLIENT_SERVICES_STOPPED[@]})
+				continue
+			fi
+
+			chroot ${HOST_ROOT_MOUNT} systemctl -q is-enabled "${s}"
+			if [ "${?}" != "0" ]; then
+				continue
+			fi
+
+			local type="$(chroot ${HOST_ROOT_MOUNT} systemctl show --property=Type "${s}")"
+			if [ "${type}" = "Type=oneshot" ]; then
+				continue
+			fi
+
+			HOST_GPU_CLIENT_SERVICES_STOPPED=("${s}" ${HOST_GPU_CLIENT_SERVICES_STOPPED[@]})
+		done
+	fi
+
+	for s in ${HOST_GPU_CLIENT_SERVICES_STOPPED[@]}; do
 		echo "Starting "${s}""
 		chroot ${HOST_ROOT_MOUNT} systemctl start "${s}"
 		if [ "${?}" != "0" ]; then
@@ -236,6 +280,7 @@ function host_start_systemd_services() {
 			ret=1
 		fi
 	done
+
 	return ${ret}
 }
 
@@ -258,7 +303,7 @@ echo "Getting current value of the 'nvidia.com/gpu.deploy.device-plugin' node la
 PLUGIN_DEPLOYED=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.device-plugin}')
 if [ "${?}" != "0" ]; then
 	echo "Unable to get the value of the 'nvidia.com/gpu.deploy.device-plugin' label"
-	exit_failed_no_restart_gpu_clients
+	exit_failed
 fi
 echo "Current value of 'nvidia.com/gpu.deploy.device-plugin=${PLUGIN_DEPLOYED}'"
 
@@ -266,7 +311,7 @@ echo "Getting current value of the 'nvidia.com/gpu.deploy.gpu-feature-discovery'
 GFD_DEPLOYED=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.gpu-feature-discovery}')
 if [ "${?}" != "0" ]; then
 	echo "Unable to get the value of the 'nvidia.com/gpu.deploy.gpu-feature-discovery' label"
-	exit_failed_no_restart_gpu_clients
+	exit_failed
 fi
 echo "Current value of 'nvidia.com/gpu.deploy.gpu-feature-discovery=${GFD_DEPLOYED}'"
 
@@ -274,7 +319,7 @@ echo "Getting current value of the 'nvidia.com/gpu.deploy.dcgm-exporter' node la
 DCGM_EXPORTER_DEPLOYED=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.dcgm-exporter}')
 if [ "${?}" != "0" ]; then
 	echo "Unable to get the value of the 'nvidia.com/gpu.deploy.dcgm-exporter' label"
-	exit_failed_no_restart_gpu_clients
+	exit_failed
 fi
 echo "Current value of 'nvidia.com/gpu.deploy.dcgm-exporter=${DCGM_EXPORTER_DEPLOYED}'"
 
@@ -282,7 +327,7 @@ echo "Getting current value of the 'nvidia.com/gpu.deploy.dcgm' node label"
 DCGM_DEPLOYED=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.dcgm}')
 if [ "${?}" != "0" ]; then
 	echo "Unable to get the value of the 'nvidia.com/gpu.deploy.dcgm' label"
-	exit_failed_no_restart_gpu_clients
+	exit_failed
 fi
 echo "Current value of 'nvidia.com/gpu.deploy.dcgm=${DCGM_DEPLOYED}'"
 
@@ -425,14 +470,16 @@ fi
 
 if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
 	echo "Restarting all GPU clients previously shutdown on the host by restarting their systemd services"
+	NO_RESTART_HOST_SYSTEMD_SERVICES_ON_EXIT=true
 	host_start_systemd_services
 	if [ "${?}" != "0" ]; then
 		echo "Unable to restart GPU clients on host by restarting their systemd services"
-		exit_failed_no_restart_gpu_clients
+		exit_failed
 	fi
 fi
 
-echo "Restarting all GPU clients previouly shutdown in Kubernetes by reenabling their component-specific nodeSelector labels"
+echo "Restarting all GPU clients previously shutdown in Kubernetes by reenabling their component-specific nodeSelector labels"
+NO_RESTART_K8S_DAEMONSETS_ON_EXIT=true
 kubectl label --overwrite \
 	node ${NODE_NAME} \
 	nvidia.com/gpu.deploy.device-plugin=$(maybe_set_true ${PLUGIN_DEPLOYED}) \
@@ -441,7 +488,7 @@ kubectl label --overwrite \
 	nvidia.com/gpu.deploy.dcgm=$(maybe_set_true ${DCGM_DEPLOYED})
 if [ "${?}" != "0" ]; then
 	echo "Unable to bring up GPU operator components by setting their daemonset labels"
-	exit_failed_no_restart_gpu_clients
+	exit_failed
 fi
 
 echo "Restarting validator pod to re-run all validations"
