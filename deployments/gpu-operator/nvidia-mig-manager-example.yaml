@@ -42,6 +42,8 @@ spec:
           value: "kubelet.service"
         - name: HOST_MIG_MANAGER_STATE_FILE
           value: "/etc/systemd/system/nvidia-mig-manager.service.d/override.conf"
+        - name: OPERATOR_NAMESPACE
+          value: "gpu-operator-resources"
         - name: WITH_SHUTDOWN_HOST_GPU_CLIENTS
           value: "true"
         - name: WITH_REBOOT
