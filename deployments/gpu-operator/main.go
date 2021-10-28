@@ -45,6 +45,7 @@ const (
 	DefaultHostNvidiaDir             = "/usr/local/nvidia"
 	DefaultHostMigManagerStateFile   = "/etc/systemd/system/nvidia-mig-manager.service.d/override.conf"
 	DefaultHostKubeletSystemdService = "kubelet.service"
+	DefaultOperatorNamespace         = "gpu-operator-resources"
 )
 
 var (
@@ -59,6 +60,7 @@ var (
 	hostNvidiaDirFlag              string
 	hostMigManagerStateFileFlag    string
 	hostKubeletSystemdServiceFlag  string
+	operatorNamespaceFlag          string
 )
 
 type GPUClients struct {
@@ -191,6 +193,14 @@ func main() {
 			Destination: &withShutdownHostGPUClientsFlag,
 			EnvVars:     []string{"WITH_SHUTDOWN_HOST_GPU_CLIENTS"},
 		},
+		&cli.StringFlag{
+			Name:        "operator-namespace",
+			Aliases:     []string{"p"},
+			Value:       DefaultOperatorNamespace,
+			Usage:       "name of the Kubernetes namespace in which the GPU Operator operands are installed in",
+			Destination: &operatorNamespaceFlag,
+			EnvVars:     []string{"OPERATOR_NAMESPACE"},
+		},
 	}
 
 	err := c.Run(os.Args)
@@ -273,6 +283,7 @@ func runScript(migConfigValue string) error {
 		"-o", hostMigManagerStateFileFlag,
 		"-g", strings.Join(gpuClients.SystemdServices, ","),
 		"-k", hostKubeletSystemdServiceFlag,
+		"-p", operatorNamespaceFlag,
 	}
 	if withRebootFlag {
 		args = append(args, "-r")
