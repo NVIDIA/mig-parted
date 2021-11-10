@@ -12,8 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG BASE_IMAGE=undefined
-ARG GOLANG_VERSION=undefined
+ARG BASE_DIST
+ARG CUDA_VERSION
+ARG GOLANG_VERSION=x.x.x
+ARG VERSION="N/A"
+
+# NOTE: In cases where the libc version is a concern, we would have to use an
+# image based on the target OS to build the golang executables here -- especially
+# if cgo code is included.
 FROM golang:${GOLANG_VERSION} AS build
 
 WORKDIR /build
@@ -25,7 +31,7 @@ RUN cp ./deployments/gpu-operator/reconfigure-mig.sh /artifacts/reconfigure-mig.
 RUN curl -o /artifacts/kubectl -L "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl";
 RUN chmod a+x /artifacts/kubectl
 
-FROM ${BASE_IMAGE}
+FROM nvidia/cuda:${CUDA_VERSION}-base-${BASE_DIST}
 
 COPY ./LICENSE ./licenses/LICENSE
 COPY --from=build /artifacts/nvidia-mig-parted  /usr/bin/nvidia-mig-parted
@@ -38,7 +44,6 @@ ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_MIG_CONFIG_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=utility
 
-ARG VERSION="N/A"
 LABEL version=${VERSION}
 LABEL release="N/A"
 LABEL vendor="NVIDIA"

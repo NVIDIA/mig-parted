@@ -11,139 +11,193 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 default:
   image: docker:stable
   services:
-    - docker:stable-dind
+    - name: docker:stable-dind
+      command: ["--experimental"]
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  BUILDIMAGE: "${CI_REGISTRY_IMAGE}/build:${CI_COMMIT_SHORT_SHA}"
+
+stages:
+  - image
+  - lint
+  - go-checks
+  - go-build
+  - unit-tests
+  - package-build
+  - image-build
+  - test
+  - scan
+  - release
+
+build-dev-image:
+  stage: image
+  script:
+    - apk --no-cache add make bash
+    - make .build-image
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+    - make .push-build-image
+
+.requires-build-image:
+  image: "${BUILDIMAGE}"
+
+.go-check:
+  extends:
+    - .requires-build-image
+  stage: go-checks
+
+fmt:
+  extends:
+    - .go-check
+  script:
+    - make assert-fmt
+
+vet:
+  extends:
+    - .go-check
+  script:
+    - make vet
+
+lint:
+  extends:
+    - .go-check
+  script:
+    - make lint
+  allow_failure: true
+
+ineffassign:
+  extends:
+    - .go-check
+  script:
+    - make ineffassign
+  allow_failure: true
+
+misspell:
+  extends:
+    - .go-check
+  script:
+    - make misspell
+
+go-build:
+  extends:
+    - .requires-build-image
+  stage: go-build
+  script:
+    - make build
+
+unit-tests:
+  extends:
+    - .requires-build-image
+  stage: unit-tests
+  script:
+    - make coverage
 
 # The .dist- dummy steps set the DIST variable for the targeted distribution.
 .dist-ubi8:
   variables:
     DIST: "ubi8"
 
-.dist-ubuntu20:
+.dist-ubuntu20.04:
   variables:
     DIST: "ubuntu20.04"
 
-# The .build-mig-manager dummy step runs the make target to build mig-manager for the
-# specified distribution. The IN_IMAGE, IN_VERSION, and DIST variables determine the
-# generated docker image name.
-.build-mig-manager:
+# Define the image build targets
+.image-build:
+  stage: image-build
+  variables:
+    IMAGE_NAME: "${CI_REGISTRY_IMAGE}/k8s-mig-manager"
+    VERSION: "${CI_COMMIT_SHORT_SHA}"
   before_script:
-    - 'echo Version: ${IN_VERSION} ; [[ -n "${IN_VERSION}" ]] || exit 1'
-    - 'echo Dist: ${DIST} ; [[ -n "${DIST}" ]] || exit 1'
+    - apk add --no-cache bash make
+    - 'echo "Logging in to CI registry ${CI_REGISTRY}"'
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
 
-    - apk add --no-cache make bash
-
-    - 'echo "Building ${IN_IMAGE}:${IN_VERSION}-${DIST}"'
-
-    # This generates an image: ${IN_IMAGE}:${IN_VERSION}-${DIST}
-    - make IMAGE="${IN_IMAGE}" VERSION="${IN_VERSION}" build-${DIST}
-
-# The .pull-mig-manager dummy step pulls the image IN_IMAGE:IN_VERSION-DIST
-.pull-mig-manager:
-  before_script:
-    - 'echo Version: ${IN_VERSION} ; [[ -n "${IN_VERSION}" ]] || exit 1'
-    - 'echo Dist: ${DIST} ; [[ -n "${DIST}" ]] || exit 1'
-
-    - '[[ -z "${IN_REGISTRY}" ]] || docker login -u "${IN_REGISTRY_USER}" -p "${IN_REGISTRY_TOKEN}" "${IN_REGISTRY}"'
-    - 'echo Pulling "${IN_IMAGE}:${IN_VERSION}-${DIST}"'
-
-    - docker pull ${IN_IMAGE}:${IN_VERSION}-${DIST}
-    # Log out of the input registry
-    - '[[ -z "${IN_REGISTRY}" ]] || docker logout'
-
-# The .push-mig-manager dummy step tags the image IN_IMAGE:IN_VERSION-DIST as OUT_IMAGE:OUT_VERSION-DIST
-# and pushes it to the putput registry
-.push-mig-manager:
-  script:
-    - 'echo Version: ${IN_VERSION} ; [[ -n "${IN_VERSION}" ]] || exit 1'
-    - 'echo Version: ${OUT_VERSION} ; [[ -n "${OUT_VERSION}" ]] || exit 1'
-    - 'echo Dist: ${DIST} ; [[ -n "${DIST}" ]] || exit 1'
-
-    - apk add --no-cache make bash
-
-    - 'echo "Deploying ${IN_IMAGE}:${IN_VERSION}-${DIST} as ${OUT_IMAGE}:${OUT_VERSION}-${DIST}"'
-
-    # Tag the output image
-    - docker tag "${IN_IMAGE}:${IN_VERSION}-${DIST}" "${OUT_IMAGE}:${OUT_VERSION}-${DIST}"
-
-    - '[[ -z "${OUT_REGISTRY}" ]] || docker login -u "${OUT_REGISTRY_USER}" -p "${OUT_REGISTRY_TOKEN}" "${OUT_REGISTRY}"'
-
-    # Invoke the make target. This includes logic for pushing short / latest versions
-    - '[[ -n "${USE_DOCKER_PUSH}" ]] || make IMAGE="${OUT_IMAGE}" VERSION="${OUT_VERSION}" push-${DIST}'
-    - '[[ -z "${USE_DOCKER_PUSH}" ]] || docker push "${OUT_IMAGE}:${OUT_VERSION}-${DIST}"'
-
-    - '[[ -z "${OUT_REGISTRY}" ]] || docker logout'
-
-
-# .mig-manager-ci-input-image sets the IN_* variables to those of the gitlab CI
-.mig-manager-ci-input-image:
-  variables:
-    IN_REGISTRY_USER: ${CI_REGISTRY_USER}
-    IN_REGISTRY_TOKEN: ${CI_REGISTRY_PASSWORD}
-    IN_REGISTRY: ${CI_REGISTRY}
-    IN_IMAGE: "${CI_REGISTRY_IMAGE}/k8s-mig-manager"
-    IN_VERSION: "${CI_COMMIT_SHA}"
-
-# .mig-manager-ci-input-image sets the OUT_* variables to those of the gitlab CI
-.mig-manager-ci-output-image:
-  variables:
-    OUT_REGISTRY_USER: ${CI_REGISTRY_USER}
-    OUT_REGISTRY_TOKEN: ${CI_REGISTRY_PASSWORD}
-    OUT_REGISTRY: ${CI_REGISTRY}
-    OUT_IMAGE: "${CI_REGISTRY_IMAGE}/k8s-mig-manager"
-    OUT_VERSION: "${CI_COMMIT_SHA}"
-
-# .mig-manager-ci-staging-input-image sets the OUT_* variables to those of the gitlab CI
-# using the final staging registry
-.mig-manager-ci-staging-output-image:
+image-ubi8:
   extends:
-    - .mig-manager-ci-output-image
-  variables:
-    OUT_IMAGE: "${CI_REGISTRY_IMAGE}/staging/k8s-mig-manager"
-
-# The build step build a docker image using the build-${DIST} make target and
-# Pushes the generated image to the specified container registry
-.build-and-push-mig-manager:
-  stage: build
-  extends:
-    - .build-mig-manager
-    - .mig-manager-ci-input-image
-    - .push-mig-manager
-    - .mig-manager-ci-output-image
-
-# Releasing mig-manager consists of
-# 1. pulling the mig-manager-ci-input-image
-# 2. pushing the pulled image to the output registry
-.release-mig-manager:
-  stage: release
-  extends:
-    - .pull-mig-manager
-    - .mig-manager-ci-input-image
-    - .push-mig-manager
-
-.release-mig-manager-external:
-  extends:
-    - .release-mig-manager
-  variables:
-    OUT_VERSION: ${CI_COMMIT_TAG}
-  only:
-    - tags
-
-.release-mig-manager-staging:
-  extends:
-    - .release-mig-manager
-    # Define the release targets
-    - .mig-manager-ci-staging-output-image
-
-release-mig-manager-staging-ubi8:
-  extends:
-    - .release-mig-manager-staging
+    - .image-build
     - .dist-ubi8
+  script:
+    - make -f deployments/gpu-operator/Makefile build-${DIST}
+    - make -f deployments/gpu-operator/Makefile push-${DIST}
 
-release-mig-manager-staging-ubuntu20:
+image-ubuntu20.04:
   extends:
-    - .release-mig-manager-staging
-    - .dist-ubuntu20
+    - .image-build
+    - .dist-ubuntu20.04
+  script:
+    - make -f deployments/gpu-operator/Makefile build-${DIST}
+    - make -f deployments/gpu-operator/Makefile push-${DIST}
+
+# .release forms the base of the deployment jobs which push images to the CI registry.
+# This is extended with the version to be deployed (e.g. the SHA or TAG) and the
+# target os.
+.release:
+  stage:
+    release
+  variables:
+    # Define the source image for the release
+    IMAGE_NAME: "${CI_REGISTRY_IMAGE}/k8s-mig-manager"
+    VERSION: "${CI_COMMIT_SHORT_SHA}"
+    # OUT_IMAGE_VERSION is overridden for external releases
+    OUT_IMAGE_VERSION: "${CI_COMMIT_SHORT_SHA}"
+  stage: release
+  before_script:
+    # We ensure that the OUT_IMAGE_VERSION is set
+    - 'echo Version: ${OUT_IMAGE_VERSION} ; [[ -n "${OUT_IMAGE_VERSION}" ]] || exit 1'
+
+    # In the case where we are deploying a different version to the CI_COMMIT_SHA, we
+    # need to tag the image.
+    # Note: a leading 'v' is stripped from the version if present
+    - apk add --no-cache make bash
+    - 'echo "Logging in to CI registry ${CI_REGISTRY}"'
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+    - docker pull "${IMAGE_NAME}:${VERSION}-${DIST}"
+  script:
+    - docker tag "${IMAGE_NAME}:${VERSION}-${DIST}" "${OUT_IMAGE_NAME}:${OUT_IMAGE_VERSION}-${DIST}"
+    # Log in to the "output" registry, tag the image and push the image
+    - 'echo "Logging in to output registry ${OUT_REGISTRY}"'
+    - docker logout
+    - docker login -u "${OUT_REGISTRY_USER}" -p "${OUT_REGISTRY_TOKEN}" "${OUT_REGISTRY}"
+    - make IMAGE_NAME=${OUT_IMAGE_NAME} VERSION=${OUT_IMAGE_VERSION} -f deployments/gpu-operator/Makefile push-${DIST}
+
+# Define a staging release step that pushes an image to an internal "staging" repository
+# This is triggered for all pipelines (i.e. not only tags) to test the pipeline steps
+# outside of the release process.
+.release:staging:
+  extends:
+    - .release
+  variables:
+    OUT_REGISTRY_USER: "${CI_REGISTRY_USER}"
+    OUT_REGISTRY_TOKEN: "${CI_REGISTRY_PASSWORD}"
+    OUT_REGISTRY: "${CI_REGISTRY}"
+    OUT_IMAGE_NAME: "${CI_REGISTRY_IMAGE}/staging/k8s-mig-manager"
+
+# Define an external release step that pushes an image to an external repository.
+# This includes a devlopment image off master.
+.release:external:
+  extends:
+    - .release
+  rules:
+    - if: $CI_COMMIT_TAG
+      variables:
+        OUT_IMAGE_VERSION: "${CI_COMMIT_TAG}"
+    - if: $CI_COMMIT_BRANCH == $RELEASE_DEVEL_BRANCH
+      variables:
+        OUT_IMAGE_VERSION: "${DEVEL_RELEASE_IMAGE_VERSION}"
+
+release:staging-ubi8:
+  extends:
+    - .release:staging
+    - .dist-ubi8
+  needs:
+    - image-ubi8
+
+release:staging-ubuntu20.04:
+  extends:
+    - .release:staging
+    - .dist-ubuntu20.04
+  needs:
+    - image-ubuntu20.04
