@@ -44,28 +44,15 @@ variables:
 # The .scan step forms the base of the image scan operation performed before releasing
 # images.
 .scan:
+  extends:
+    - .scan-base
   stage: scan
   image: "${PULSE_IMAGE}"
-  variables:
-    IMAGE: "${CI_REGISTRY_IMAGE}/k8s-mig-manager:${CI_COMMIT_SHORT_SHA}-${DIST}"
-    IMAGE_ARCHIVE: "k8s-mig-manager.tar"
-  rules:
-    - if: $CI_COMMIT_MESSAGE =~ /\[skip[ _-]scans?\]/i
-      when: never
-    - if: $SKIP_SCANS
-      when: never
-    - if: $CI_COMMIT_TAG == null && $CI_COMMIT_BRANCH != $RELEASE_DEVEL_BRANCH
-      allow_failure: true
-  before_script:
-    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
-    # TODO: We should specify the architecture here and scan all architectures
-    - docker pull "${IMAGE}"
-    - docker save "${IMAGE}" -o "${IMAGE_ARCHIVE}"
+  script:
     - AuthHeader=$(echo -n $SSA_CLIENT_ID:$SSA_CLIENT_SECRET | base64 -w0)
     - >
       export SSA_TOKEN=$(curl --request POST --header "Authorization: Basic $AuthHeader" --header "Content-Type: application/x-www-form-urlencoded" ${SSA_ISSUER_URL} | jq ".access_token" |  tr -d '"')
     - if [ -z "$SSA_TOKEN" ]; then exit 1; else echo "SSA_TOKEN set!"; fi
-  script:
     - pulse-cli -n $NSPECT_ID --ssa $SSA_TOKEN scan -i $IMAGE_ARCHIVE -p $CONTAINER_POLICY -o
   artifacts:
     when: always
@@ -76,21 +63,6 @@ variables:
       - sbom.json
       - vulns.json
       - policy_evaluation.json
-
-# Define the scan targets
-scan-ubuntu20.04:
-  extends:
-    - .scan
-    - .dist-ubuntu20.04
-  needs:
-    - image-ubuntu20.04
-
-scan-ubi8:
-  extends:
-    - .scan
-    - .dist-ubi8
-  needs:
-    - image-ubi8
 
 # Define external release helpers
 .release:ngc:
