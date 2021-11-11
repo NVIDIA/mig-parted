@@ -12,121 +12,61 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-##
-## Variables that control where build artifacts are places for scanning and testing:
-## CI_REGISTRY
-## CI_REGISTRY_IMAGE
-## CI_REGISTRY_USER
-## CI_REGISTRY_PASSWORD
-##
-## Variables that control where release artifacts go:
-## NGC_REGISTRY
-## NGC_REGISTRY_IMAGE
-## NGC_REGISTRY_USER
-## NGC_REGISTRY_TOKEN
-## REGISTRY_TOKEN
-## REGISTRY_USER
-## REGISTRY_IMAGE
-## DOCKERHUB_REGISTRY
-
-# We include the public gitlab CI definition to reuse the steps defined there
 include:
-  - .common-ci.yml
-
-stages:
-  - pull
-  - scan
-  - release
+  - local: '.common-ci.yml'
 
 default:
   tags:
-    - type/docker
-    - docker/privileged
     - cnt
     - container-dev
+    - docker/multi-arch
+    - docker/privileged
     - os/linux
+    - type/docker
 
 variables:
-  SOURCE_REGISTRY: registry.gitlab.com/nvidia/cloud-native/mig-parted/staging
-  SOURCE_IMAGE: k8s-mig-manager
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
+  # Release "devel"-tagged images off the master branch
+  RELEASE_DEVEL_BRANCH: "master"
+  DEVEL_RELEASE_IMAGE_VERSION: "devel"
+  # On the multi-arch builder we don't need the qemu setup.
+  SKIP_QEMU_SETUP: "1"
 
-.pull-source-image:
+# We skip the integration tests for the internal CI:
+.integration:
+  stage: test
   before_script:
-    - '[[ -z "${SOURCE_VERSION}" ]] || export IN_VERSION="${SOURCE_VERSION}" '
-    - 'echo Version: ${IN_VERSION} ; [[ -n "${IN_VERSION}" ]] || exit 1'
-    - 'echo Dist: ${DIST} ; [[ -n "${DIST}" ]] || exit 1'
+    - echo "Skipped in internal CI"
+  script:
+    - echo "Skipped in internal CI"
 
-    - 'echo Pulling "${IN_IMAGE}:${IN_VERSION}-${DIST}"'
-
-    - docker pull ${IN_IMAGE}:${IN_VERSION}-${DIST}
-
-# .mig-manager-ci-input-image sets the IN_* variables to those of the public CI registry
-.mig-manager-source-ci-input-image:
-  variables:
-    IN_IMAGE: "${SOURCE_REGISTRY}/${SOURCE_IMAGE}"
-    IN_VERSION: "${CI_COMMIT_SHA}"
-
-# .pull-source-mig-manager pulls the sha-tagged image from the public CI to the
-# internal CI registry. This allow follow-on stages to work as if the image was
-# built in the internal CI.
-.pull-source-mig-manager:
-  stage: pull
-  variables:
-    USE_DOCKER_PUSH: "yes"
-  extends:
-    - .pull-source-image
-    - .mig-manager-source-ci-input-image
-    - .push-mig-manager
-    - .mig-manager-ci-output-image
-
-
-# Define the external release steps for NGC and Dockerhub
-.mig-manager-dockerhub-output-image:
-  variables:
-    OUT_REGISTRY_USER: ${REGISTRY_USER}
-    OUT_REGISTRY_TOKEN: ${REGISTRY_TOKEN}
-    OUT_REGISTRY: ${DOCKERHUB_REGISTRY}
-    OUT_IMAGE: ${REGISTRY_IMAGE}
-
-
-.mig-manager-ngc-output-image:
-  variables:
-    OUT_REGISTRY_USER: ${NGC_REGISTRY_USER}
-    OUT_REGISTRY_TOKEN: ${NGC_REGISTRY_TOKEN}
-    OUT_REGISTRY: ${NGC_REGISTRY}
-    OUT_IMAGE: ${NGC_REGISTRY_IMAGE}
-
-.release-mig-manager-ngc:
-  extends:
-    - .release-mig-manager-external
-    - .mig-manager-ngc-output-image
-
-.release-mig-manager-dockerhub:
-  extends:
-    - .release-mig-manager-external
-    - .mig-manager-dockerhub-output-image
-
-# The .scan-mig-manager step forms the base of the image scan operation performed before releasing
+# The .scan step forms the base of the image scan operation performed before releasing
 # images.
-.scan-mig-manager:
+.scan:
   stage: scan
   image: "${PULSE_IMAGE}"
-  extends:
-    - .pull-mig-manager
-    - .mig-manager-ci-input-image
   variables:
-    IMAGE: "${IN_IMAGE}:${IN_VERSION}-${DIST}"
+    IMAGE: "${CI_REGISTRY_IMAGE}/k8s-mig-manager:${CI_COMMIT_SHORT_SHA}-${DIST}"
     IMAGE_ARCHIVE: "k8s-mig-manager.tar"
-  script:
-    - 'echo Dist: ${DIST} ; [[ -n "${DIST}" ]] || exit 1'
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /\[skip[ _-]scans?\]/i
+      when: never
+    - if: $SKIP_SCANS
+      when: never
+    - if: $CI_COMMIT_TAG == null && $CI_COMMIT_BRANCH != $RELEASE_DEVEL_BRANCH
+      allow_failure: true
+  before_script:
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+    # TODO: We should specify the architecture here and scan all architectures
+    - docker pull "${IMAGE}"
     - docker save "${IMAGE}" -o "${IMAGE_ARCHIVE}"
     - AuthHeader=$(echo -n $SSA_CLIENT_ID:$SSA_CLIENT_SECRET | base64 -w0)
     - >
       export SSA_TOKEN=$(curl --request POST --header "Authorization: Basic $AuthHeader" --header "Content-Type: application/x-www-form-urlencoded" ${SSA_ISSUER_URL} | jq ".access_token" |  tr -d '"')
     - if [ -z "$SSA_TOKEN" ]; then exit 1; else echo "SSA_TOKEN set!"; fi
-    - pulse-cli -n $NSPECT_ID --pss $PSS_URL --ssa $SSA_TOKEN scan -i $IMAGE_ARCHIVE -p $CONTAINER_POLICY -o
+  script:
+    - pulse-cli -n $NSPECT_ID --ssa $SSA_TOKEN scan -i $IMAGE_ARCHIVE -p $CONTAINER_POLICY -o
   artifacts:
     when: always
     expire_in: 1 week
@@ -137,42 +77,59 @@ variables:
       - vulns.json
       - policy_evaluation.json
 
+# Define the scan targets
+scan-ubuntu20.04:
+  extends:
+    - .scan
+    - .dist-ubuntu20.04
+  needs:
+    - image-ubuntu20.04
+
 scan-ubi8:
   extends:
-    - .scan-mig-manager
+    - .scan
+    - .dist-ubi8
+  needs:
+    - image-ubi8
+
+# Define external release helpers
+.release:ngc:
+  extends:
+    - .release:external
+  variables:
+    OUT_REGISTRY_USER: "${NGC_REGISTRY_USER}"
+    OUT_REGISTRY_TOKEN: "${NGC_REGISTRY_TOKEN}"
+    OUT_REGISTRY: "${NGC_REGISTRY}"
+    OUT_IMAGE_NAME: "${NGC_REGISTRY_IMAGE}"
+
+.release:dockerhub:
+  extends:
+    - .release:external
+  variables:
+    OUT_REGISTRY_USER: "${REGISTRY_USER}"
+    OUT_REGISTRY_TOKEN: "${REGISTRY_TOKEN}"
+    OUT_REGISTRY: "${DOCKERHUB_REGISTRY}"
+    OUT_IMAGE_NAME: "${REGISTRY_IMAGE}"
+
+# Define the external release targets
+# Release to NGC
+release:ngc-ubuntu20.04:
+  extends:
+    - .release:ngc
+    - .dist-ubuntu20.04
+
+release:ngc-ubi8:
+  extends:
+    - .release:ngc
     - .dist-ubi8
 
-pull-ubi8:
+# Release to Dockerhub
+release:dockerhub-ubuntu20.04:
   extends:
-    - .pull-source-mig-manager
+    - .release:dockerhub
+    - .dist-ubuntu20.04
+
+release:dockerhub-ubi8:
+  extends:
+    - .release:dockerhub
     - .dist-ubi8
-
-release-ngc-ubi8:
-  extends:
-    - .release-mig-manager-ngc
-    - .dist-ubi8
-
-release-dockerhub-ubi8:
-  extends:
-    - .release-mig-manager-dockerhub
-    - .dist-ubi8
-
-scan-ubuntu20:
-  extends:
-    - .scan-mig-manager
-    - .dist-ubuntu20
-
-pull-ubuntu20:
-  extends:
-    - .pull-source-mig-manager
-    - .dist-ubuntu20
-
-release-ngc-ubuntu20:
-  extends:
-    - .release-mig-manager-ngc
-    - .dist-ubuntu20
-
-release-dockerhub-ubuntu20:
-  extends:
-    - .release-mig-manager-dockerhub
-    - .dist-ubuntu20

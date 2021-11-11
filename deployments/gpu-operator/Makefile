@@ -15,14 +15,17 @@
 VERSION ?= v0.1.3
 
 DOCKER ?= docker
-GOLANG_VERSION ?= 1.15
-CUDA_BASE_IMAGE ?= nvcr.io/nvidia/cuda:11.4.2-base
-BUILD_DIR ?= ../..
 
-ifeq ($(IMAGE),)
+CUDA_VERSION ?= 11.4.2
+GOLANG_VERSION ?= 1.15
+
+ifeq ($(IMAGE_NAME),)
 REGISTRY ?= nvcr.io/nvidia/cloud-native
-IMAGE := $(REGISTRY)/k8s-mig-manager
+IMAGE_NAME := $(REGISTRY)/k8s-mig-manager
 endif
+
+IMAGE_TAG ?= $(VERSION)-$(DIST)
+IMAGE = $(IMAGE_NAME):$(IMAGE_TAG)
 
 ##### Public rules #####
 DEFAULT_PUSH_TARGET := ubuntu20.04
@@ -35,21 +38,31 @@ BUILD_TARGETS := $(patsubst %, build-%, $(TARGETS))
 all: $(TARGETS)
 
 $(PUSH_TARGETS): push-%:
-	$(DOCKER) push "$(IMAGE):$(VERSION)-$(*)"
+	$(DOCKER) push "$(IMAGE_NAME):$(IMAGE_TAG)"
 
-# For the default push target we also push the short and latest tags
+# For the default push target we also push a short tag equal to the version.
+# We skip this for the development release
+DEVEL_RELEASE_IMAGE_VERSION ?= devel
+ifneq ($(strip $(VERSION)),$(DEVEL_RELEASE_IMAGE_VERSION))
 push-$(DEFAULT_PUSH_TARGET): push-short
+endif
 push-short:
-	$(DOCKER) tag "$(IMAGE):$(VERSION)-$(DEFAULT_PUSH_TARGET)" "$(IMAGE):$(VERSION)"
-	$(DOCKER) push "$(IMAGE):$(VERSION)"
+	$(DOCKER) tag "$(IMAGE_NAME):$(VERSION)-$(DEFAULT_PUSH_TARGET)" "$(IMAGE_NAME):$(VERSION)"
+	$(DOCKER) push "$(IMAGE_NAME):$(VERSION)"
 
+push-%: DIST = $(*)
+build-%: DIST = $(*)
+build-%: BASE_DIST = $(*)
+build-%: DOCKERFILE = $(CURDIR)/deployments/gpu-operator/Dockerfile
 
+# Use a generic build target to build the relevant images
 $(TARGETS): %: build-%
-$(BUILD_TARGETS): build-%:
+$(BUILD_TARGETS): build-%: $(ARTIFACTS_DIR)
 	$(DOCKER) build --pull \
-		--build-arg VERSION=$(VERSION) \
-		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--build-arg BASE_IMAGE=$(CUDA_BASE_IMAGE)-$(*) \
-		--tag $(IMAGE):$(VERSION)-$(*) \
-		--file Dockerfile \
-		$(BUILD_DIR)
+		--tag $(IMAGE) \
+		--build-arg BASE_DIST="$(BASE_DIST)" \
+		--build-arg CUDA_VERSION="$(CUDA_VERSION)" \
+		--build-arg GOLANG_VERSION="$(GOLANG_VERSION)" \
+		--build-arg VERSION="$(VERSION)" \
+		-f $(DOCKERFILE) \
+		$(CURDIR)

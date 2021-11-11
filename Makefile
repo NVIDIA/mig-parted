@@ -20,25 +20,48 @@ GOLANG_VERSION := 1.15
 
 ifeq ($(IMAGE),)
 REGISTRY ?= nvidia
-IMAGE=$(REGISTRY)/mig-parted
+IMAGE_NAME=$(REGISTRY)/mig-parted
 endif
-IMAGE_TAG ?= $(GOLANG_VERSION)-devel
-BUILDIMAGE ?= $(IMAGE):$(IMAGE_TAG)
 
-TARGETS := binary build all check fmt assert-fmt lint vet test
+BUILDIMAGE_TAG ?= golang$(GOLANG_VERSION)
+BUILDIMAGE ?= $(IMAGE_NAME)-build:$(BUILDIMAGE_TAG)
+
+EXAMPLES := $(patsubst ./examples/%/,%,$(sort $(dir $(wildcard ./examples/*/))))
+EXAMPLE_TARGETS := $(patsubst %,example-%,$(EXAMPLES))
+
+# The automatic detection of commands does not work in this case, were subcommands exist as
+# folders under the cmd folder.
+# CMDS := $(patsubst ./cmd/%/,%,$(sort $(dir $(wildcard ./cmd/*/))))
+CMDS := nvidia-mig-parted
+CMD_TARGETS := $(patsubst %,cmd-%,$(CMDS))
+
+CHECK_TARGETS := assert-fmt vet lint ineffassign misspell
+MAKE_TARGETS := binaries build check fmt lint-internal test examples cmds coverage generate $(CHECK_TARGETS)
+
+TARGETS := $(MAKE_TARGETS) $(EXAMPLE_TARGETS) $(CMD_TARGETS)
+
 DOCKER_TARGETS := $(patsubst %, docker-%, $(TARGETS))
 .PHONY: $(TARGETS) $(DOCKER_TARGETS)
 
 GOOS := linux
 
-binary:
-	GOOS=$(GOOS) go build ./cmd/nvidia-mig-parted
+binaries: cmds
+ifneq ($(PREFIX),)
+cmd-%: COMMAND_BUILD_OPTIONS = -o $(PREFIX)/$(*)
+endif
+cmds: $(CMD_TARGETS)
+$(CMD_TARGETS): cmd-%:
+	GOOS=$(GOOS) go build -ldflags "-s -w" $(COMMAND_BUILD_OPTIONS) $(MODULE)/cmd/$(*)
 
 build:
-	GOOS=$(GOOS) go build ./...
+	GOOS=$(GOOS) go build $(MODULE)/...
 
-all: check build binary
-check: assert-fmt lint vet
+examples: $(EXAMPLE_TARGETS)
+$(EXAMPLE_TARGETS): example-%:
+	GOOS=$(GOOS) go build ./examples/$(*)
+
+all: check test build binary
+check: $(CHECK_TARGETS)
 
 # Apply go fmt to the codebase
 fmt:
@@ -57,19 +80,34 @@ assert-fmt:
 		rm fmt.out; \
 	fi
 
+ineffassign:
+	ineffassign $(MODULE)/...
+
 lint:
-	# We use `go list -f '{{.Dir}}' $(MODULE)/...` to skip the `vendor` folder.
-	go list -f '{{.Dir}}' $(MODULE)/... | xargs golint -set_exit_status
+# We use `go list -f '{{.Dir}}' $(MODULE)/...` to skip the `vendor` folder.
+	go list -f '{{.Dir}}' $(MODULE)/... | grep -v /internal/ | xargs golint -set_exit_status
+
+lint-internal:
+# We use `go list -f '{{.Dir}}' $(MODULE)/...` to skip the `vendor` folder.
+	go list -f '{{.Dir}}' $(MODULE)/internal/... | xargs golint -set_exit_status
+
+misspell:
+	misspell $(MODULE)/...
 
 vet:
 	go vet $(MODULE)/...
 
-test:
-	go test $(MODULE)/...
+COVERAGE_FILE := coverage.out
+test: build cmds
+	go test -v -coverprofile=$(COVERAGE_FILE) $(MODULE)/...
 
-.PHONY: .build-image .pull-build-image .push-build-image
+coverage: test
+	cat $(COVERAGE_FILE) | grep -v "_mock.go" > $(COVERAGE_FILE).no-mocks
+	go tool cover -func=$(COVERAGE_FILE).no-mocks
+
 # Generate an image for containerized builds
 # Note: This image is local only
+.PHONY: .build-image .pull-build-image .push-build-image
 .build-image: docker/Dockerfile.devel
 	if [ x"$(SKIP_IMAGE_BUILD)" = x"" ]; then \
 		$(DOCKER) build \
@@ -85,7 +123,6 @@ test:
 
 .push-build-image:
 	$(DOCKER) push $(BUILDIMAGE)
-
 
 $(DOCKER_TARGETS): docker-%: .build-image
 	@echo "Running 'make $(*)' in docker container $(BUILDIMAGE)"
@@ -108,8 +145,8 @@ PUSH_DEPLOYMENT_TARGETS := $(patsubst %, push-%, $(DEPLOYMENT_TARGETS))
 
 $(BUILD_DEPLOYMENT_TARGETS): build-%:
 	@echo "Running 'make $(*)' in $(DEPLOYMENT_DIR)"
-	make -C $(DEPLOYMENT_DIR) $(*)
+	make -f $(DEPLOYMENT_DIR)/Makefile $(*)
 
 $(PUSH_DEPLOYMENT_TARGETS): %:
 	@echo "Running 'make $(*)' in $(DEPLOYMENT_DIR)"
-	make -C $(DEPLOYMENT_DIR) $(*)
+	make -f $(DEPLOYMENT_DIR)/Makefile $(*)
