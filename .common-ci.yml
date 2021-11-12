@@ -131,6 +131,49 @@ image-ubuntu20.04:
     - make -f deployments/gpu-operator/Makefile build-${DIST}
     - make -f deployments/gpu-operator/Makefile push-${DIST}
 
+# The .scan step forms the base of the image scan operation performed before releasing
+# images. We implement a .scan-base job here to allow for the variable checks to be
+# exercised before internal releases.
+.scan-base:
+  stage: scan
+  variables:
+    IMAGE: "${CI_REGISTRY_IMAGE}/k8s-mig-manager:${CI_COMMIT_SHORT_SHA}-${DIST}"
+    IMAGE_ARCHIVE: "k8s-mig-manager.tar"
+  rules:
+    - if: $SKIP_SCANS && $SKIP_SCANS == "yes"
+      when: never
+    - if: $SKIP_SCANS && $SKIP_SCANS == "ignore"
+      allow_failure: true
+    - if: $CI_COMMIT_TAG == null && $CI_COMMIT_BRANCH != $RELEASE_DEVEL_BRANCH
+      allow_failure: true
+  before_script:
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+    # TODO: We should specify the architecture here and scan all architectures
+    - docker pull "${IMAGE}"
+    - docker save "${IMAGE}" -o "${IMAGE_ARCHIVE}"
+  script:
+    - >
+      echo "Skipping scan of ${IMAGE}"
+
+.scan:
+  extends:
+    - .scan-base
+
+# Define the scan targets
+scan-ubuntu20.04:
+  extends:
+    - .scan
+    - .dist-ubuntu20.04
+  needs:
+    - image-ubuntu20.04
+
+scan-ubi8:
+  extends:
+    - .scan
+    - .dist-ubi8
+  needs:
+    - image-ubi8
+
 # .release forms the base of the deployment jobs which push images to the CI registry.
 # This is extended with the version to be deployed (e.g. the SHA or TAG) and the
 # target os.
