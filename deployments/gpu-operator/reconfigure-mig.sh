@@ -24,28 +24,28 @@ HOST_KUBELET_SERVICE=""
 NODE_NAME=""
 MIG_CONFIG_FILE=""
 SELECTED_MIG_CONFIG=""
-CLIENT_NAMESPACE=""
+DEFAULT_GPU_CLIENTS_NAMESPACE=""
 
 export SYSTEMD_LOG_LEVEL="info"
 
 function usage() {
   echo "USAGE:"
   echo "    ${0} -h "
-  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <CLIENT_NAMESPACE> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
   echo ""
   echo "OPTIONS:"
-  echo "    -h                               Display this help message"
-  echo "    -r                               Automatically reboot the node if changing the MIG mode fails for any reason"
-  echo "    -d                               Automatically shutdown/restart any required host GPU clients across a MIG configuration"
-  echo "    -n <node>                        The kubernetes node to change the MIG configuration on"
-  echo "    -f <config-file>                 The mig-parted configuration file"
-  echo "    -c <selected-config>             The selected mig-parted configuration to apply to the node"
-  echo "    -m <host-root-mount>             Container path where host root directory is mounted"
-  echo "    -i <host-nvidia-dir>             Host path of the directory where NVIDIA managed software directory is typically located"
-  echo "    -o <host-mig-manager-state-file> Host path where the systemd mig-manager state file is located"
-  echo "    -g <host-gpu-client-services>    Comma separated list of host systemd services to shutdown/restart across a MIG reconfiguration"
-  echo "    -k <host-kubelet-service>        Name of the host's 'kubelet' systemd service which may need to be shutdown/restarted across a MIG mode reconfiguration"
-  echo "    -p <client-namespace>            Name of the Kubernetes Namespace in which the GPU client Pods are installed in"
+  echo "    -h                                   Display this help message"
+  echo "    -r                                   Automatically reboot the node if changing the MIG mode fails for any reason"
+  echo "    -d                                   Automatically shutdown/restart any required host GPU clients across a MIG configuration"
+  echo "    -n <node>                            The kubernetes node to change the MIG configuration on"
+  echo "    -f <config-file>                     The mig-parted configuration file"
+  echo "    -c <selected-config>                 The selected mig-parted configuration to apply to the node"
+  echo "    -m <host-root-mount>                 Container path where host root directory is mounted"
+  echo "    -i <host-nvidia-dir>                 Host path of the directory where NVIDIA managed software directory is typically located"
+  echo "    -o <host-mig-manager-state-file>     Host path where the systemd mig-manager state file is located"
+  echo "    -g <host-gpu-client-services>        Comma separated list of host systemd services to shutdown/restart across a MIG reconfiguration"
+  echo "    -k <host-kubelet-service>            Name of the host's 'kubelet' systemd service which may need to be shutdown/restarted across a MIG mode reconfiguration"
+  echo "    -p <default-gpu-clients-namespace>   Default name of the Kubernetes Namespace in which the GPU client Pods are installed in"
 }
 
 while getopts "hrdn:f:c:m:i:o:g:k:p:" opt; do
@@ -84,9 +84,9 @@ while getopts "hrdn:f:c:m:i:o:g:k:p:" opt; do
       HOST_KUBELET_SERVICE=${OPTARG}
       ;;
     p ) # process option p
-      CLIENT_NAMESPACE=${OPTARG}
+      DEFAULT_GPU_CLIENTS_NAMESPACE=${OPTARG}
       ;;
-    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <CLIENT_NAMESPACE> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
       ;;
   esac
 done
@@ -103,8 +103,8 @@ if [ "${SELECTED_MIG_CONFIG}" = "" ]; then
   echo "Error: missing -c <selected-config> flag"
   usage; exit 1
 fi
-if [ "${CLIENT_NAMESPACE}" = "" ]; then
-  echo "Error: missing -p <CLIENT_NAMESPACE> flag"
+if [ "${DEFAULT_GPU_CLIENTS_NAMESPACE}" = "" ]; then
+  echo "Error: missing -p <default-gpu-clients-namespace> flag"
   usage; exit 1
 fi
 
@@ -411,28 +411,28 @@ echo "Waiting for the device-plugin to shutdown"
 kubectl wait --for=delete pod \
 	--timeout=5m \
 	--field-selector "spec.nodeName=${NODE_NAME}" \
-	-n "${CLIENT_NAMESPACE}" \
+	-n "${DEFAULT_GPU_CLIENTS_NAMESPACE}" \
 	-l app=nvidia-device-plugin-daemonset
 
 echo "Waiting for gpu-feature-discovery to shutdown"
 kubectl wait --for=delete pod \
 	--timeout=5m \
 	--field-selector "spec.nodeName=${NODE_NAME}" \
-	-n "${CLIENT_NAMESPACE}" \
+	-n "${DEFAULT_GPU_CLIENTS_NAMESPACE}" \
 	-l app=gpu-feature-discovery
 
 echo "Waiting for dcgm-exporter to shutdown"
 kubectl wait --for=delete pod \
 	--timeout=5m \
 	--field-selector "spec.nodeName=${NODE_NAME}" \
-	-n "${CLIENT_NAMESPACE}" \
+	-n "${DEFAULT_GPU_CLIENTS_NAMESPACE}" \
 	-l app=nvidia-dcgm-exporter
 
 echo "Waiting for dcgm to shutdown"
 kubectl wait --for=delete pod \
 	--timeout=5m \
 	--field-selector "spec.nodeName=${NODE_NAME}" \
-	-n "${CLIENT_NAMESPACE}" \
+	-n "${DEFAULT_GPU_CLIENTS_NAMESPACE}" \
 	-l app=nvidia-dcgm
 
 if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
@@ -503,7 +503,7 @@ fi
 echo "Restarting validator pod to re-run all validations"
 kubectl delete pod \
 	--field-selector "spec.nodeName=${NODE_NAME}" \
-	-n "${CLIENT_NAMESPACE}" \
+	-n "${DEFAULT_GPU_CLIENTS_NAMESPACE}" \
 	-l app=nvidia-operator-validator
 
 exit_success
