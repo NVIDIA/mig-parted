@@ -27,7 +27,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -197,7 +197,7 @@ func main() {
 			Name:        "default-gpu-clients-namespace",
 			Aliases:     []string{"p"},
 			Value:       DefaultGPUClientsNamespace,
-			Usage:       "name of the Kubernetes namespace in which the GPU client Pods are installed in",
+			Usage:       "Default name of the Kubernetes namespace in which the GPU client Pods are installed in",
 			Destination: &defaultGPUClientsNamespaceFlag,
 			EnvVars:     []string{"DEFAULT_GPU_CLIENTS_NAMESPACE"},
 		},
