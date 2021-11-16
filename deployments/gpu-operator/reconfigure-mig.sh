@@ -24,14 +24,14 @@ HOST_KUBELET_SERVICE=""
 NODE_NAME=""
 MIG_CONFIG_FILE=""
 SELECTED_MIG_CONFIG=""
-OPERATOR_NAMESPACE=""
+CLIENT_NAMESPACE=""
 
 export SYSTEMD_LOG_LEVEL="info"
 
 function usage() {
   echo "USAGE:"
   echo "    ${0} -h "
-  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <operator-namespace> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <CLIENT_NAMESPACE> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
   echo ""
   echo "OPTIONS:"
   echo "    -h                               Display this help message"
@@ -45,7 +45,7 @@ function usage() {
   echo "    -o <host-mig-manager-state-file> Host path where the systemd mig-manager state file is located"
   echo "    -g <host-gpu-client-services>    Comma separated list of host systemd services to shutdown/restart across a MIG reconfiguration"
   echo "    -k <host-kubelet-service>        Name of the host's 'kubelet' systemd service which may need to be shutdown/restarted across a MIG mode reconfiguration"
-  echo "    -p <operator-namespace>          Name of the Kubernetes namespace in which the GPU Operator operands are installed in"
+  echo "    -p <client-namespace>            Name of the Kubernetes Namespace in which the GPU client Pods are installed in"
 }
 
 while getopts "hrdn:f:c:m:i:o:g:k:p:" opt; do
@@ -84,9 +84,9 @@ while getopts "hrdn:f:c:m:i:o:g:k:p:" opt; do
       HOST_KUBELET_SERVICE=${OPTARG}
       ;;
     p ) # process option p
-      OPERATOR_NAMESPACE=${OPTARG}
+      CLIENT_NAMESPACE=${OPTARG}
       ;;
-    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <operator-namespace> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <CLIENT_NAMESPACE> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
       ;;
   esac
 done
@@ -103,8 +103,8 @@ if [ "${SELECTED_MIG_CONFIG}" = "" ]; then
   echo "Error: missing -c <selected-config> flag"
   usage; exit 1
 fi
-if [ "${OPERATOR_NAMESPACE}" = "" ]; then
-  echo "Error: missing -p <operator-namespace> flag"
+if [ "${CLIENT_NAMESPACE}" = "" ]; then
+  echo "Error: missing -p <CLIENT_NAMESPACE> flag"
   usage; exit 1
 fi
 
@@ -144,7 +144,7 @@ function __set_state_and_exit() {
 			nvidia.com/gpu.deploy.dcgm-exporter=$(maybe_set_true ${DCGM_EXPORTER_DEPLOYED}) \
 			nvidia.com/gpu.deploy.dcgm=$(maybe_set_true ${DCGM_DEPLOYED})
 			if [ "${?}" != "0" ]; then
-				echo "Unable to bring up GPU operator components by setting their daemonset labels"
+				echo "Unable to bring up GPU client pods by setting their daemonset labels"
 				exit_code=1
 			fi
 	fi
@@ -403,7 +403,7 @@ kubectl label --overwrite \
 	nvidia.com/gpu.deploy.dcgm-exporter=$(maybe_set_paused ${DCGM_EXPORTER_DEPLOYED}) \
 	nvidia.com/gpu.deploy.dcgm=$(maybe_set_paused ${DCGM_DEPLOYED})
 if [ "${?}" != "0" ]; then
-	echo "Unable to tear down GPU operator components by setting their daemonset labels"
+	echo "Unable to tear down GPU client pods by setting their daemonset labels"
 	exit_failed
 fi
 
@@ -411,28 +411,28 @@ echo "Waiting for the device-plugin to shutdown"
 kubectl wait --for=delete pod \
 	--timeout=5m \
 	--field-selector "spec.nodeName=${NODE_NAME}" \
-	-n "${OPERATOR_NAMESPACE}" \
+	-n "${CLIENT_NAMESPACE}" \
 	-l app=nvidia-device-plugin-daemonset
 
 echo "Waiting for gpu-feature-discovery to shutdown"
 kubectl wait --for=delete pod \
 	--timeout=5m \
 	--field-selector "spec.nodeName=${NODE_NAME}" \
-	-n "${OPERATOR_NAMESPACE}" \
+	-n "${CLIENT_NAMESPACE}" \
 	-l app=gpu-feature-discovery
 
 echo "Waiting for dcgm-exporter to shutdown"
 kubectl wait --for=delete pod \
 	--timeout=5m \
 	--field-selector "spec.nodeName=${NODE_NAME}" \
-	-n "${OPERATOR_NAMESPACE}" \
+	-n "${CLIENT_NAMESPACE}" \
 	-l app=nvidia-dcgm-exporter
 
 echo "Waiting for dcgm to shutdown"
 kubectl wait --for=delete pod \
 	--timeout=5m \
 	--field-selector "spec.nodeName=${NODE_NAME}" \
-	-n "${OPERATOR_NAMESPACE}" \
+	-n "${CLIENT_NAMESPACE}" \
 	-l app=nvidia-dcgm
 
 if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
@@ -496,14 +496,14 @@ kubectl label --overwrite \
 	nvidia.com/gpu.deploy.dcgm-exporter=$(maybe_set_true ${DCGM_EXPORTER_DEPLOYED}) \
 	nvidia.com/gpu.deploy.dcgm=$(maybe_set_true ${DCGM_DEPLOYED})
 if [ "${?}" != "0" ]; then
-	echo "Unable to bring up GPU operator components by setting their daemonset labels"
+	echo "Unable to bring up GPU client components by setting their daemonset labels"
 	exit_failed
 fi
 
 echo "Restarting validator pod to re-run all validations"
 kubectl delete pod \
 	--field-selector "spec.nodeName=${NODE_NAME}" \
-	-n "${OPERATOR_NAMESPACE}" \
+	-n "${CLIENT_NAMESPACE}" \
 	-l app=nvidia-operator-validator
 
 exit_success
