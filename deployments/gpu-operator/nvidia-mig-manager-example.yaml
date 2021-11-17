@@ -23,7 +23,7 @@ spec:
       serviceAccountName: gpu-operator
       containers:
       - name: nvidia-mig-manager
-        image: nvcr.io/nvidia/cloud-native/k8s-mig-manager:v0.1.3-ubi8
+        image: nvcr.io/nvidia/cloud-native/k8s-mig-manager:v0.2.0-ubi8
         imagePullPolicy: IfNotPresent
         env:
         - name: NODE_NAME

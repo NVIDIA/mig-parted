@@ -81,6 +81,15 @@ systemctl disable nvidia-mig-manager.service
 systemctl daemon-reload
 
 %changelog
+* Wed Nov 17 2021 NVIDIA CORPORATION <cudatools@nvidia.com> 0.2.0-1
+- nvidia-mig-parted:   Support passing newer GI and CI profile enums on older drivers
+- k8s-mig-manager:     Rename nvcr.io/nvidia to nvcr.io/nvidia/cloud-native
+- k8s-mig-manager:     Add support for pre-installed drivers
+- systemd-mig-manager: Update logic to remove 'containerd' containers in utils.sh
+- systemd-mig-manager: Update logic to shutdown only active systemd services in list
+- ci-infrastructure:   Rework build and CI to align with other projects
+- ci-infrastructure:   Use pulse instead of contamer for scans
+
 * Mon Sep 20 2021 NVIDIA CORPORATION <cudatools@nvidia.com> 0.1.3-1
 - Add default configs for the PG506-96GB card
 - Remove CombinedMigManager and add wrappers for Mode/Config Managers
