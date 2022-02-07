@@ -16,7 +16,7 @@ MODULE := github.com/NVIDIA/mig-parted
 
 DOCKER ?= docker
 
-GOLANG_VERSION := 1.15
+include $(CURDIR)/versions.mk
 
 ifeq ($(IMAGE),)
 REGISTRY ?= nvidia

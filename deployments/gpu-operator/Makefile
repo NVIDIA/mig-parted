@@ -12,12 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION ?= v0.2.0
-
 DOCKER ?= docker
 
-CUDA_VERSION ?= 11.4.2
-GOLANG_VERSION ?= 1.15
+include $(CURDIR)/versions.mk
 
 ifeq ($(IMAGE_NAME),)
 REGISTRY ?= nvcr.io/nvidia/cloud-native
