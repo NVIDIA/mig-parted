@@ -12,8 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+BUILD_MULTI_ARCH_IMAGES ?= no
 DOCKER ?= docker
+BUILDX  =
+ifeq ($(BUILD_MULTI_ARCH_IMAGES),true)
+BUILDX = buildx
+endif
+MKDIR    ?= mkdir
+DIST_DIR ?= $(CURDIR)/dist
 
+##### Global variables #####
 include $(CURDIR)/versions.mk
 
 ifeq ($(IMAGE_NAME),)
@@ -21,21 +29,31 @@ REGISTRY ?= nvcr.io/nvidia/cloud-native
 IMAGE_NAME := $(REGISTRY)/k8s-mig-manager
 endif
 
+IMAGE_VERSION := $(VERSION)
+
 IMAGE_TAG ?= $(VERSION)-$(DIST)
 IMAGE = $(IMAGE_NAME):$(IMAGE_TAG)
 
+OUT_IMAGE_NAME ?= $(IMAGE_NAME)
+OUT_IMAGE_VERSION ?= $(IMAGE_VERSION)
+OUT_IMAGE_TAG = $(OUT_IMAGE_VERSION)-$(DIST)
+OUT_IMAGE = $(OUT_IMAGE_NAME):$(OUT_IMAGE_TAG)
+
 ##### Public rules #####
 DEFAULT_PUSH_TARGET := ubuntu20.04
-TARGETS := $(DEFAULT_PUSH_TARGET) ubi8
-PUSH_TARGETS := $(patsubst %, push-%, $(TARGETS))
-BUILD_TARGETS := $(patsubst %, build-%, $(TARGETS))
+DISTRIBUTIONS := ubuntu20.04 ubi8
 
-.PHONY: $(TARGETS) $(PUSH_TARGETS) $(BUILD_TARGETS) $(TEST_TARGETS)
+BUILD_TARGETS := $(patsubst %,build-%,$(DISTRIBUTIONS))
+PUSH_TARGETS := $(patsubst %,push-%,$(DISTRIBUTIONS))
+TEST_TARGETS := $(patsubst %,test-%, $(DISTRIBUTIONS))
 
-all: $(TARGETS)
+.PHONY: $(DISTRIBUTIONS) $(PUSH_TARGETS) $(BUILD_TARGETS) $(TEST_TARGETS)
 
-$(PUSH_TARGETS): push-%:
-	$(DOCKER) push "$(IMAGE_NAME):$(IMAGE_TAG)"
+ifneq ($(BUILD_MULTI_ARCH_IMAGES),true)
+include $(CURDIR)/deployments/gpu-operator/native-only.mk
+else
+include $(CURDIR)/deployments/gpu-operator/multi-arch.mk
+endif
 
 # For the default push target we also push a short tag equal to the version.
 # We skip this for the development release
@@ -43,23 +61,23 @@ DEVEL_RELEASE_IMAGE_VERSION ?= devel
 ifneq ($(strip $(VERSION)),$(DEVEL_RELEASE_IMAGE_VERSION))
 push-$(DEFAULT_PUSH_TARGET): push-short
 endif
-push-short:
-	$(DOCKER) tag "$(IMAGE_NAME):$(VERSION)-$(DEFAULT_PUSH_TARGET)" "$(IMAGE_NAME):$(VERSION)"
-	$(DOCKER) push "$(IMAGE_NAME):$(VERSION)"
 
 push-%: DIST = $(*)
+push-short: DIST = $(DEFAULT_PUSH_TARGET)
+
 build-%: DIST = $(*)
-build-%: BASE_DIST = $(*)
 build-%: DOCKERFILE = $(CURDIR)/deployments/gpu-operator/Dockerfile
 
 # Use a generic build target to build the relevant images
-$(TARGETS): %: build-%
-$(BUILD_TARGETS): build-%: $(ARTIFACTS_DIR)
-	$(DOCKER) build --pull \
+$(BUILD_TARGETS): build-%: $(ARTIFACTS_ROOT)
+	DOCKER_BUILDKIT=1 \
+		$(DOCKER) $(BUILDX) build --pull \
+		$(DOCKER_BUILD_OPTIONS) \
+		$(DOCKER_BUILD_PLATFORM_OPTIONS) \
 		--tag $(IMAGE) \
-		--build-arg BASE_DIST="$(BASE_DIST)" \
+		--build-arg BASE_DIST="$(DIST)" \
 		--build-arg CUDA_VERSION="$(CUDA_VERSION)" \
 		--build-arg GOLANG_VERSION="$(GOLANG_VERSION)" \
-		--build-arg VERSION="$(VERSION)" \
+		--build-arg VERSION="$(vVERSION)" \
 		-f $(DOCKERFILE) \
 		$(CURDIR)
