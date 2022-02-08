@@ -13,12 +13,12 @@
 # limitations under the License.
 
 NAME = nvidia-mig-manager
-VERSION ?= 0.2.0
 REVISION ?= 1
 
 DOCKER ?= docker
-GOLANG_VERSION ?= 1.15
 BUILD_DIR ?= ../../..
+
+include $(BUILD_DIR)/versions.mk
 
 ifeq ($(IMAGE),)
 REGISTRY ?= nvcr.io/nvidia
@@ -38,12 +38,12 @@ tarball:
 		--build-arg PACKAGE_VERSION=$(VERSION) \
 		--build-arg PACKAGE_REVISION=$(REVISION) \
 		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--tag $(IMAGE):v$(VERSION)-tarball \
+		--tag $(IMAGE):$(vVERSION)-tarball \
 		--file Dockerfile.tarball \
 		$(BUILD_DIR)
 	$(DOCKER) run \
 		-v $$(pwd)/dist/$(@):/dist \
-		$(IMAGE):v$(VERSION)-$(@)
+		$(IMAGE):$(vVERSION)-$(@)
 
 ubuntu18.04:
 	$(DOCKER) build --pull \
@@ -51,13 +51,13 @@ ubuntu18.04:
 		--build-arg PACKAGE_VERSION=$(VERSION) \
 		--build-arg PACKAGE_REVISION=$(REVISION) \
 		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:11.4.2-base-ubuntu18.04 \
-		--tag $(IMAGE):v$(VERSION)-ubuntu18.04 \
+		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:${CUDA_VERSION}-base-ubuntu18.04 \
+		--tag $(IMAGE):$(vVERSION)-ubuntu18.04 \
 		--file Dockerfile.ubuntu \
 		$(BUILD_DIR)
 	$(DOCKER) run \
 		-v $$(pwd)/dist/$(@):/dist \
-		$(IMAGE):v$(VERSION)-$(@)
+		$(IMAGE):$(vVERSION)-$(@)
 
 ubuntu20.04:
 	$(DOCKER) build --pull \
@@ -65,13 +65,13 @@ ubuntu20.04:
 		--build-arg PACKAGE_VERSION=$(VERSION) \
 		--build-arg PACKAGE_REVISION=$(REVISION) \
 		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:11.4.2-base-ubuntu20.04 \
-		--tag $(IMAGE):v$(VERSION)-ubuntu20.04 \
+		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:${CUDA_VERSION}-base-ubuntu20.04 \
+		--tag $(IMAGE):$(vVERSION)-ubuntu20.04 \
 		--file Dockerfile.ubuntu \
 		$(BUILD_DIR)
 	$(DOCKER) run \
 		-v $$(pwd)/dist/$(@):/dist \
-		$(IMAGE):v$(VERSION)-$(@)
+		$(IMAGE):$(vVERSION)-$(@)
 
 ubi8:
 	$(DOCKER) build --pull \
@@ -79,11 +79,11 @@ ubi8:
 		--build-arg PACKAGE_VERSION=$(VERSION) \
 		--build-arg PACKAGE_REVISION=$(REVISION) \
 		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:11.4.2-base-ubi8 \
-		--tag $(IMAGE):v$(VERSION)-ubi8 \
+		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:${CUDA_VERSION}-base-ubi8 \
+		--tag $(IMAGE):$(vVERSION)-ubi8 \
 		--file Dockerfile.ubi8 \
 		$(BUILD_DIR)
 	$(DOCKER) run \
 		-v $$(pwd)/dist/$(@):/dist \
-		$(IMAGE):v$(VERSION)-$(@)
+		$(IMAGE):$(vVERSION)-$(@)
 
