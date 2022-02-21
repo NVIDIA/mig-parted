@@ -44,7 +44,7 @@ ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_MIG_CONFIG_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=utility
 
-LABEL version=${VERSION}
+LABEL version="${VERSION}"
 LABEL release="N/A"
 LABEL vendor="NVIDIA"
 LABEL io.k8s.display-name="NVIDIA MIG Manager for Kubernetes"
