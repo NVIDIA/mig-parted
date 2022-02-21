@@ -340,6 +340,14 @@ if [ "${?}" != "0" ]; then
 fi
 echo "Current value of 'nvidia.com/gpu.deploy.dcgm=${DCGM_DEPLOYED}'"
 
+echo "Getting current value of the 'nvidia.com/gpu.deploy.nvsm' node label"
+NVSM_DEPLOYED=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.nvsm}')
+if [ "${?}" != "0" ]; then
+	echo "Unable to get the value of the 'nvidia.com/gpu.deploy.nvsm' label"
+	exit_failed
+fi
+echo "Current value of 'nvidia.com/gpu.deploy.nvsm=${NVSM_DEPLOYED}'"
+
 echo "Asserting that the requested configuration is present in the configuration file"
 nvidia-mig-parted assert --valid-config -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
 if [ "${?}" != "0" ]; then
@@ -401,7 +409,8 @@ kubectl label --overwrite \
 	nvidia.com/gpu.deploy.device-plugin=$(maybe_set_paused ${PLUGIN_DEPLOYED}) \
 	nvidia.com/gpu.deploy.gpu-feature-discovery=$(maybe_set_paused ${GFD_DEPLOYED}) \
 	nvidia.com/gpu.deploy.dcgm-exporter=$(maybe_set_paused ${DCGM_EXPORTER_DEPLOYED}) \
-	nvidia.com/gpu.deploy.dcgm=$(maybe_set_paused ${DCGM_DEPLOYED})
+	nvidia.com/gpu.deploy.dcgm=$(maybe_set_paused ${DCGM_DEPLOYED}) \
+	nvidia.com/gpu.deploy.nvsm=$(maybe_set_paused ${NVSM_DEPLOYED})
 if [ "${?}" != "0" ]; then
 	echo "Unable to tear down GPU client pods by setting their daemonset labels"
 	exit_failed
@@ -494,7 +503,8 @@ kubectl label --overwrite \
 	nvidia.com/gpu.deploy.device-plugin=$(maybe_set_true ${PLUGIN_DEPLOYED}) \
 	nvidia.com/gpu.deploy.gpu-feature-discovery=$(maybe_set_true ${GFD_DEPLOYED}) \
 	nvidia.com/gpu.deploy.dcgm-exporter=$(maybe_set_true ${DCGM_EXPORTER_DEPLOYED}) \
-	nvidia.com/gpu.deploy.dcgm=$(maybe_set_true ${DCGM_DEPLOYED})
+	nvidia.com/gpu.deploy.dcgm=$(maybe_set_true ${DCGM_DEPLOYED}) \
+	nvidia.com/gpu.deploy.nvsm=$(maybe_set_true ${NVSM_DEPLOYED})
 if [ "${?}" != "0" ]; then
 	echo "Unable to bring up GPU client components by setting their daemonset labels"
 	exit_failed
