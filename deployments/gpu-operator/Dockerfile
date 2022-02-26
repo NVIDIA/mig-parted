@@ -22,13 +22,14 @@ ARG VERSION="N/A"
 # if cgo code is included.
 FROM golang:${GOLANG_VERSION} AS build
 
+ARG TARGETARCH
 WORKDIR /build
 COPY . .
 RUN go build -o /artifacts/nvidia-mig-parted ./cmd
 RUN go build -o /artifacts/nvidia-mig-manager ./deployments/gpu-operator/
 RUN cp ./deployments/gpu-operator/reconfigure-mig.sh /artifacts/reconfigure-mig.sh
 
-RUN curl -o /artifacts/kubectl -L "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl";
+RUN OS_ARCH=${TARGETARCH/x86_64/amd64} && OS_ARCH=${OS_ARCH/aarch64/arm64} && curl -o /artifacts/kubectl -L "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${OS_ARCH}/kubectl";
 RUN chmod a+x /artifacts/kubectl
 
 FROM nvidia/cuda:${CUDA_VERSION}-base-${BASE_DIST}
