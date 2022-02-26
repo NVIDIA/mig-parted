@@ -22,6 +22,8 @@ ARG VERSION="N/A"
 # if cgo code is included.
 FROM golang:${GOLANG_VERSION} AS build
 
+SHELL ["/bin/bash", "-c"]
+
 ARG TARGETARCH
 WORKDIR /build
 COPY . .
