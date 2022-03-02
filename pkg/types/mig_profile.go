@@ -84,6 +84,26 @@ func (m MigProfile) MustParse() (int, int, int) {
 	return c, g, gb
 }
 
+// Normalize normalizes a MigProfile to its canonical name
+func (m MigProfile) Normalize() (MigProfile, error) {
+	c, g, gb, err := m.Parse()
+	if err != nil {
+		return "", fmt.Errorf("unable to normalize MigProfile: %v", err)
+	}
+	return NewMigProfile(uint32(c), uint32(g), uint64(gb*1024)), nil
+}
+
+// MustNormalize normalizes a MigProfile to its canonical name
+func (m MigProfile) MustNormalize() MigProfile {
+	normalized, _ := m.Normalize()
+	return normalized
+}
+
+// Equals checks if two MigProfiles are identical or not
+func (m MigProfile) Equals(other MigProfile) bool {
+	return m.MustNormalize() == other.MustNormalize()
+}
+
 // GetProfileIDs returns the relevant GI and CI profile IDs for the MigProfile
 // These profile IDs are suitable for passing to the relevant NVML calls that require them.
 func (m MigProfile) GetProfileIDs() (int, int, int, error) {

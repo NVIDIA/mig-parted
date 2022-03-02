@@ -199,7 +199,7 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 			}
 
 			valid := types.NewMigProfile(ciProfileInfo.SliceCount, giProfileInfo.SliceCount, giProfileInfo.MemorySizeMB)
-			if mdt != valid {
+			if !mdt.Equals(valid) {
 				return fmt.Errorf("unsupported MIG Device specified %v, expected %v instead", mdt, valid)
 			}
 		}
