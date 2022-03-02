@@ -39,6 +39,11 @@ func ApplyMigConfig(c *Context) error {
 		}
 		log.Debugf("    MIG capable: %v\n", capable)
 
+		if !capable && mc.MatchesAllDevices() {
+			log.Debugf("    Skipping -- non MIG-capable GPU")
+			return nil
+		}
+
 		if !capable && !mc.MigEnabled {
 			log.Debugf("    Skipping -- non MIG-capable GPU with MIG mode disabled")
 			return nil
