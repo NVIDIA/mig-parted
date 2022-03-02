@@ -172,6 +172,8 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 			clearAttempts++
 		}
 
+		var lastGIProfileID int = -1
+		var gi nvml.GpuInstance = nil
 		for _, mdt := range mps {
 			giProfileID, ciProfileID, ciEngProfileID, err := mdt.GetProfileIDs()
 			if err != nil {
@@ -183,24 +185,45 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 				return fmt.Errorf("error getting GPU instance profile info for '%v': %v", mdt, ret)
 			}
 
-			gi, ret := device.CreateGpuInstance(&giProfileInfo)
-			if ret.Value() != nvml.SUCCESS {
-				return fmt.Errorf("error creating GPU instance for '%v': %v", mdt, ret)
-			}
+			reuseGI := (gi != nil) && (lastGIProfileID == giProfileID)
+			lastGIProfileID = giProfileID
 
-			ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(ciProfileID, ciEngProfileID)
-			if ret.Value() != nvml.SUCCESS {
-				return fmt.Errorf("error getting Compute instance profile info for '%v': %v", mdt, ret)
-			}
+			for {
+				if !reuseGI {
+					gi, ret = device.CreateGpuInstance(&giProfileInfo)
+					if ret.Value() != nvml.SUCCESS {
+						return fmt.Errorf("error creating GPU instance for '%v': %v", mdt, ret)
+					}
+				}
 
-			_, ret = gi.CreateComputeInstance(&ciProfileInfo)
-			if ret.Value() != nvml.SUCCESS {
-				return fmt.Errorf("error creating Compute instance for '%v': %v", mdt, ret)
-			}
+				ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(ciProfileID, ciEngProfileID)
+				if ret.Value() != nvml.SUCCESS {
+					if reuseGI {
+						reuseGI = false
+						continue
+					}
+					return fmt.Errorf("error getting Compute instance profile info for '%v': %v", mdt, ret)
+				}
 
-			valid := types.NewMigProfile(ciProfileInfo.SliceCount, giProfileInfo.SliceCount, giProfileInfo.MemorySizeMB)
-			if !mdt.Equals(valid) {
-				return fmt.Errorf("unsupported MIG Device specified %v, expected %v instead", mdt, valid)
+				_, ret = gi.CreateComputeInstance(&ciProfileInfo)
+				if ret.Value() != nvml.SUCCESS {
+					if reuseGI {
+						reuseGI = false
+						continue
+					}
+					return fmt.Errorf("error creating Compute instance for '%v': %v", mdt, ret)
+				}
+
+				valid := types.NewMigProfile(ciProfileInfo.SliceCount, giProfileInfo.SliceCount, giProfileInfo.MemorySizeMB)
+				if !mdt.Equals(valid) {
+					if reuseGI {
+						reuseGI = false
+						continue
+					}
+					return fmt.Errorf("unsupported MIG Device specified %v, expected %v instead", mdt, valid)
+				}
+
+				break
 			}
 		}
 
