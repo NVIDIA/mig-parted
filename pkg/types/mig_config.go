@@ -26,6 +26,14 @@ import (
 // particular type) should be instantiated on a GPU.
 type MigConfig map[MigProfile]int
 
+func NewMigConfig(mps []MigProfile) MigConfig {
+	config := make(MigConfig)
+	for _, mp := range mps {
+		config[mp.MustNormalize()] += 1
+	}
+	return config
+}
+
 func (m MigConfig) AssertValid() error {
 	if len(m) == 0 {
 		return nil
