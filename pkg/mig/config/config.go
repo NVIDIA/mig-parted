@@ -108,11 +108,7 @@ func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
 						return nil, fmt.Errorf("error getting Compute instances for profile '(%v, %v)': %v", j, k, ret)
 					}
 
-					for _, ci := range cis {
-						if ret.Value() != nvml.SUCCESS {
-							return nil, fmt.Errorf("error getting Compute instance info for '%v': %v", ci, ret)
-						}
-
+					for range cis {
 						mdt := types.NewMigProfile(ciProfileInfo.SliceCount, giProfileInfo.SliceCount, giProfileInfo.MemorySizeMB)
 						migConfig[mdt]++
 					}
