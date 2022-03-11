@@ -18,7 +18,8 @@ package types
 
 import (
 	"fmt"
-	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 )
@@ -38,44 +39,64 @@ func NewMigProfile(c uint32, g uint32, mb uint64) MigProfile {
 
 // AssertValid asserts that a given MigProfile is formatted correctly.
 func (m MigProfile) AssertValid() error {
-	match, err := regexp.MatchString(`^[0-9]+g\.[0-9]+gb$`, string(m))
+	_, _, _, err := m.Parse()
 	if err != nil {
-		return fmt.Errorf("error running regex: %v", err)
+		return fmt.Errorf("error parsing MIG profile: %v", err)
 	}
-	if match {
-		return nil
+	return nil
+}
+
+func parseMigProfilePart(s string, field string) (int, error) {
+	if strings.TrimSpace(s) != s {
+		return -1, fmt.Errorf("leading or trailing spaces on '%%d%s'", field)
 	}
 
-	match, err = regexp.MatchString(`^[0-9]+c\.[0-9]+g\.[0-9]+gb$`, string(m))
-	if err != nil {
-		return fmt.Errorf("error running regex: %v", err)
-	}
-	if match {
-		return nil
+	if !strings.HasSuffix(s, field) {
+		return -1, fmt.Errorf("missing '%s' from '%%d%s'", field, field)
 	}
 
-	return fmt.Errorf("no match for format %%dc.%%dg.%%dgb or %%dg.%%dgb")
+	v, err := strconv.Atoi(strings.TrimSuffix(s, field))
+	if err != nil {
+		return -1, fmt.Errorf("malformed number in '%%d%s'", field)
+	}
+
+	return v, nil
 }
 
 // Parse breaks a MigProfile into its constituent parts
 func (m MigProfile) Parse() (int, int, int, error) {
-	err := m.AssertValid()
-	if err != nil {
-		return -1, -1, -1, fmt.Errorf("invalid MigProfile: %v", err)
-	}
-
+	var err error
 	var c, g, gb int
-	n, _ := fmt.Sscanf(string(m), "%dc.%dg.%dgb", &c, &g, &gb)
-	if n == 3 {
+
+	split := strings.SplitN(string(m), ".", 3)
+	if len(split) == 3 {
+		c, err = parseMigProfilePart(split[0], "c")
+		if err != nil {
+			return -1, -1, -1, fmt.Errorf("invalid MigProfile: %v", err)
+		}
+		g, err = parseMigProfilePart(split[1], "g")
+		if err != nil {
+			return -1, -1, -1, fmt.Errorf("invalid MigProfile: %v", err)
+		}
+		gb, err = parseMigProfilePart(split[2], "gb")
+		if err != nil {
+			return -1, -1, -1, fmt.Errorf("invalid MigProfile: %v", err)
+		}
 		return c, g, gb, nil
 	}
-
-	n, _ = fmt.Sscanf(string(m), "%dg.%dgb", &g, &gb)
-	if n == 2 {
+	if len(split) == 2 {
+		g, err = parseMigProfilePart(split[0], "g")
+		if err != nil {
+			return -1, -1, -1, fmt.Errorf("invalid MigProfile: %v", err)
+		}
+		gb, err = parseMigProfilePart(split[1], "gb")
+		if err != nil {
+			return -1, -1, -1, fmt.Errorf("invalid MigProfile: %v", err)
+		}
 		return g, g, gb, nil
 	}
 
-	return -1, -1, -1, fmt.Errorf("parsed wrong number of values, expected 2 or 3")
+	return -1, -1, -1, fmt.Errorf("invalid MigProfile: parsed wrong number of values, expected 2 or 3")
 }
 
 // MustParse breaks a MigProfile into its constituent parts
