@@ -45,20 +45,22 @@ func (ms *MigConfigSpec) MatchesDeviceFilter(deviceID types.DeviceID) bool {
 	return false
 }
 
-func (ms *MigConfigSpec) MatchesDevices(index int) bool {
+func (ms *MigConfigSpec) MatchesAllDevices() bool {
 	switch devices := ms.Devices.(type) {
 	case string:
-		if devices == "all" {
-			return true
-		}
-		return false
+		return devices == "all"
+	}
+	return false
+}
+
+func (ms *MigConfigSpec) MatchesDevices(index int) bool {
+	switch devices := ms.Devices.(type) {
 	case []int:
 		for _, d := range devices {
 			if index == d {
 				return true
 			}
 		}
-		return false
 	}
-	return false
+	return ms.MatchesAllDevices()
 }
