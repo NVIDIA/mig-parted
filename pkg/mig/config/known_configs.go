@@ -74,18 +74,24 @@ func NewA100_SXM4_40GB_MigConfigGroup() types.MigConfigGroup {
 func (m *a100_sxm4_40gb_MigConfigGroup) init() {
 	configs := make(map[string]types.MigConfig)
 	m.iterateDeviceTypes(func(mps []types.MigProfile) LoopControl {
-		cis := make(map[int]int)
+		cis := 0
+		cis_per_gi := make(map[int]int)
 		for _, mp := range mps {
 			c, g, _ := mp.MustParse()
-			cis[g] += c
+			cis += c
+			cis_per_gi[g] += c
 		}
 
-		gis := 0
-		for g := range cis {
-			gis += g * ((cis[g]-1)/g + 1)
+		if cis > 7 {
+			return Break
 		}
 
-		if gis > 7 {
+		unique_gis := 0
+		for gi := range cis_per_gi {
+			unique_gis += gi
+		}
+
+		if unique_gis > 7 {
 			return Break
 		}
 
@@ -98,7 +104,7 @@ func (m *a100_sxm4_40gb_MigConfigGroup) init() {
 			configs[str] = types.NewMigConfig(mps)
 		}
 
-		if gis < 7 {
+		if cis < 7 {
 			return Continue
 		}
 
