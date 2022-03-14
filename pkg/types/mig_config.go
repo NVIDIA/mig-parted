@@ -19,6 +19,7 @@ package types
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // MigConfig holds a map of MigProfile to a count of that profile type.
@@ -106,15 +107,21 @@ func (m MigConfig) Flatten() []MigProfile {
 		}
 	}
 	sort.Slice(mps, func(i, j int) bool {
-		ci, gi, _, _ := mps[i].Parse()
-		cj, gj, _, _ := mps[j].Parse()
+		ci, gi, _, attri, _ := mps[i].Parse()
+		cj, gj, _, attrj, _ := mps[j].Parse()
 		if gj > gi {
 			return false
 		}
 		if gj < gi {
 			return true
 		}
-		return cj < ci
+		if cj > ci {
+			return false
+		}
+		if cj < ci {
+			return true
+		}
+		return strings.Join(attrj, ",") < strings.Join(attri, ",")
 	})
 	return mps
 }

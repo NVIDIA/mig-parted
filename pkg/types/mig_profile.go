@@ -24,29 +24,58 @@ import (
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 )
 
+const (
+	AttributeMediaExtensions = "me"
+)
+
 // MigProfile reprents a specific MIG profile name.
 // Examples include "1g.5gb" or "2g.10gb" or "1c.2g.10gb", etc.
 type MigProfile string
 
 // NewMigProfile constructs a new MigProfile from its constituent parts.
-func NewMigProfile(c uint32, g uint32, mb uint64) MigProfile {
+func NewMigProfile(c uint32, g uint32, mb uint64, attr ...string) MigProfile {
+	var suffix string
+	if len(attr) > 0 {
+		suffix = "+" + strings.Join(attr, ",")
+	}
 	gb := ((mb + 1024 - 1) / 1024)
 	if c == g {
-		return MigProfile(fmt.Sprintf("%dg.%dgb", g, gb))
+		return MigProfile(fmt.Sprintf("%dg.%dgb%s", g, gb, suffix))
 	}
-	return MigProfile(fmt.Sprintf("%dc.%dg.%dgb", c, g, gb))
+	return MigProfile(fmt.Sprintf("%dc.%dg.%dgb%s", c, g, gb, suffix))
+}
+
+func (m MigProfile) AddAttributes(giProfileId, ciProfileId, ciEngProfileId int) MigProfile {
+	c, g, gb, attr := m.MustParse()
+	switch giProfileId {
+	case nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV1:
+		if !m.HasAttribute(AttributeMediaExtensions) {
+			attr = append(attr, AttributeMediaExtensions)
+		}
+	}
+	return NewMigProfile(uint32(c), uint32(g), uint64(gb)*1024, attr...)
+}
+
+func (m MigProfile) HasAttribute(attr string) bool {
+	_, _, _, attrs := m.MustParse()
+	for _, a := range attrs {
+		if a == attr {
+			return true
+		}
+	}
+	return false
 }
 
 // AssertValid asserts that a given MigProfile is formatted correctly.
 func (m MigProfile) AssertValid() error {
-	_, _, _, err := m.Parse()
+	_, _, _, _, err := m.Parse()
 	if err != nil {
 		return fmt.Errorf("error parsing MIG profile: %v", err)
 	}
 	return nil
 }
 
-func parseMigProfilePart(s string, field string) (int, error) {
+func parseMigProfileField(s string, field string) (int, error) {
 	if strings.TrimSpace(s) != s {
 		return -1, fmt.Errorf("leading or trailing spaces on '%%d%s'", field)
 	}
@@ -63,55 +92,104 @@ func parseMigProfilePart(s string, field string) (int, error) {
 	return v, nil
 }
 
-// Parse breaks a MigProfile into its constituent parts
-func (m MigProfile) Parse() (int, int, int, error) {
+func parseMigProfileFields(s string) (int, int, int, error) {
 	var err error
 	var c, g, gb int
 
-	split := strings.SplitN(string(m), ".", 3)
+	split := strings.SplitN(s, ".", 3)
 	if len(split) == 3 {
-		c, err = parseMigProfilePart(split[0], "c")
+		c, err = parseMigProfileField(split[0], "c")
 		if err != nil {
-			return -1, -1, -1, fmt.Errorf("invalid MigProfile: %v", err)
+			return -1, -1, -1, err
 		}
-		g, err = parseMigProfilePart(split[1], "g")
+		g, err = parseMigProfileField(split[1], "g")
 		if err != nil {
-			return -1, -1, -1, fmt.Errorf("invalid MigProfile: %v", err)
+			return -1, -1, -1, err
 		}
-		gb, err = parseMigProfilePart(split[2], "gb")
+		gb, err = parseMigProfileField(split[2], "gb")
 		if err != nil {
-			return -1, -1, -1, fmt.Errorf("invalid MigProfile: %v", err)
+			return -1, -1, -1, err
 		}
-		return c, g, gb, nil
+		return c, g, gb, err
 	}
 	if len(split) == 2 {
-		g, err = parseMigProfilePart(split[0], "g")
+		g, err = parseMigProfileField(split[0], "g")
 		if err != nil {
-			return -1, -1, -1, fmt.Errorf("invalid MigProfile: %v", err)
+			return -1, -1, -1, err
 		}
-		gb, err = parseMigProfilePart(split[1], "gb")
+		gb, err = parseMigProfileField(split[1], "gb")
 		if err != nil {
-			return -1, -1, -1, fmt.Errorf("invalid MigProfile: %v", err)
+			return -1, -1, -1, err
 		}
 		return g, g, gb, nil
 	}
 
-	return -1, -1, -1, fmt.Errorf("invalid MigProfile: parsed wrong number of values, expected 2 or 3")
+	return -1, -1, -1, fmt.Errorf("parsed wrong number of fields, expected 2 or 3")
+}
+
+func parseMigProfileAttributes(s string) ([]string, error) {
+	attr := strings.Split(s, ",")
+	if len(attr) == 0 {
+		return nil, fmt.Errorf("empty attribute list")
+	}
+	for _, a := range attr {
+		if a == "" {
+			return nil, fmt.Errorf("empty attribute in list")
+		}
+		if strings.TrimSpace(a) != a {
+			return nil, fmt.Errorf("leading or trailing spaces in attribute")
+		}
+		if a[0] >= '0' && a[0] <= '9' {
+			return nil, fmt.Errorf("attribute begins with a number")
+		}
+		for _, c := range a {
+			if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') {
+				return nil, fmt.Errorf("non alpha-numeric character or digit in attribute")
+			}
+		}
+	}
+	return attr, nil
+}
+
+// Parse breaks a MigProfile into its constituent parts
+func (m MigProfile) Parse() (int, int, int, []string, error) {
+	var err error
+	var c, g, gb int
+	var attr []string
+
+	if len(m) == 0 {
+		return -1, -1, -1, nil, fmt.Errorf("empty MigProfile string")
+	}
+
+	split := strings.SplitN(string(m), "+", 2)
+	if len(split) == 2 {
+		attr, err = parseMigProfileAttributes(split[1])
+		if err != nil {
+			return -1, -1, -1, nil, fmt.Errorf("error parsing attributes following '+' in MigProfile string: %v", err)
+		}
+	}
+
+	c, g, gb, err = parseMigProfileFields(split[0])
+	if err != nil {
+		return -1, -1, -1, nil, fmt.Errorf("error parsing '.' separated fields in MigProfile string: %v", err)
+	}
+
+	return c, g, gb, attr, nil
 }
 
 // MustParse breaks a MigProfile into its constituent parts
-func (m MigProfile) MustParse() (int, int, int) {
-	c, g, gb, _ := m.Parse()
-	return c, g, gb
+func (m MigProfile) MustParse() (int, int, int, []string) {
+	c, g, gb, attr, _ := m.Parse()
+	return c, g, gb, attr
 }
 
 // Normalize normalizes a MigProfile to its canonical name
 func (m MigProfile) Normalize() (MigProfile, error) {
-	c, g, gb, err := m.Parse()
+	c, g, gb, attr, err := m.Parse()
 	if err != nil {
 		return "", fmt.Errorf("unable to normalize MigProfile: %v", err)
 	}
-	return NewMigProfile(uint32(c), uint32(g), uint64(gb*1024)), nil
+	return NewMigProfile(uint32(c), uint32(g), uint64(gb)*1024, attr...), nil
 }
 
 // MustNormalize normalizes a MigProfile to its canonical name
@@ -133,7 +211,7 @@ func (m MigProfile) GetProfileIDs() (int, int, int, error) {
 		return -1, -1, -1, fmt.Errorf("invalid MigProfile: %v", err)
 	}
 
-	c, g, _, err := m.Parse()
+	c, g, _, _, err := m.Parse()
 	if err != nil {
 		return -1, -1, -1, fmt.Errorf("unable to parse MigProfile: %v", err)
 	}
@@ -143,6 +221,9 @@ func (m MigProfile) GetProfileIDs() (int, int, int, error) {
 	switch g {
 	case 1:
 		giProfileID = nvml.GPU_INSTANCE_PROFILE_1_SLICE
+		if m.HasAttribute(AttributeMediaExtensions) {
+			giProfileID = nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV1
+		}
 	case 2:
 		giProfileID = nvml.GPU_INSTANCE_PROFILE_2_SLICE
 	case 3:

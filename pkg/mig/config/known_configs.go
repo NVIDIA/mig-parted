@@ -35,20 +35,21 @@ const (
 )
 
 const (
-	mig_1c_1g_5gb  = types.MigProfile("1c.1g.5gb")
-	mig_1c_2g_10gb = types.MigProfile("1c.2g.10gb")
-	mig_2c_2g_10gb = types.MigProfile("2c.2g.10gb")
-	mig_1c_3g_20gb = types.MigProfile("1c.3g.20gb")
-	mig_2c_3g_20gb = types.MigProfile("2c.3g.20gb")
-	mig_3c_3g_20gb = types.MigProfile("3c.3g.20gb")
-	mig_1c_4g_20gb = types.MigProfile("1c.4g.20gb")
-	mig_2c_4g_20gb = types.MigProfile("2c.4g.20gb")
-	mig_4c_4g_20gb = types.MigProfile("4c.4g.20gb")
-	mig_1c_7g_40gb = types.MigProfile("1c.7g.40gb")
-	mig_2c_7g_40gb = types.MigProfile("2c.7g.40gb")
-	mig_3c_7g_40gb = types.MigProfile("3c.7g.40gb")
-	mig_4c_7g_40gb = types.MigProfile("4c.7g.40gb")
-	mig_7c_7g_40gb = types.MigProfile("7c.7g.40gb")
+	mig_1c_1g_5gb    = types.MigProfile("1c.1g.5gb")
+	mig_1c_1g_5gb_me = types.MigProfile("1c.1g.5gb+me")
+	mig_1c_2g_10gb   = types.MigProfile("1c.2g.10gb")
+	mig_2c_2g_10gb   = types.MigProfile("2c.2g.10gb")
+	mig_1c_3g_20gb   = types.MigProfile("1c.3g.20gb")
+	mig_2c_3g_20gb   = types.MigProfile("2c.3g.20gb")
+	mig_3c_3g_20gb   = types.MigProfile("3c.3g.20gb")
+	mig_1c_4g_20gb   = types.MigProfile("1c.4g.20gb")
+	mig_2c_4g_20gb   = types.MigProfile("2c.4g.20gb")
+	mig_4c_4g_20gb   = types.MigProfile("4c.4g.20gb")
+	mig_1c_7g_40gb   = types.MigProfile("1c.7g.40gb")
+	mig_2c_7g_40gb   = types.MigProfile("2c.7g.40gb")
+	mig_3c_7g_40gb   = types.MigProfile("3c.7g.40gb")
+	mig_4c_7g_40gb   = types.MigProfile("4c.7g.40gb")
+	mig_7c_7g_40gb   = types.MigProfile("7c.7g.40gb")
 )
 
 func GetKnownMigConfigGroups() types.MigConfigGroups {
@@ -76,10 +77,18 @@ func (m *a100_sxm4_40gb_MigConfigGroup) init() {
 	m.iterateDeviceTypes(func(mps []types.MigProfile) LoopControl {
 		cis := 0
 		cis_per_gi := make(map[int]int)
+		mes_per_gi := make(map[int]int)
 		for _, mp := range mps {
-			c, g, _ := mp.MustParse()
+			c, g, _, _ := mp.MustParse()
 			cis += c
 			cis_per_gi[g] += c
+			if mp.HasAttribute(types.AttributeMediaExtensions) {
+				mes_per_gi[g]++
+			}
+		}
+
+		if cis_per_gi[1] > 1 && mes_per_gi[1] > 0 {
+			return Break
 		}
 
 		if cis > 7 {
@@ -118,6 +127,7 @@ func (m *a100_sxm4_40gb_MigConfigGroup) init() {
 func (m *a100_sxm4_40gb_MigConfigGroup) GetDeviceTypes() []types.MigProfile {
 	return []types.MigProfile{
 		mig_1c_1g_5gb,
+		mig_1c_1g_5gb_me,
 		mig_1c_2g_10gb,
 		mig_2c_2g_10gb,
 		mig_1c_3g_20gb,
@@ -136,20 +146,21 @@ func (m *a100_sxm4_40gb_MigConfigGroup) GetDeviceTypes() []types.MigProfile {
 
 func (m *a100_sxm4_40gb_MigConfigGroup) iterateDeviceTypes(f func([]types.MigProfile) LoopControl) {
 	maxDevices := types.MigConfig{
-		mig_1c_1g_5gb:  7,
-		mig_1c_2g_10gb: 6,
-		mig_2c_2g_10gb: 3,
-		mig_1c_3g_20gb: 6,
-		mig_2c_3g_20gb: 2,
-		mig_3c_3g_20gb: 2,
-		mig_1c_4g_20gb: 4,
-		mig_2c_4g_20gb: 2,
-		mig_4c_4g_20gb: 1,
-		mig_1c_7g_40gb: 7,
-		mig_2c_7g_40gb: 3,
-		mig_3c_7g_40gb: 2,
-		mig_4c_7g_40gb: 1,
-		mig_7c_7g_40gb: 1,
+		mig_1c_1g_5gb:    7,
+		mig_1c_1g_5gb_me: 1,
+		mig_1c_2g_10gb:   6,
+		mig_2c_2g_10gb:   3,
+		mig_1c_3g_20gb:   6,
+		mig_2c_3g_20gb:   2,
+		mig_3c_3g_20gb:   2,
+		mig_1c_4g_20gb:   4,
+		mig_2c_4g_20gb:   2,
+		mig_4c_4g_20gb:   1,
+		mig_1c_7g_40gb:   7,
+		mig_2c_7g_40gb:   3,
+		mig_3c_7g_40gb:   2,
+		mig_4c_7g_40gb:   1,
+		mig_7c_7g_40gb:   1,
 	}.Flatten()
 
 	var iterate func(i int, accum []types.MigProfile) LoopControl
