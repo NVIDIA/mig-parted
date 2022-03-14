@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-package mode
+package mig
 
-import (
-	"github.com/NVIDIA/mig-parted/internal/nvlib/mig"
-)
-
-type MigMode = mig.Mode
+type Mode int
 
 const (
-	Disabled = mig.Disabled
-	Enabled  = mig.Enabled
+	Disabled Mode = 0
+	Enabled  Mode = 1
 )
 
-type Manager interface {
-	IsMigCapable(gpu int) (bool, error)
-	GetMigMode(gpu int) (MigMode, error)
-	SetMigMode(gpu int, mode MigMode) error
-	IsMigModeChangePending(gpu int) (bool, error)
+func (m Mode) String() string {
+	switch m {
+	case Disabled:
+		return "Disabled"
+	case Enabled:
+		return "Enabled"
+	}
+	return "Unknown"
 }

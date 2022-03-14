@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,28 @@
  * limitations under the License.
  */
 
-package mode
+package nvlib
 
 import (
 	"github.com/NVIDIA/mig-parted/internal/nvlib/mig"
+	"github.com/NVIDIA/mig-parted/internal/nvml"
 )
 
-type MigMode = mig.Mode
+type Interface struct {
+	nvml nvml.Interface
+	Mig  mig.Interface
+}
 
-const (
-	Disabled = mig.Disabled
-	Enabled  = mig.Enabled
-)
+func New() Interface {
+	return Interface{
+		nvml: nvml.New(),
+		Mig:  mig.New(),
+	}
+}
 
-type Manager interface {
-	IsMigCapable(gpu int) (bool, error)
-	GetMigMode(gpu int) (MigMode, error)
-	SetMigMode(gpu int, mode MigMode) error
-	IsMigModeChangePending(gpu int) (bool, error)
+func NewMock(nvml nvml.Interface) Interface {
+	return Interface{
+		nvml: nvml,
+		Mig:  mig.NewMock(nvml),
+	}
 }
