@@ -109,8 +109,8 @@ func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
 					}
 
 					for range cis {
-						mdt := types.NewMigProfile(ciProfileInfo.SliceCount, giProfileInfo.SliceCount, giProfileInfo.MemorySizeMB).AddAttributes(i, j, k)
-						migConfig[mdt]++
+						mdt := types.NewMigProfile(i, j, k, &giProfileInfo, &ciProfileInfo)
+						migConfig[mdt.String()]++
 					}
 				}
 			}
@@ -143,7 +143,7 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 		return fmt.Errorf("MIG mode disabled")
 	}
 
-	err := iteratePermutationsUntilSuccess(config, func(mps []types.MigProfile) error {
+	err := iteratePermutationsUntilSuccess(config, func(mps []*types.MigProfile) error {
 		clearAttempts := 0
 		maxClearAttempts := 1
 		for {
@@ -168,37 +168,32 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 			clearAttempts++
 		}
 
-		var lastGIProfileID int = -1
+		var lastGIProfileId int = -1
 		var gi nvml.GpuInstance = nil
-		for _, mdt := range mps {
-			giProfileID, ciProfileID, ciEngProfileID, err := mdt.GetProfileIDs()
-			if err != nil {
-				return fmt.Errorf("error getting profile ids for '%v': %v", mdt, err)
-			}
-
-			giProfileInfo, ret := device.GetGpuInstanceProfileInfo(giProfileID)
+		for _, mp := range mps {
+			giProfileInfo, ret := device.GetGpuInstanceProfileInfo(mp.GIProfileId)
 			if ret.Value() != nvml.SUCCESS {
-				return fmt.Errorf("error getting GPU instance profile info for '%v': %v", mdt, ret)
+				return fmt.Errorf("error getting GPU instance profile info for '%v': %v", mp, ret)
 			}
 
-			reuseGI := (gi != nil) && (lastGIProfileID == giProfileID)
-			lastGIProfileID = giProfileID
+			reuseGI := (gi != nil) && (lastGIProfileId == mp.GIProfileId)
+			lastGIProfileId = mp.GIProfileId
 
 			for {
 				if !reuseGI {
 					gi, ret = device.CreateGpuInstance(&giProfileInfo)
 					if ret.Value() != nvml.SUCCESS {
-						return fmt.Errorf("error creating GPU instance for '%v': %v", mdt, ret)
+						return fmt.Errorf("error creating GPU instance for '%v': %v", mp, ret)
 					}
 				}
 
-				ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(ciProfileID, ciEngProfileID)
+				ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(mp.CIProfileId, mp.CIEngProfileId)
 				if ret.Value() != nvml.SUCCESS {
 					if reuseGI {
 						reuseGI = false
 						continue
 					}
-					return fmt.Errorf("error getting Compute instance profile info for '%v': %v", mdt, ret)
+					return fmt.Errorf("error getting Compute instance profile info for '%v': %v", mp, ret)
 				}
 
 				_, ret = gi.CreateComputeInstance(&ciProfileInfo)
@@ -207,16 +202,16 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 						reuseGI = false
 						continue
 					}
-					return fmt.Errorf("error creating Compute instance for '%v': %v", mdt, ret)
+					return fmt.Errorf("error creating Compute instance for '%v': %v", mp, ret)
 				}
 
-				valid := types.NewMigProfile(ciProfileInfo.SliceCount, giProfileInfo.SliceCount, giProfileInfo.MemorySizeMB).AddAttributes(giProfileID, ciProfileID, ciEngProfileID)
-				if !mdt.Equals(valid) {
+				valid := types.NewMigProfile(mp.GIProfileId, mp.CIProfileId, mp.CIEngProfileId, &giProfileInfo, &ciProfileInfo)
+				if !mp.Equals(valid) {
 					if reuseGI {
 						reuseGI = false
 						continue
 					}
-					return fmt.Errorf("unsupported MIG Device specified %v, expected %v instead", mdt, valid)
+					return fmt.Errorf("unsupported MIG Device specified %v, expected %v instead", mp, valid)
 				}
 
 				break
@@ -314,8 +309,8 @@ func (m *nvmlMigConfigManager) ClearMigConfig(gpu int) error {
 	return nil
 }
 
-func iteratePermutationsUntilSuccess(config types.MigConfig, f func([]types.MigProfile) error) error {
-	shouldSwap := func(mps []types.MigProfile, start, curr int) bool {
+func iteratePermutationsUntilSuccess(config types.MigConfig, f func([]*types.MigProfile) error) error {
+	shouldSwap := func(mps []*types.MigProfile, start, curr int) bool {
 		for i := start; i < curr; i++ {
 			if mps[i] == mps[curr] {
 				return false
@@ -324,8 +319,8 @@ func iteratePermutationsUntilSuccess(config types.MigConfig, f func([]types.MigP
 		return true
 	}
 
-	var iterate func(mps []types.MigProfile, f func([]types.MigProfile) error, index int) error
-	iterate = func(mps []types.MigProfile, f func([]types.MigProfile) error, i int) error {
+	var iterate func(mps []*types.MigProfile, f func([]*types.MigProfile) error, index int) error
+	iterate = func(mps []*types.MigProfile, f func([]*types.MigProfile) error, i int) error {
 		if i >= len(mps) {
 			err := f(mps)
 			if err != nil {

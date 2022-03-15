@@ -22,7 +22,7 @@ import (
 
 // MigConfigGroup
 type MigConfigGroup interface {
-	GetDeviceTypes() []MigProfile
+	GetDeviceTypes() []*MigProfile
 	GetPossibleConfigurations() []MigConfig
 	AssertValidConfiguration(MigConfig) error
 }

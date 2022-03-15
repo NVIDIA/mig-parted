@@ -22,10 +22,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMigProfileAssertValid(t *testing.T) {
+func TestParseMigProfile(t *testing.T) {
 	testCases := []struct {
 		description string
-		device      MigProfile
+		device      string
 		valid       bool
 	}{
 		{
@@ -44,26 +44,6 @@ func TestMigProfileAssertValid(t *testing.T) {
 			true,
 		},
 		{
-			"Valid 10000g.500000gb",
-			"10000g.500000gb",
-			true,
-		},
-		{
-			"Valid 10000c.10000g.500000gb",
-			"10000c.10000g.500000gb",
-			true,
-		},
-		{
-			"Valid 0g.0gb",
-			"0g.0gb",
-			true,
-		},
-		{
-			"Valid 0c.0g.0gb",
-			"0c.0g.0gb",
-			true,
-		},
-		{
 			"Valid 1g.5gb+me",
 			"1g.5gb+me",
 			true,
@@ -74,14 +54,24 @@ func TestMigProfileAssertValid(t *testing.T) {
 			true,
 		},
 		{
-			"Valid 1g.5gb+me,you,them",
-			"1g.5gb+me,you,them",
-			true,
+			"Invalid 0g.0gb",
+			"0g.0gb",
+			false,
 		},
 		{
-			"Valid 1c.1g.5gb+me,you,them",
-			"1c.1g.5gb+me,you,them",
-			true,
+			"Invalid 0c.0g.0gb",
+			"0c.0g.0gb",
+			false,
+		},
+		{
+			"Invalid 10000g.500000gb",
+			"10000g.500000gb",
+			false,
+		},
+		{
+			"Invalid 10000c.10000g.500000gb",
+			"10000c.10000g.500000gb",
+			false,
 		},
 		{
 			"Invalid ' 1c.1g.5gb'",
@@ -174,6 +164,21 @@ func TestMigProfileAssertValid(t *testing.T) {
 			false,
 		},
 		{
+			"Invalid 1g.5gb+me,me",
+			"1g.5gb+me,me",
+			false,
+		},
+		{
+			"Invalid 1g.5gb+me,you,them",
+			"1g.5gb+me,you,them",
+			false,
+		},
+		{
+			"Invalid 1c.1g.5gb+me,you,them",
+			"1c.1g.5gb+me,you,them",
+			false,
+		},
+		{
 			"Invalid 1g.5gb+",
 			"1g.5gb+",
 			false,
@@ -252,7 +257,7 @@ func TestMigProfileAssertValid(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			err := tc.device.AssertValid()
+			_, err := ParseMigProfile(tc.device)
 			if tc.valid {
 				require.Nil(t, err)
 			} else {

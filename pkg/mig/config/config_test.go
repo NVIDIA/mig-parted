@@ -172,7 +172,7 @@ func TestIteratePermutationsUntilSuccess(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			iteration := 0
-			err := iteratePermutationsUntilSuccess(tc.config, func(perm []types.MigProfile) error {
+			err := iteratePermutationsUntilSuccess(tc.config, func(perm []*types.MigProfile) error {
 				iteration++
 				if iteration == tc.successAfter {
 					return nil
