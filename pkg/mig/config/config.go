@@ -108,12 +108,8 @@ func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
 						return nil, fmt.Errorf("error getting Compute instances for profile '(%v, %v)': %v", j, k, ret)
 					}
 
-					for _, ci := range cis {
-						if ret.Value() != nvml.SUCCESS {
-							return nil, fmt.Errorf("error getting Compute instance info for '%v': %v", ci, ret)
-						}
-
-						mdt := types.NewMigProfile(ciProfileInfo.SliceCount, giProfileInfo.SliceCount, giProfileInfo.MemorySizeMB)
+					for range cis {
+						mdt := types.NewMigProfile(ciProfileInfo.SliceCount, giProfileInfo.SliceCount, giProfileInfo.MemorySizeMB).AddAttributes(i, j, k)
 						migConfig[mdt]++
 					}
 				}
@@ -214,7 +210,7 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 					return fmt.Errorf("error creating Compute instance for '%v': %v", mdt, ret)
 				}
 
-				valid := types.NewMigProfile(ciProfileInfo.SliceCount, giProfileInfo.SliceCount, giProfileInfo.MemorySizeMB)
+				valid := types.NewMigProfile(ciProfileInfo.SliceCount, giProfileInfo.SliceCount, giProfileInfo.MemorySizeMB).AddAttributes(giProfileID, ciProfileID, ciEngProfileID)
 				if !mdt.Equals(valid) {
 					if reuseGI {
 						reuseGI = false

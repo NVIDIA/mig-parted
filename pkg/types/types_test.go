@@ -39,8 +39,18 @@ func TestMigProfileAssertValid(t *testing.T) {
 			true,
 		},
 		{
+			"Valid 1c.1g.5gb",
+			"1c.1g.5gb",
+			true,
+		},
+		{
 			"Valid 10000g.500000gb",
 			"10000g.500000gb",
+			true,
+		},
+		{
+			"Valid 10000c.10000g.500000gb",
+			"10000c.10000g.500000gb",
 			true,
 		},
 		{
@@ -49,8 +59,98 @@ func TestMigProfileAssertValid(t *testing.T) {
 			true,
 		},
 		{
+			"Valid 0c.0g.0gb",
+			"0c.0g.0gb",
+			true,
+		},
+		{
+			"Valid 1g.5gb+me",
+			"1g.5gb+me",
+			true,
+		},
+		{
+			"Valid 1c.1g.5gb+me",
+			"1c.1g.5gb+me",
+			true,
+		},
+		{
+			"Valid 1g.5gb+me,you,them",
+			"1g.5gb+me,you,them",
+			true,
+		},
+		{
+			"Valid 1c.1g.5gb+me,you,them",
+			"1c.1g.5gb+me,you,them",
+			true,
+		},
+		{
+			"Invalid ' 1c.1g.5gb'",
+			" 1c.1g.5gb",
+			false,
+		},
+		{
+			"Invalid '1 c.1g.5gb'",
+			"1 c.1g.5gb",
+			false,
+		},
+		{
+			"Invalid '1c .1g.5gb'",
+			"1c .1g.5gb",
+			false,
+		},
+		{
+			"Invalid '1c. 1g.5gb'",
+			"1c. 1g.5gb",
+			false,
+		},
+		{
+			"Invalid '1c.1 g.5gb'",
+			"1c.1 g.5gb",
+			false,
+		},
+		{
+			"Invalid '1c.1g .5gb'",
+			"1c.1g .5gb",
+			false,
+		},
+		{
+			"Invalid '1c.1g. 5gb'",
+			"1c.1g. 5gb",
+			false,
+		},
+		{
+			"Invalid '1c.1g.5 gb'",
+			"1c.1g.5 gb",
+			false,
+		},
+		{
+			"Invalid '1c.1g.5g b'",
+			"1c.1g.5g b",
+			false,
+		},
+		{
+			"Invalid '1c.1g.5gb '",
+			"1c.1g.5gb ",
+			false,
+		},
+		{
+			"Invalid '1c . 1g . 5gb'",
+			"1c . 1g . 5gb",
+			false,
+		},
+		{
+			"Invalid 1c.f1g.5gb",
+			"1c.f1g.5gb",
+			false,
+		},
+		{
+			"Invalid 1r.1g.5gb",
+			"1r.1g.5gb",
+			false,
+		},
+		{
 			"Invalid 1g.5gbk",
-			"1g.10gbk",
+			"1g.5gbk",
 			false,
 		},
 		{
@@ -71,6 +171,76 @@ func TestMigProfileAssertValid(t *testing.T) {
 		{
 			"Invalid 1g.gb",
 			"1g.gb",
+			false,
+		},
+		{
+			"Invalid 1g.5gb+",
+			"1g.5gb+",
+			false,
+		},
+		{
+			"Invalid 1g.5gb +",
+			"1g.5gb+",
+			false,
+		},
+		{
+			"Invalid 1g.5gb+ ",
+			"1g.5gb+",
+			false,
+		},
+		{
+			"Invalid 1g.5gb+ ,",
+			"1g.5gb+",
+			false,
+		},
+		{
+			"Invalid 1g.5gb+,",
+			"1g.5gb+",
+			false,
+		},
+		{
+			"Invalid 1g.5gb+,,",
+			"1g.5gb+",
+			false,
+		},
+		{
+			"Invalid 1g.5gb+me,",
+			"1g.5gb+",
+			false,
+		},
+		{
+			"Invalid 1g.5gb+me,,",
+			"1g.5gb+",
+			false,
+		},
+		{
+			"Invalid 1g.5gb+me, ",
+			"1g.5gb+",
+			false,
+		},
+		{
+			"Invalid 1g.5gb+2me",
+			"1g.5gb+2me",
+			false,
+		},
+		{
+			"Inavlid 1g.5gb*me",
+			"1g.5gb*me",
+			false,
+		},
+		{
+			"Invalid 1c.1g.5gb*me",
+			"1c.1g.5gb*me",
+			false,
+		},
+		{
+			"Invalid 1g.5gb*me,you,them",
+			"1g.5gb*me,you,them",
+			false,
+		},
+		{
+			"Invalid 1c.1g.5gb*me,you,them",
+			"1c.1g.5gb*me,you,them",
 			false,
 		},
 		{
