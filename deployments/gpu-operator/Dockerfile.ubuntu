@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG BASE_DIST
+ARG BASE_DIST=ubuntu20.04
 ARG CUDA_VERSION
 ARG GOLANG_VERSION=x.x.x
 ARG VERSION="N/A"
@@ -54,5 +54,12 @@ LABEL io.k8s.display-name="NVIDIA MIG Manager for Kubernetes"
 LABEL name="NVIDIA MIG Manager for Kubernetes"
 LABEL summary="NVIDIA MIG Manager for Kubernetes"
 LABEL description="See summary"
+
+# Install / upgrade packages here that are required to resolve CVEs
+ARG CVE_UPDATES
+RUN if [ -n "${CVE_UPDATES}" ]; then \
+        apt-get update && apt-get upgrade -y ${CVE_UPDATES} && \
+        rm -rf /var/lib/apt/lists/*; \
+    fi
 
 ENTRYPOINT ["nvidia-mig-manager"]
