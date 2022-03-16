@@ -43,7 +43,13 @@ type Flags struct {
 type Context struct {
 	assert.Context
 	Flags *Flags
-	Hooks ApplyHooks
+}
+
+type MigConfigApplier interface {
+	AssertMigMode() error
+	ApplyMigMode() error
+	AssertMigConfig() error
+	ApplyMigConfig() error
 }
 
 func BuildCommand() *cli.Command {
@@ -100,11 +106,15 @@ func BuildCommand() *cli.Command {
 	return &apply
 }
 
-func ParseHooksFile(f *Flags) (*hooks.Spec, error) {
+func CheckFlags(f *Flags) error {
+	return assert.CheckFlags(&f.Flags)
+}
+
+func ParseHooksFile(hooksFile string) (*hooks.Spec, error) {
 	var err error
 	var hooksYaml []byte
 
-	hooksYaml, err = ioutil.ReadFile(f.HooksFile)
+	hooksYaml, err = ioutil.ReadFile(hooksFile)
 	if err != nil {
 		return nil, fmt.Errorf("read error: %v", err)
 	}
@@ -118,9 +128,9 @@ func ParseHooksFile(f *Flags) (*hooks.Spec, error) {
 	return &spec, nil
 }
 
-func (c *Context) HooksEnvsMap() hooks.EnvsMap {
+func GetHooksEnvsMap(c *cli.Context) hooks.EnvsMap {
 	envs := make(hooks.EnvsMap)
-	for _, flag := range c.Context.Command.Flags {
+	for _, flag := range c.Command.Flags {
 		fv := reflect.ValueOf(flag)
 		for fv.Kind() == reflect.Ptr {
 			fv = reflect.Indirect(fv)
@@ -138,17 +148,24 @@ func (c *Context) HooksEnvsMap() hooks.EnvsMap {
 	return envs
 }
 
-func applyWrapper(c *cli.Context, f *Flags) error {
-	err := applyWrapperWithDefers(c, f)
-	if err != nil {
-		return err
-	}
-	fmt.Println("MIG configuration applied successfully")
-	return nil
+func (c *Context) AssertMigMode() error {
+	return assert.AssertMigMode(&c.Context)
 }
 
-func applyWrapperWithDefers(c *cli.Context, f *Flags) (rerr error) {
-	err := assert.CheckFlags(&f.Flags)
+func (c *Context) ApplyMigMode() error {
+	return ApplyMigMode(c)
+}
+
+func (c *Context) AssertMigConfig() error {
+	return assert.AssertMigConfig(&c.Context)
+}
+
+func (c *Context) ApplyMigConfig() error {
+	return ApplyMigConfig(c)
+}
+
+func applyWrapper(c *cli.Context, f *Flags) error {
+	err := CheckFlags(f)
 	if err != nil {
 		cli.ShowSubcommandHelp(c)
 		return err
@@ -169,71 +186,82 @@ func applyWrapperWithDefers(c *cli.Context, f *Flags) (rerr error) {
 	hooksSpec := &hooks.Spec{}
 	if f.HooksFile != "" {
 		log.Debugf("Parsing Hooks file...")
-		hooksSpec, err = ParseHooksFile(f)
+		hooksSpec, err = ParseHooksFile(f.HooksFile)
 		if err != nil {
 			return fmt.Errorf("error parsing hooks file: %v", err)
 		}
 	}
 
+	hooks := NewApplyHooks(hooksSpec.Hooks)
+
 	context := Context{
+		Flags: f,
 		Context: assert.Context{
 			Context:   c,
 			Flags:     &f.Flags,
 			MigConfig: migConfig,
 		},
-		Flags: f,
-		Hooks: &applyHooks{hooksSpec.Hooks},
 	}
 
-	log.Debugf("Running apply-start hook")
-	err = context.Hooks.ApplyStart(context.HooksEnvsMap(), c.Bool("debug"))
+	err = ApplyMigConfigWithHooks(log, c, f.ModeOnly, hooks, &context)
+	if err != nil {
+		return fmt.Errorf("error applying MIG configuration with hooks: %v", err)
+	}
+
+	fmt.Println("MIG configuration applied successfully")
+	return nil
+}
+
+func ApplyMigConfigWithHooks(logger *logrus.Logger, context *cli.Context, modeOnly bool, hooks ApplyHooks, applier MigConfigApplier) (rerr error) {
+	logger.Debugf("Running apply-start hook")
+	err := hooks.ApplyStart(GetHooksEnvsMap(context), context.Bool("debug"))
 	if err != nil {
 		return fmt.Errorf("error running apply-start hook: %v", err)
 	}
 
 	defer func() {
-		log.Debugf("Running apply-exit hook")
-		err := context.Hooks.ApplyExit(context.HooksEnvsMap(), c.Bool("debug"))
+		logger.Debugf("Running apply-exit hook")
+		err := hooks.ApplyExit(GetHooksEnvsMap(context), context.Bool("debug"))
 		if rerr == nil && err != nil {
 			rerr = fmt.Errorf("error running apply-exit hook: %v", err)
 			return
 		}
 		if err != nil {
-			log.Errorf("Error running apply-exit hook: %v", err)
+			logger.Errorf("Error running apply-exit hook: %v", err)
 		}
 	}()
 
-	log.Debugf("Checking current MIG mode...")
-	err = assert.AssertMigMode(&context.Context)
+	logger.Debugf("Checking current MIG mode...")
+	err = applier.AssertMigMode()
 	if err != nil {
-		log.Debugf("Running pre-apply-mode hook")
-		err := context.Hooks.PreApplyMode(context.HooksEnvsMap(), c.Bool("debug"))
+		logger.Debugf("Running pre-apply-mode hook")
+		err := hooks.PreApplyMode(GetHooksEnvsMap(context), context.Bool("debug"))
 		if err != nil {
 			return fmt.Errorf("error running pre-apply-mode hook: %v", err)
 		}
 
-		log.Debugf("Applying MIG mode change...")
-		err = ApplyMigMode(&context)
+		logger.Debugf("Applying MIG mode change...")
+		err = applier.ApplyMigMode()
 		if err != nil {
 			return err
 		}
 	}
 
-	if f.ModeOnly {
+	if modeOnly {
 		return nil
 	}
 
-	log.Debugf("Checking current MIG device configuration...")
-	err = assert.AssertMigConfig(&context.Context)
+	logger.Debugf("Checking current MIG device configuration...")
+	err = applier.AssertMigConfig()
 	if err != nil {
-		log.Debugf("Running pre-apply-config hook")
-		err := context.Hooks.PreApplyConfig(context.HooksEnvsMap(), c.Bool("debug"))
+		logger.Debugf("Running pre-apply-config hook")
+		err := hooks.PreApplyConfig(GetHooksEnvsMap(context), context.Bool("debug"))
 		if err != nil {
 			return fmt.Errorf("error running pre-apply-config hook: %v", err)
 		}
 
-		log.Debugf("Applying MIG device configuration...")
-		err = ApplyMigConfig(&context)
+		logger.Debugf("Applying MIG device configuration...")
+		err = applier.ApplyMigConfig()
 		if err != nil {
 			return err
 		}

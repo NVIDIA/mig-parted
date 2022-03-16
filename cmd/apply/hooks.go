@@ -40,6 +40,10 @@ type ApplyHooks interface {
 
 var _ ApplyHooks = (*applyHooks)(nil)
 
+func NewApplyHooks(hooksMap hooks.HooksMap) ApplyHooks {
+	return &applyHooks{hooksMap}
+}
+
 func (h *applyHooks) ApplyStart(envs hooks.EnvsMap, output bool) error {
 	return h.Run(applyStartHook, envs, output)
 }
