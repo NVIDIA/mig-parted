@@ -70,7 +70,7 @@ push-%: DIST = $(*)
 push-short: DIST = $(DEFAULT_PUSH_TARGET)
 
 build-%: DIST = $(*)
-build-%: DOCKERFILE = $(CURDIR)/deployments/gpu-operator/Dockerfile
+build-%: DOCKERFILE = $(CURDIR)/deployments/gpu-operator/Dockerfile.$(DOCKERFILE_SUFFIX)
 
 # Use a generic build target to build the relevant images
 $(BUILD_TARGETS): build-%: $(ARTIFACTS_ROOT)
@@ -83,5 +83,10 @@ $(BUILD_TARGETS): build-%: $(ARTIFACTS_ROOT)
 		--build-arg CUDA_VERSION="$(CUDA_VERSION)" \
 		--build-arg GOLANG_VERSION="$(GOLANG_VERSION)" \
 		--build-arg VERSION="$(vVERSION)" \
+		--build-arg CVE_UPDATES="$(CVE_UPDATES)" \
 		-f $(DOCKERFILE) \
 		$(CURDIR)
+
+build-ubuntu%: DOCKERFILE_SUFFIX := ubuntu
+
+build-ubi8: DOCKERFILE_SUFFIX := ubi8
