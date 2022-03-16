@@ -82,6 +82,11 @@ func (d nvmlDevice) CreateGpuInstance(info *GpuInstanceProfileInfo) (GpuInstance
 	return nvmlGpuInstance(gi), nvmlReturn(r)
 }
 
+func (d nvmlDevice) CreateGpuInstanceWithPlacement(info *GpuInstanceProfileInfo, placement *GpuInstancePlacement) (GpuInstance, Return) {
+	gi, r := nvml.Device(d).CreateGpuInstanceWithPlacement((*nvml.GpuInstanceProfileInfo)(info), (*nvml.GpuInstancePlacement)(placement))
+	return nvmlGpuInstance(gi), nvmlReturn(r)
+}
+
 func (d nvmlDevice) GetGpuInstances(info *GpuInstanceProfileInfo) ([]GpuInstance, Return) {
 	nvmlGis, r := nvml.Device(d).GetGpuInstances((*nvml.GpuInstanceProfileInfo)(info))
 	var gis []GpuInstance
@@ -97,7 +102,7 @@ func (gi nvmlGpuInstance) GetInfo() (GpuInstanceInfo, Return) {
 		Device:    nvmlDevice(i.Device),
 		Id:        i.Id,
 		ProfileId: i.ProfileId,
-		Placement: i.Placement,
+		Placement: GpuInstancePlacement(i.Placement),
 	}
 	return info, nvmlReturn(r)
 }
@@ -133,6 +138,7 @@ func (ci nvmlComputeInstance) GetInfo() (ComputeInstanceInfo, Return) {
 		GpuInstance: nvmlGpuInstance(i.GpuInstance),
 		Id:          i.Id,
 		ProfileId:   i.ProfileId,
+		Placement:   ComputeInstancePlacement(i.Placement),
 	}
 	return info, nvmlReturn(r)
 }

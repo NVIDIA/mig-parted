@@ -402,6 +402,19 @@ func (d *MockA100Device) CreateGpuInstance(info *GpuInstanceProfileInfo) (GpuIns
 	return gi, MockReturn(SUCCESS)
 }
 
+func (d *MockA100Device) CreateGpuInstanceWithPlacement(info *GpuInstanceProfileInfo, placement *GpuInstancePlacement) (GpuInstance, Return) {
+	giInfo := GpuInstanceInfo{
+		Device:    d,
+		Id:        d.GpuInstanceCounter,
+		ProfileId: info.Id,
+		Placement: *placement,
+	}
+	d.GpuInstanceCounter++
+	gi := NewMockA100GpuInstance(giInfo)
+	d.GpuInstances[gi.(*MockA100GpuInstance)] = struct{}{}
+	return gi, MockReturn(SUCCESS)
+}
+
 func (d *MockA100Device) GetGpuInstances(info *GpuInstanceProfileInfo) ([]GpuInstance, Return) {
 	var gis []GpuInstance
 	for gi := range d.GpuInstances {

@@ -34,6 +34,7 @@ type Device interface {
 	GetMigMode() (int, int, Return)
 	GetGpuInstanceProfileInfo(Profile int) (GpuInstanceProfileInfo, Return)
 	CreateGpuInstance(Info *GpuInstanceProfileInfo) (GpuInstance, Return)
+	CreateGpuInstanceWithPlacement(Info *GpuInstanceProfileInfo, Placement *GpuInstancePlacement) (GpuInstance, Return)
 	GetGpuInstances(Info *GpuInstanceProfileInfo) ([]GpuInstance, Return)
 }
 
@@ -54,7 +55,7 @@ type GpuInstanceInfo struct {
 	Device    Device
 	Id        uint32
 	ProfileId uint32
-	Placement nvml.GpuInstancePlacement
+	Placement GpuInstancePlacement
 }
 
 type ComputeInstanceInfo struct {
@@ -62,8 +63,11 @@ type ComputeInstanceInfo struct {
 	GpuInstance GpuInstance
 	Id          uint32
 	ProfileId   uint32
+	Placement   ComputeInstancePlacement
 }
 
 type PciInfo nvml.PciInfo
 type GpuInstanceProfileInfo nvml.GpuInstanceProfileInfo
+type GpuInstancePlacement nvml.GpuInstancePlacement
 type ComputeInstanceProfileInfo nvml.ComputeInstanceProfileInfo
+type ComputeInstancePlacement nvml.ComputeInstancePlacement
