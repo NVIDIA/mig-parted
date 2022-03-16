@@ -22,15 +22,15 @@ import (
 	"strings"
 )
 
-// MigConfig holds a map of MigProfile to a count of that profile type.
+// MigConfig holds a map of strings representing a MigProfile to a count of that profile type.
 // It is meant to represent the set of MIG profiles (and how many of a
 // particular type) should be instantiated on a GPU.
-type MigConfig map[MigProfile]int
+type MigConfig map[string]int
 
-func NewMigConfig(mps []MigProfile) MigConfig {
+func NewMigConfig(mps []*MigProfile) MigConfig {
 	config := make(MigConfig)
 	for _, mp := range mps {
-		config[mp.MustNormalize()] += 1
+		config[mp.String()] += 1
 	}
 	return config
 }
@@ -40,7 +40,7 @@ func (m MigConfig) AssertValid() error {
 		return nil
 	}
 	for k, v := range m {
-		err := k.AssertValid()
+		_, err := ParseMigProfile(k)
 		if err != nil {
 			return fmt.Errorf("invalid format for '%v': %v", k, err)
 		}
@@ -68,7 +68,7 @@ func (m MigConfig) IsSubsetOf(config MigConfig) bool {
 	return true
 }
 
-func (m MigConfig) Contains(profile MigProfile) bool {
+func (m MigConfig) Contains(profile string) bool {
 	if _, exists := m[profile]; !exists {
 		return false
 	}
@@ -90,10 +90,11 @@ func (m MigConfig) Equals(config MigConfig) bool {
 	return true
 }
 
-func (m MigConfig) Flatten() []MigProfile {
-	var mps []MigProfile
+func (m MigConfig) Flatten() []*MigProfile {
+	var mps []*MigProfile
 	for k, v := range m {
-		if k.AssertValid() != nil {
+		mp, err := ParseMigProfile(k)
+		if err != nil {
 			return nil
 		}
 		if v < 0 {
@@ -103,25 +104,23 @@ func (m MigConfig) Flatten() []MigProfile {
 			continue
 		}
 		for i := 0; i < v; i++ {
-			mps = append(mps, k)
+			mps = append(mps, mp)
 		}
 	}
 	sort.Slice(mps, func(i, j int) bool {
-		ci, gi, _, attri, _ := mps[i].Parse()
-		cj, gj, _, attrj, _ := mps[j].Parse()
-		if gj > gi {
+		if mps[j].G > mps[i].G {
 			return false
 		}
-		if gj < gi {
+		if mps[j].G < mps[i].G {
 			return true
 		}
-		if cj > ci {
+		if mps[j].C > mps[i].C {
 			return false
 		}
-		if cj < ci {
+		if mps[j].C < mps[i].C {
 			return true
 		}
-		return strings.Join(attrj, ",") < strings.Join(attri, ",")
+		return strings.Join(mps[j].Attributes(), ",") < strings.Join(mps[i].Attributes(), ",")
 	})
 	return mps
 }

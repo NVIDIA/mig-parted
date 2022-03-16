@@ -28,37 +28,125 @@ const (
 	AttributeMediaExtensions = "me"
 )
 
-// MigProfile reprents a specific MIG profile name.
-// Examples include "1g.5gb" or "2g.10gb" or "1c.2g.10gb", etc.
-type MigProfile string
-
-// NewMigProfile constructs a new MigProfile from its constituent parts.
-func NewMigProfile(c uint32, g uint32, mb uint64, attr ...string) MigProfile {
-	var suffix string
-	if len(attr) > 0 {
-		suffix = "+" + strings.Join(attr, ",")
-	}
-	gb := ((mb + 1024 - 1) / 1024)
-	if c == g {
-		return MigProfile(fmt.Sprintf("%dg.%dgb%s", g, gb, suffix))
-	}
-	return MigProfile(fmt.Sprintf("%dc.%dg.%dgb%s", c, g, gb, suffix))
+// MigProfile represents a specific MIG profile.
+// Examples include "1g.5gb", "2g.10gb", "1c.2g.10gb", or "1c.1g.5gb+me", etc.
+type MigProfile struct {
+	C              int
+	G              int
+	GB             int
+	GIProfileId    int
+	CIProfileId    int
+	CIEngProfileId int
 }
 
-func (m MigProfile) AddAttributes(giProfileId, ciProfileId, ciEngProfileId int) MigProfile {
-	c, g, gb, attr := m.MustParse()
-	switch giProfileId {
-	case nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV1:
-		if !m.HasAttribute(AttributeMediaExtensions) {
-			attr = append(attr, AttributeMediaExtensions)
+// NewMigProfile constructs a new MigProfile struct using info from the giProfiles and ciProfiles used to create it.
+func NewMigProfile(giProfileId, ciProfileId, ciEngProfileId int, giProfileInfo *nvml.GpuInstanceProfileInfo, ciProfileInfo *nvml.ComputeInstanceProfileInfo) *MigProfile {
+	return &MigProfile{
+		C:              int(ciProfileInfo.SliceCount),
+		G:              int(giProfileInfo.SliceCount),
+		GB:             int((giProfileInfo.MemorySizeMB + 1024 - 1) / 1024),
+		GIProfileId:    giProfileId,
+		CIProfileId:    ciProfileId,
+		CIEngProfileId: ciEngProfileId,
+	}
+}
+
+// ParseMigProfile converts a string representation of a MigProfile into an object.
+func ParseMigProfile(profile string) (*MigProfile, error) {
+	var err error
+	var c, g, gb int
+	var attr []string
+
+	if len(profile) == 0 {
+		return nil, fmt.Errorf("empty MigProfile string")
+	}
+
+	split := strings.SplitN(profile, "+", 2)
+	if len(split) == 2 {
+		attr, err = parseMigProfileAttributes(split[1])
+		if err != nil {
+			return nil, fmt.Errorf("error parsing attributes following '+' in MigProfile string: %v", err)
 		}
 	}
-	return NewMigProfile(uint32(c), uint32(g), uint64(gb)*1024, attr...)
+
+	c, g, gb, err = parseMigProfileFields(split[0])
+	if err != nil {
+		return nil, fmt.Errorf("error parsing '.' separated fields in MigProfile string: %v", err)
+	}
+
+	m := &MigProfile{
+		C:  c,
+		G:  g,
+		GB: gb,
+	}
+
+	switch c {
+	case 1:
+		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_1_SLICE
+	case 2:
+		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_2_SLICE
+	case 3:
+		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_3_SLICE
+	case 4:
+		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_4_SLICE
+	case 7:
+		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_7_SLICE
+	case 8:
+		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_8_SLICE
+	default:
+		return nil, fmt.Errorf("unknown Compute Instance slice size: %v", c)
+	}
+
+	switch g {
+	case 1:
+		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_1_SLICE
+	case 2:
+		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_2_SLICE
+	case 3:
+		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_3_SLICE
+	case 4:
+		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_4_SLICE
+	case 7:
+		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_7_SLICE
+	case 8:
+		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_8_SLICE
+	default:
+		return nil, fmt.Errorf("unknown GPU Instance slice size: %v", g)
+	}
+
+	m.CIEngProfileId = nvml.COMPUTE_INSTANCE_ENGINE_PROFILE_SHARED
+
+	for _, a := range attr {
+		switch a {
+		case AttributeMediaExtensions:
+			m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV1
+		default:
+			return nil, fmt.Errorf("unknown MigProfile attribute: %v", a)
+		}
+	}
+
+	return m, nil
 }
 
+// MustParseMigProfile does the same as Parse(), but never throws an error.
+func MustParseMigProfile(profile string) *MigProfile {
+	m, _ := ParseMigProfile(profile)
+	return m
+}
+
+// Attributes returns the list of attributes associated with a MigProfile
+func (m MigProfile) Attributes() []string {
+	var attr []string
+	switch m.GIProfileId {
+	case nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV1:
+		attr = append(attr, AttributeMediaExtensions)
+	}
+	return attr
+}
+
+// HasAttribute checks if the MigProfile has the specified attribute associated with it.
 func (m MigProfile) HasAttribute(attr string) bool {
-	_, _, _, attrs := m.MustParse()
-	for _, a := range attrs {
+	for _, a := range m.Attributes() {
 		if a == attr {
 			return true
 		}
@@ -66,13 +154,21 @@ func (m MigProfile) HasAttribute(attr string) bool {
 	return false
 }
 
-// AssertValid asserts that a given MigProfile is formatted correctly.
-func (m MigProfile) AssertValid() error {
-	_, _, _, _, err := m.Parse()
-	if err != nil {
-		return fmt.Errorf("error parsing MIG profile: %v", err)
+// String returns the string representation of a MigProfile.
+func (m MigProfile) String() string {
+	var suffix string
+	if len(m.Attributes()) > 0 {
+		suffix = "+" + strings.Join(m.Attributes(), ",")
 	}
-	return nil
+	if m.C == m.G {
+		return fmt.Sprintf("%dg.%dgb%s", m.G, m.GB, suffix)
+	}
+	return fmt.Sprintf("%dc.%dg.%dgb%s", m.C, m.G, m.GB, suffix)
+}
+
+// Equals checks if two MigProfiles are identical or not
+func (m MigProfile) Equals(other *MigProfile) bool {
+	return m == *other
 }
 
 func parseMigProfileField(s string, field string) (int, error) {
@@ -132,7 +228,11 @@ func parseMigProfileAttributes(s string) ([]string, error) {
 	if len(attr) == 0 {
 		return nil, fmt.Errorf("empty attribute list")
 	}
+	unique := make(map[string]int)
 	for _, a := range attr {
+		if unique[a] > 0 {
+			return nil, fmt.Errorf("non unique attribute in list")
+		}
 		if a == "" {
 			return nil, fmt.Errorf("empty attribute in list")
 		}
@@ -147,115 +247,7 @@ func parseMigProfileAttributes(s string) ([]string, error) {
 				return nil, fmt.Errorf("non alpha-numeric character or digit in attribute")
 			}
 		}
+		unique[a]++
 	}
 	return attr, nil
-}
-
-// Parse breaks a MigProfile into its constituent parts
-func (m MigProfile) Parse() (int, int, int, []string, error) {
-	var err error
-	var c, g, gb int
-	var attr []string
-
-	if len(m) == 0 {
-		return -1, -1, -1, nil, fmt.Errorf("empty MigProfile string")
-	}
-
-	split := strings.SplitN(string(m), "+", 2)
-	if len(split) == 2 {
-		attr, err = parseMigProfileAttributes(split[1])
-		if err != nil {
-			return -1, -1, -1, nil, fmt.Errorf("error parsing attributes following '+' in MigProfile string: %v", err)
-		}
-	}
-
-	c, g, gb, err = parseMigProfileFields(split[0])
-	if err != nil {
-		return -1, -1, -1, nil, fmt.Errorf("error parsing '.' separated fields in MigProfile string: %v", err)
-	}
-
-	return c, g, gb, attr, nil
-}
-
-// MustParse breaks a MigProfile into its constituent parts
-func (m MigProfile) MustParse() (int, int, int, []string) {
-	c, g, gb, attr, _ := m.Parse()
-	return c, g, gb, attr
-}
-
-// Normalize normalizes a MigProfile to its canonical name
-func (m MigProfile) Normalize() (MigProfile, error) {
-	c, g, gb, attr, err := m.Parse()
-	if err != nil {
-		return "", fmt.Errorf("unable to normalize MigProfile: %v", err)
-	}
-	return NewMigProfile(uint32(c), uint32(g), uint64(gb)*1024, attr...), nil
-}
-
-// MustNormalize normalizes a MigProfile to its canonical name
-func (m MigProfile) MustNormalize() MigProfile {
-	normalized, _ := m.Normalize()
-	return normalized
-}
-
-// Equals checks if two MigProfiles are identical or not
-func (m MigProfile) Equals(other MigProfile) bool {
-	return m.MustNormalize() == other.MustNormalize()
-}
-
-// GetProfileIDs returns the relevant GI and CI profile IDs for the MigProfile
-// These profile IDs are suitable for passing to the relevant NVML calls that require them.
-func (m MigProfile) GetProfileIDs() (int, int, int, error) {
-	err := m.AssertValid()
-	if err != nil {
-		return -1, -1, -1, fmt.Errorf("invalid MigProfile: %v", err)
-	}
-
-	c, g, _, _, err := m.Parse()
-	if err != nil {
-		return -1, -1, -1, fmt.Errorf("unable to parse MigProfile: %v", err)
-	}
-
-	var giProfileID, ciProfileID, ciEngProfileID int
-
-	switch g {
-	case 1:
-		giProfileID = nvml.GPU_INSTANCE_PROFILE_1_SLICE
-		if m.HasAttribute(AttributeMediaExtensions) {
-			giProfileID = nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV1
-		}
-	case 2:
-		giProfileID = nvml.GPU_INSTANCE_PROFILE_2_SLICE
-	case 3:
-		giProfileID = nvml.GPU_INSTANCE_PROFILE_3_SLICE
-	case 4:
-		giProfileID = nvml.GPU_INSTANCE_PROFILE_4_SLICE
-	case 7:
-		giProfileID = nvml.GPU_INSTANCE_PROFILE_7_SLICE
-	case 8:
-		giProfileID = nvml.GPU_INSTANCE_PROFILE_8_SLICE
-	default:
-		return -1, -1, -1, fmt.Errorf("unknown GPU Instance slice size: %v", g)
-	}
-
-	switch c {
-	case 1:
-		ciProfileID = nvml.COMPUTE_INSTANCE_PROFILE_1_SLICE
-	case 2:
-		ciProfileID = nvml.COMPUTE_INSTANCE_PROFILE_2_SLICE
-	case 3:
-		ciProfileID = nvml.COMPUTE_INSTANCE_PROFILE_3_SLICE
-	case 4:
-		ciProfileID = nvml.COMPUTE_INSTANCE_PROFILE_4_SLICE
-	case 7:
-		ciProfileID = nvml.COMPUTE_INSTANCE_PROFILE_7_SLICE
-	case 8:
-		ciProfileID = nvml.COMPUTE_INSTANCE_PROFILE_8_SLICE
-	default:
-		return -1, -1, -1, fmt.Errorf("unknown Compute Instance slice size: %v", c)
-	}
-
-	ciEngProfileID = nvml.COMPUTE_INSTANCE_ENGINE_PROFILE_SHARED
-
-	return giProfileID, ciProfileID, ciEngProfileID, nil
 }
