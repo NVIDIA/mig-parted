@@ -50,6 +50,10 @@ func NewNvmlMigConfigManager() Manager {
 	return &nvmlMigConfigManager{nvml.New(), nvlib.New()}
 }
 
+func NewMockNvmlMigConfigManager(nvml nvml.Interface) Manager {
+	return &nvmlMigConfigManager{nvml, nvlib.NewMock(nvml)}
+}
+
 func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
 	ret := m.nvml.Init()
 	if ret.Value() != nvml.SUCCESS {
