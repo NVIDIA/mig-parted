@@ -3,7 +3,7 @@ nvidia-mig-manager (0.3.0-1) UNRELEASED; urgency=medium
   * k8s-mig-manager: Add support for multi-arch images
   * k8s-mig-manager: Handle eviction of NVSM pod when applying MIG changes
 
- -- NVIDIA CORPORATION <cudatools@nvidia.com> Fri, 18 Mar 2022 06:59:30 +0200
+ -- NVIDIA CORPORATION <cudatools@nvidia.com>  Fri, 18 Mar 2022 06:59:30 +0200
 
 nvidia-mig-manager (0.2.0-1) UNRELEASED; urgency=medium
 
