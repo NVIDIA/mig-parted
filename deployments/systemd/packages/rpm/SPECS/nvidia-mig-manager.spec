@@ -81,7 +81,7 @@ systemctl disable nvidia-mig-manager.service
 systemctl daemon-reload
 
 %changelog
-* Fri Mar 18 2021 NVIDIA CORPORATION <cudatools@nvidia.com> 0.3.0-1
+* Fri Mar 18 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.3.0-1
 - k8s-mig-manager: Add support for multi-arch images
 - k8s-mig-manager: Handle eviction of NVSM pod when applying MIG changes
 
