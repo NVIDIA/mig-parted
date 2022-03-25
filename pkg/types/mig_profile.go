@@ -89,6 +89,8 @@ func ParseMigProfile(profile string) (*MigProfile, error) {
 		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_3_SLICE
 	case 4:
 		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_4_SLICE
+	case 6:
+		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_6_SLICE
 	case 7:
 		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_7_SLICE
 	case 8:
@@ -106,6 +108,8 @@ func ParseMigProfile(profile string) (*MigProfile, error) {
 		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_3_SLICE
 	case 4:
 		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_4_SLICE
+	case 6:
+		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_6_SLICE
 	case 7:
 		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_7_SLICE
 	case 8:
