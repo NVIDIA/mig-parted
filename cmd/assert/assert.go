@@ -19,7 +19,6 @@ package assert
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -176,7 +175,7 @@ func ParseConfigFile(f *Flags) (*v1.Spec, error) {
 			configYaml = append(configYaml, '\n')
 		}
 	} else {
-		configYaml, err = ioutil.ReadFile(f.ConfigFile)
+		configYaml, err = os.ReadFile(f.ConfigFile)
 		if err != nil {
 			return nil, fmt.Errorf("read error: %v", err)
 		}
