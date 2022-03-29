@@ -29,6 +29,7 @@ import (
 	cli "github.com/urfave/cli/v2"
 )
 
+// Flags holds variables that represent the set of top level flags that can be passed to the mig-parted CLI.
 type Flags struct {
 	Debug bool
 }

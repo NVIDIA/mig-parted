@@ -27,6 +27,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Manager represents the set of operations for fetching / restoring the full MIG state of all GPUs on a node.
 type Manager interface {
 	Fetch() (*types.MigState, error)
 	RestoreMode(state *types.MigState) error
@@ -49,6 +50,7 @@ func tryNvmlShutdown(nvmlLib nvml.Interface) {
 	}
 }
 
+// NewMigStateManager creates a new MIG state Manager.
 func NewMigStateManager() Manager {
 	return &migStateManager{
 		nvml.New(),
@@ -58,6 +60,7 @@ func NewMigStateManager() Manager {
 	}
 }
 
+// NewMockMigStateManager creates a MIG state Manager using 'nvml' as the underlying NVML library to mock out its calls.
 func NewMockMigStateManager(nvml nvml.Interface) Manager {
 	return &migStateManager{
 		nvml,
@@ -67,6 +70,7 @@ func NewMockMigStateManager(nvml nvml.Interface) Manager {
 	}
 }
 
+// Fetch collects the full MIG state of all GPUs on a node and returns it in a 'MigState' struct.
 func (m *migStateManager) Fetch() (*types.MigState, error) {
 	ret := m.nvml.Init()
 	if ret.Value() != nvml.SUCCESS {
@@ -114,28 +118,28 @@ func (m *migStateManager) Fetch() (*types.MigState, error) {
 			continue
 		}
 
-		err = m.nvlib.Mig.Device(device).WalkGpuInstances(func(gi nvml.GpuInstance, giProfileId int, giProfileInfo nvml.GpuInstanceProfileInfo) error {
+		err = m.nvlib.Mig.Device(device).WalkGpuInstances(func(gi nvml.GpuInstance, giProfileID int, giProfileInfo nvml.GpuInstanceProfileInfo) error {
 			giInfo, ret := gi.GetInfo()
 			if ret.Value() != nvml.SUCCESS {
-				return fmt.Errorf("error getting GPU instance info for '%v': %v", giProfileId, ret)
+				return fmt.Errorf("error getting GPU instance info for '%v': %v", giProfileID, ret)
 			}
 
 			giState := types.GpuInstanceState{
-				ProfileId: giProfileId,
+				ProfileID: giProfileID,
 				Placement: giInfo.Placement,
 			}
 
-			err := m.nvlib.Mig.GpuInstance(gi).WalkComputeInstances(func(ci nvml.ComputeInstance, ciProfileId int, ciEngProfileId int, ciProfileInfo nvml.ComputeInstanceProfileInfo) error {
+			err := m.nvlib.Mig.GpuInstance(gi).WalkComputeInstances(func(ci nvml.ComputeInstance, ciProfileID int, ciEngProfileID int, ciProfileInfo nvml.ComputeInstanceProfileInfo) error {
 				ciState := types.ComputeInstanceState{
-					ProfileId:    ciProfileId,
-					EngProfileId: ciEngProfileId,
+					ProfileID:    ciProfileID,
+					EngProfileID: ciEngProfileID,
 				}
 
 				giState.ComputeInstances = append(giState.ComputeInstances, ciState)
 				return nil
 			})
 			if err != nil {
-				return fmt.Errorf("error walking compute instances for '%v': %v", giProfileId, err)
+				return fmt.Errorf("error walking compute instances for '%v': %v", giProfileID, err)
 			}
 			deviceState.GpuInstances = append(deviceState.GpuInstances, giState)
 			return nil
@@ -149,6 +153,7 @@ func (m *migStateManager) Fetch() (*types.MigState, error) {
 	return &migState, nil
 }
 
+// RestoreMode restores just the MIG mode state of all GPUs represented in the provided 'MigState'.
 func (m *migStateManager) RestoreMode(state *types.MigState) error {
 	ret := m.nvml.Init()
 	if ret.Value() != nvml.SUCCESS {
@@ -176,6 +181,7 @@ func (m *migStateManager) RestoreMode(state *types.MigState) error {
 	return nil
 }
 
+// RestoreMode restores the full MIG configuration of all GPUs represented in the provided 'MigState'.
 func (m *migStateManager) RestoreConfig(state *types.MigState) error {
 	ret := m.nvml.Init()
 	if ret.Value() != nvml.SUCCESS {
@@ -204,25 +210,25 @@ func (m *migStateManager) RestoreConfig(state *types.MigState) error {
 		}
 
 		for _, giState := range deviceState.GpuInstances {
-			giProfileInfo, ret := device.GetGpuInstanceProfileInfo(giState.ProfileId)
+			giProfileInfo, ret := device.GetGpuInstanceProfileInfo(giState.ProfileID)
 			if ret.Value() != nvml.SUCCESS {
-				return fmt.Errorf("error getting GPU instance profile info for '%v': %v", giState.ProfileId, ret)
+				return fmt.Errorf("error getting GPU instance profile info for '%v': %v", giState.ProfileID, ret)
 			}
 
 			gi, ret := device.CreateGpuInstanceWithPlacement(&giProfileInfo, &giState.Placement)
 			if ret.Value() != nvml.SUCCESS {
-				return fmt.Errorf("error creating GPU instance for '%v': %v", giState.ProfileId, ret)
+				return fmt.Errorf("error creating GPU instance for '%v': %v", giState.ProfileID, ret)
 			}
 
 			for _, ciState := range giState.ComputeInstances {
-				ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(ciState.ProfileId, ciState.EngProfileId)
+				ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(ciState.ProfileID, ciState.EngProfileID)
 				if ret.Value() != nvml.SUCCESS {
-					return fmt.Errorf("error getting Compute instance profile info for '(%v, %v)': %v", ciState.ProfileId, ciState.EngProfileId, ret)
+					return fmt.Errorf("error getting Compute instance profile info for '(%v, %v)': %v", ciState.ProfileID, ciState.EngProfileID, ret)
 				}
 
 				_, ret = gi.CreateComputeInstance(&ciProfileInfo)
 				if ret.Value() != nvml.SUCCESS {
-					return fmt.Errorf("error creating Compute instance for '(%v, %v)': %v", ciState.ProfileId, ciState.EngProfileId, ret)
+					return fmt.Errorf("error creating Compute instance for '(%v, %v)': %v", ciState.ProfileID, ciState.EngProfileID, ret)
 				}
 			}
 		}

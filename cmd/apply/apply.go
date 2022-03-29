@@ -31,20 +31,24 @@ import (
 
 var log = logrus.New()
 
+// GetLogger returns the 'logrus.Logger' instance used by this package.
 func GetLogger() *logrus.Logger {
 	return log
 }
 
+// Flags holds variables that represent the set of flags that can be passed to the 'apply' subcommand.
 type Flags struct {
 	assert.Flags
 	HooksFile string
 }
 
+// Context holds the state we want to pass around between functions associated with the 'apply' subcommand.
 type Context struct {
 	assert.Context
 	Flags *Flags
 }
 
+// MigConfigApplier is an interface representing the set of functions required to "Apply" a MIG configuration to a node.
 type MigConfigApplier interface {
 	AssertMigMode() error
 	ApplyMigMode() error
@@ -52,6 +56,7 @@ type MigConfigApplier interface {
 	ApplyMigConfig() error
 }
 
+// BuildCommand builds the 'apply' subcommand for injection into the main mig-parted CLI.
 func BuildCommand() *cli.Command {
 	// Create a flags struct to hold our flags
 	applyFlags := Flags{}
@@ -106,10 +111,12 @@ func BuildCommand() *cli.Command {
 	return &apply
 }
 
+// CheckFlags ensures that any required flags are provided and ensures they are well-formed.
 func CheckFlags(f *Flags) error {
 	return assert.CheckFlags(&f.Flags)
 }
 
+// ParseHooksFile parses a hoosk file and unmarshals it into a 'hooks.Spec'.
 func ParseHooksFile(hooksFile string) (*hooks.Spec, error) {
 	var err error
 	var hooksYaml []byte
@@ -128,6 +135,8 @@ func ParseHooksFile(hooksFile string) (*hooks.Spec, error) {
 	return &spec, nil
 }
 
+// GetHooksEnvsMap builds a 'hooks.EnvsMap' from the set of environment variables set when the CLI was envoked by the user.
+// These environment variables are then made available to all hooks when thex are executed later on.
 func GetHooksEnvsMap(c *cli.Context) hooks.EnvsMap {
 	envs := make(hooks.EnvsMap)
 	for _, flag := range c.Command.Flags {
@@ -148,18 +157,24 @@ func GetHooksEnvsMap(c *cli.Context) hooks.EnvsMap {
 	return envs
 }
 
+// AssertMigMode reuses calls from the 'assert' subcommand to ensures that the MIG mode settings of a given MIG config are currently applied.
+// The 'MigConfig'  being checked is embedded in the 'Context' struct itself.
 func (c *Context) AssertMigMode() error {
 	return assert.AssertMigMode(&c.Context)
 }
 
+// ApplyMigMode applies the MIG mode settings of the config embedded in the 'Context' to the set of GPUs on the node.
 func (c *Context) ApplyMigMode() error {
 	return ApplyMigMode(c)
 }
 
+// AssertMigMode reuses calls from the 'assert' subcommand to ensures that all MIG settings of a given MIG config are currently applied.
+// The 'MigConfig'  being checked is embedded in the 'Context' struct itself.
 func (c *Context) AssertMigConfig() error {
 	return assert.AssertMigConfig(&c.Context)
 }
 
+// ApplyMigConfig applies the full MIG config embedded in the 'Context' to the set of GPUs on the node.
 func (c *Context) ApplyMigConfig() error {
 	return ApplyMigConfig(c)
 }
@@ -212,6 +227,8 @@ func applyWrapper(c *cli.Context, f *Flags) error {
 	return nil
 }
 
+// ApplyMigConfigWithHooks orchestrates the calls of a 'MigConfigApplier' between a set of 'ApplyHooks' to the set MIG configuration of a node.
+// If 'modeOnly' is 'true', then only the MIG mode settings embedded in the 'Context' are applied.
 func ApplyMigConfigWithHooks(logger *logrus.Logger, context *cli.Context, modeOnly bool, hooks ApplyHooks, applier MigConfigApplier) (rerr error) {
 	logger.Debugf("Running apply-start hook")
 	err := hooks.ApplyStart(GetHooksEnvsMap(context), context.Bool("debug"))

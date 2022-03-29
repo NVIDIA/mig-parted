@@ -20,8 +20,10 @@ import (
 	"github.com/NVIDIA/mig-parted/pkg/types"
 )
 
+// Version indicates the version of the 'State' struct used to hold 'MigState' information.
 const Version = "v1"
 
+// State is a versioned struct used to hold 'MigState' information.
 type State struct {
 	Version  string
 	MigState types.MigState
