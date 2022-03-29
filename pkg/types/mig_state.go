@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,30 @@
  * limitations under the License.
  */
 
-package mode
+package types
 
 import (
 	"github.com/NVIDIA/mig-parted/internal/nvlib/mig"
+	"github.com/NVIDIA/mig-parted/internal/nvml"
 )
 
-type MigMode = mig.Mode
+type MigState struct {
+	Devices []DeviceState
+}
 
-const (
-	Disabled = mig.Disabled
-	Enabled  = mig.Enabled
-)
+type DeviceState struct {
+	UUID         string
+	MigMode      mig.Mode
+	GpuInstances []GpuInstanceState
+}
 
-type Manager interface {
-	IsMigCapable(gpu int) (bool, error)
-	GetMigMode(gpu int) (MigMode, error)
-	SetMigMode(gpu int, mode MigMode) error
-	IsMigModeChangePending(gpu int) (bool, error)
+type GpuInstanceState struct {
+	ProfileId        int
+	Placement        nvml.GpuInstancePlacement
+	ComputeInstances []ComputeInstanceState
+}
+
+type ComputeInstanceState struct {
+	ProfileId    int
+	EngProfileId int
 }

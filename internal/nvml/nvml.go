@@ -57,6 +57,21 @@ func (n *nvmlLib) DeviceGetHandleByIndex(index int) (Device, Return) {
 	return nvmlDevice(d), nvmlReturn(r)
 }
 
+func (n *nvmlLib) DeviceGetHandleByUUID(uuid string) (Device, Return) {
+	d, r := nvml.DeviceGetHandleByUUID(uuid)
+	return nvmlDevice(d), nvmlReturn(r)
+}
+
+func (d nvmlDevice) GetIndex() (int, Return) {
+	i, r := nvml.Device(d).GetIndex()
+	return i, nvmlReturn(r)
+}
+
+func (d nvmlDevice) GetUUID() (string, Return) {
+	u, r := nvml.Device(d).GetUUID()
+	return u, nvmlReturn(r)
+}
+
 func (d nvmlDevice) GetPciInfo() (PciInfo, Return) {
 	p, r := nvml.Device(d).GetPciInfo()
 	return PciInfo(p), nvmlReturn(r)
@@ -82,6 +97,11 @@ func (d nvmlDevice) CreateGpuInstance(info *GpuInstanceProfileInfo) (GpuInstance
 	return nvmlGpuInstance(gi), nvmlReturn(r)
 }
 
+func (d nvmlDevice) CreateGpuInstanceWithPlacement(info *GpuInstanceProfileInfo, placement *GpuInstancePlacement) (GpuInstance, Return) {
+	gi, r := nvml.Device(d).CreateGpuInstanceWithPlacement((*nvml.GpuInstanceProfileInfo)(info), (*nvml.GpuInstancePlacement)(placement))
+	return nvmlGpuInstance(gi), nvmlReturn(r)
+}
+
 func (d nvmlDevice) GetGpuInstances(info *GpuInstanceProfileInfo) ([]GpuInstance, Return) {
 	nvmlGis, r := nvml.Device(d).GetGpuInstances((*nvml.GpuInstanceProfileInfo)(info))
 	var gis []GpuInstance
@@ -97,7 +117,7 @@ func (gi nvmlGpuInstance) GetInfo() (GpuInstanceInfo, Return) {
 		Device:    nvmlDevice(i.Device),
 		Id:        i.Id,
 		ProfileId: i.ProfileId,
-		Placement: i.Placement,
+		Placement: GpuInstancePlacement(i.Placement),
 	}
 	return info, nvmlReturn(r)
 }
@@ -133,6 +153,7 @@ func (ci nvmlComputeInstance) GetInfo() (ComputeInstanceInfo, Return) {
 		GpuInstance: nvmlGpuInstance(i.GpuInstance),
 		Id:          i.Id,
 		ProfileId:   i.ProfileId,
+		Placement:   ComputeInstancePlacement(i.Placement),
 	}
 	return info, nvmlReturn(r)
 }

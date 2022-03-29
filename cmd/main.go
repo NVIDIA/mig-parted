@@ -21,7 +21,9 @@ import (
 
 	"github.com/NVIDIA/mig-parted/cmd/apply"
 	"github.com/NVIDIA/mig-parted/cmd/assert"
+	"github.com/NVIDIA/mig-parted/cmd/checkpoint"
 	"github.com/NVIDIA/mig-parted/cmd/export"
+	"github.com/NVIDIA/mig-parted/cmd/restore"
 	"github.com/NVIDIA/mig-parted/cmd/util"
 	log "github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
@@ -58,6 +60,8 @@ func main() {
 		apply.BuildCommand(),
 		assert.BuildCommand(),
 		export.BuildCommand(),
+		checkpoint.BuildCommand(),
+		restore.BuildCommand(),
 	}
 
 	// Set log-level for all subcommands
@@ -72,6 +76,10 @@ func main() {
 		assertLog.SetLevel(logLevel)
 		exportLog := export.GetLogger()
 		exportLog.SetLevel(logLevel)
+		checkpointLog := export.GetLogger()
+		checkpointLog.SetLevel(logLevel)
+		restoreLog := export.GetLogger()
+		restoreLog.SetLevel(logLevel)
 		return nil
 	}
 

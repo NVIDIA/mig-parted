@@ -1,0 +1,232 @@
+/*
+ * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package state
+
+import (
+	"fmt"
+
+	"github.com/NVIDIA/mig-parted/internal/nvlib"
+	"github.com/NVIDIA/mig-parted/internal/nvml"
+	"github.com/NVIDIA/mig-parted/pkg/mig/config"
+	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
+	"github.com/NVIDIA/mig-parted/pkg/types"
+	log "github.com/sirupsen/logrus"
+)
+
+type Manager interface {
+	Fetch() (*types.MigState, error)
+	RestoreMode(state *types.MigState) error
+	RestoreConfig(state *types.MigState) error
+}
+
+type migStateManager struct {
+	nvml   nvml.Interface
+	nvlib  nvlib.Interface
+	mode   mode.Manager
+	config config.Manager
+}
+
+var _ Manager = (*migStateManager)(nil)
+
+func tryNvmlShutdown(nvmlLib nvml.Interface) {
+	ret := nvmlLib.Shutdown()
+	if ret.Value() != nvml.SUCCESS {
+		log.Warnf("Error shutting down NVML: %v", ret)
+	}
+}
+
+func NewMigStateManager() Manager {
+	return &migStateManager{
+		nvml.New(),
+		nvlib.New(),
+		mode.NewNvmlMigModeManager(),
+		config.NewNvmlMigConfigManager(),
+	}
+}
+
+func NewMockMigStateManager(nvml nvml.Interface) Manager {
+	return &migStateManager{
+		nvml,
+		nvlib.NewMock(nvml),
+		mode.NewMockNvmlMigModeManager(nvml),
+		config.NewMockNvmlMigConfigManager(nvml),
+	}
+}
+
+func (m *migStateManager) Fetch() (*types.MigState, error) {
+	ret := m.nvml.Init()
+	if ret.Value() != nvml.SUCCESS {
+		return nil, fmt.Errorf("error initializing NVML: %v", ret)
+	}
+	defer tryNvmlShutdown(m.nvml)
+
+	numGPUs, ret := m.nvml.DeviceGetCount()
+	if ret.Value() != nvml.SUCCESS {
+		return nil, fmt.Errorf("error getting device count: %v", ret)
+	}
+
+	var migState types.MigState
+	for gpu := 0; gpu < numGPUs; gpu++ {
+		capable, err := m.mode.IsMigCapable(gpu)
+		if err != nil {
+			return nil, fmt.Errorf("error checking MIG capable: %v", err)
+		}
+
+		if !capable {
+			continue
+		}
+
+		device, ret := m.nvml.DeviceGetHandleByIndex(gpu)
+		if ret.Value() != nvml.SUCCESS {
+			return nil, fmt.Errorf("error getting device handle: %v", ret)
+		}
+
+		uuid, ret := device.GetUUID()
+		if ret.Value() != nvml.SUCCESS {
+			return nil, fmt.Errorf("error getting device uuid: %v", ret)
+		}
+
+		deviceState := types.DeviceState{
+			UUID: uuid,
+		}
+
+		deviceState.MigMode, err = m.mode.GetMigMode(gpu)
+		if err != nil {
+			return nil, fmt.Errorf("error getting MIG mode: %v", err)
+		}
+
+		if deviceState.MigMode == mode.Disabled {
+			migState.Devices = append(migState.Devices, deviceState)
+			continue
+		}
+
+		err = m.nvlib.Mig.Device(device).WalkGpuInstances(func(gi nvml.GpuInstance, giProfileId int, giProfileInfo nvml.GpuInstanceProfileInfo) error {
+			giInfo, ret := gi.GetInfo()
+			if ret.Value() != nvml.SUCCESS {
+				return fmt.Errorf("error getting GPU instance info for '%v': %v", giProfileId, ret)
+			}
+
+			giState := types.GpuInstanceState{
+				ProfileId: giProfileId,
+				Placement: giInfo.Placement,
+			}
+
+			err := m.nvlib.Mig.GpuInstance(gi).WalkComputeInstances(func(ci nvml.ComputeInstance, ciProfileId int, ciEngProfileId int, ciProfileInfo nvml.ComputeInstanceProfileInfo) error {
+				ciState := types.ComputeInstanceState{
+					ProfileId:    ciProfileId,
+					EngProfileId: ciEngProfileId,
+				}
+
+				giState.ComputeInstances = append(giState.ComputeInstances, ciState)
+				return nil
+			})
+			if err != nil {
+				return fmt.Errorf("error walking compute instances for '%v': %v", giProfileId, err)
+			}
+			deviceState.GpuInstances = append(deviceState.GpuInstances, giState)
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error walking gpu instances for '%v': %v", gpu, err)
+		}
+		migState.Devices = append(migState.Devices, deviceState)
+	}
+
+	return &migState, nil
+}
+
+func (m *migStateManager) RestoreMode(state *types.MigState) error {
+	ret := m.nvml.Init()
+	if ret.Value() != nvml.SUCCESS {
+		return fmt.Errorf("error initializing NVML: %v", ret)
+	}
+	defer tryNvmlShutdown(m.nvml)
+
+	for _, deviceState := range state.Devices {
+		device, ret := m.nvml.DeviceGetHandleByUUID(deviceState.UUID)
+		if ret.Value() != nvml.SUCCESS {
+			return fmt.Errorf("error getting device handle: %v", ret)
+		}
+
+		index, ret := device.GetIndex()
+		if ret.Value() != nvml.SUCCESS {
+			return fmt.Errorf("error getting device index: %v", ret)
+		}
+
+		err := m.mode.SetMigMode(index, deviceState.MigMode)
+		if err != nil {
+			return fmt.Errorf("error setting MIG mode on device '%v': %v", deviceState.UUID, err)
+		}
+	}
+
+	return nil
+}
+
+func (m *migStateManager) RestoreConfig(state *types.MigState) error {
+	ret := m.nvml.Init()
+	if ret.Value() != nvml.SUCCESS {
+		return fmt.Errorf("error initializing NVML: %v", ret)
+	}
+	defer tryNvmlShutdown(m.nvml)
+
+	for _, deviceState := range state.Devices {
+		if deviceState.MigMode == mode.Disabled {
+			continue
+		}
+
+		device, ret := m.nvml.DeviceGetHandleByUUID(deviceState.UUID)
+		if ret.Value() != nvml.SUCCESS {
+			return fmt.Errorf("error getting device handle: %v", ret)
+		}
+
+		index, ret := device.GetIndex()
+		if ret.Value() != nvml.SUCCESS {
+			return fmt.Errorf("error getting device index: %v", ret)
+		}
+
+		err := m.config.ClearMigConfig(index)
+		if err != nil {
+			return fmt.Errorf("error clearing existing MIG config: %v", err)
+		}
+
+		for _, giState := range deviceState.GpuInstances {
+			giProfileInfo, ret := device.GetGpuInstanceProfileInfo(giState.ProfileId)
+			if ret.Value() != nvml.SUCCESS {
+				return fmt.Errorf("error getting GPU instance profile info for '%v': %v", giState.ProfileId, ret)
+			}
+
+			gi, ret := device.CreateGpuInstanceWithPlacement(&giProfileInfo, &giState.Placement)
+			if ret.Value() != nvml.SUCCESS {
+				return fmt.Errorf("error creating GPU instance for '%v': %v", giState.ProfileId, ret)
+			}
+
+			for _, ciState := range giState.ComputeInstances {
+				ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(ciState.ProfileId, ciState.EngProfileId)
+				if ret.Value() != nvml.SUCCESS {
+					return fmt.Errorf("error getting Compute instance profile info for '(%v, %v)': %v", ciState.ProfileId, ciState.EngProfileId, ret)
+				}
+
+				_, ret = gi.CreateComputeInstance(&ciProfileInfo)
+				if ret.Value() != nvml.SUCCESS {
+					return fmt.Errorf("error creating Compute instance for '(%v, %v)': %v", ciState.ProfileId, ciState.EngProfileId, ret)
+				}
+			}
+		}
+	}
+
+	return nil
+}

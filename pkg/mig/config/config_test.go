@@ -22,13 +22,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NVIDIA/mig-parted/internal/nvlib"
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/types"
 	"github.com/stretchr/testify/require"
 )
 
 func NewMockLunaServerMigConfigManager() Manager {
-	return &nvmlMigConfigManager{nvml.NewMockNVMLOnLunaServer()}
+	nvml := nvml.NewMockNVMLOnLunaServer()
+	nvlib := nvlib.NewMock(nvml)
+	return &nvmlMigConfigManager{nvml, nvlib}
 }
 
 func EnableMigMode(manager Manager, gpu int) (nvml.Return, nvml.Return) {

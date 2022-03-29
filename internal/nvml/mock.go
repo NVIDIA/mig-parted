@@ -16,10 +16,16 @@
 
 package nvml
 
+import (
+	"github.com/google/uuid"
+)
+
 type MockLunaServer struct {
 	Devices [8]Device
 }
 type MockA100Device struct {
+	UUID               string
+	Index              int
 	MigMode            int
 	GpuInstances       map[*MockA100GpuInstance]struct{}
 	GpuInstanceCounter uint32
@@ -306,20 +312,22 @@ var MockA100MIGProfiles = struct {
 func NewMockNVMLOnLunaServer() Interface {
 	return &MockLunaServer{
 		Devices: [8]Device{
-			NewMockA100Device(),
-			NewMockA100Device(),
-			NewMockA100Device(),
-			NewMockA100Device(),
-			NewMockA100Device(),
-			NewMockA100Device(),
-			NewMockA100Device(),
-			NewMockA100Device(),
+			NewMockA100Device(0),
+			NewMockA100Device(1),
+			NewMockA100Device(2),
+			NewMockA100Device(3),
+			NewMockA100Device(4),
+			NewMockA100Device(5),
+			NewMockA100Device(6),
+			NewMockA100Device(7),
 		},
 	}
 }
 
-func NewMockA100Device() Device {
+func NewMockA100Device(index int) Device {
 	return &MockA100Device{
+		UUID:               "GPU-" + uuid.New().String(),
+		Index:              index,
 		GpuInstances:       make(map[*MockA100GpuInstance]struct{}),
 		GpuInstanceCounter: 0,
 	}
@@ -362,6 +370,23 @@ func (n *MockLunaServer) DeviceGetHandleByIndex(index int) (Device, Return) {
 	return n.Devices[index], MockReturn(SUCCESS)
 }
 
+func (n *MockLunaServer) DeviceGetHandleByUUID(uuid string) (Device, Return) {
+	for _, d := range n.Devices {
+		if uuid == d.(*MockA100Device).UUID {
+			return d, MockReturn(SUCCESS)
+		}
+	}
+	return nil, MockReturn(ERROR_INVALID_ARGUMENT)
+}
+
+func (d *MockA100Device) GetIndex() (int, Return) {
+	return d.Index, MockReturn(SUCCESS)
+}
+
+func (d *MockA100Device) GetUUID() (string, Return) {
+	return d.UUID, MockReturn(SUCCESS)
+}
+
 func (d *MockA100Device) GetPciInfo() (PciInfo, Return) {
 	p := PciInfo{
 		PciDeviceId: 0x20B010DE,
@@ -395,6 +420,19 @@ func (d *MockA100Device) CreateGpuInstance(info *GpuInstanceProfileInfo) (GpuIns
 		Device:    d,
 		Id:        d.GpuInstanceCounter,
 		ProfileId: info.Id,
+	}
+	d.GpuInstanceCounter++
+	gi := NewMockA100GpuInstance(giInfo)
+	d.GpuInstances[gi.(*MockA100GpuInstance)] = struct{}{}
+	return gi, MockReturn(SUCCESS)
+}
+
+func (d *MockA100Device) CreateGpuInstanceWithPlacement(info *GpuInstanceProfileInfo, placement *GpuInstancePlacement) (GpuInstance, Return) {
+	giInfo := GpuInstanceInfo{
+		Device:    d,
+		Id:        d.GpuInstanceCounter,
+		ProfileId: info.Id,
+		Placement: *placement,
 	}
 	d.GpuInstanceCounter++
 	gi := NewMockA100GpuInstance(giInfo)

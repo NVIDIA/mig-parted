@@ -39,7 +39,7 @@ func NewMockNvmlLunaServer() *nvmlMigModeManager {
 	mls := &nvml.MockLunaServer{}
 	for i := 0; i < 8; i++ {
 		mls.Devices[i] = &mockNvmlA100Device{
-			Device:         nvml.NewMockA100Device(),
+			Device:         nvml.NewMockA100Device(i),
 			migCapable:     true,
 			driverBusy:     false,
 			currentMigMode: nvml.DEVICE_MIG_DISABLE,

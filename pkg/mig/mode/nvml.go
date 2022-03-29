@@ -40,6 +40,10 @@ func NewNvmlMigModeManager() Manager {
 	return &nvmlMigModeManager{nvml.New()}
 }
 
+func NewMockNvmlMigModeManager(nvml nvml.Interface) Manager {
+	return &nvmlMigModeManager{nvml}
+}
+
 func (m *nvmlMigModeManager) IsMigCapable(gpu int) (bool, error) {
 	ret := m.nvml.Init()
 	if ret.Value() != nvml.SUCCESS {
