@@ -26,9 +26,12 @@ type Interface interface {
 	SystemGetNVMLVersion() (string, Return)
 	DeviceGetCount() (int, Return)
 	DeviceGetHandleByIndex(Index int) (Device, Return)
+	DeviceGetHandleByUUID(UUID string) (Device, Return)
 }
 
 type Device interface {
+	GetIndex() (int, Return)
+	GetUUID() (string, Return)
 	GetPciInfo() (PciInfo, Return)
 	SetMigMode(Mode int) (Return, Return)
 	GetMigMode() (int, int, Return)
