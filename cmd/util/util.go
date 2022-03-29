@@ -18,7 +18,7 @@ package util
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -97,7 +97,7 @@ func Capitalize(s string) string {
 }
 
 func IsNvidiaModuleLoaded() (bool, error) {
-	modules, err := ioutil.ReadFile("/proc/modules")
+	modules, err := os.ReadFile("/proc/modules")
 	if err != nil {
 		return false, fmt.Errorf("unable to read /proc/modules: %v", err)
 	}

@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -254,7 +253,7 @@ func parseGPUCLientsFile(file string) (*GPUClients, error) {
 	var err error
 	var yamlBytes []byte
 
-	yamlBytes, err = ioutil.ReadFile(file)
+	yamlBytes, err = os.ReadFile(file)
 	if err != nil {
 		return nil, fmt.Errorf("read error: %v", err)
 	}

@@ -19,7 +19,7 @@ package restore
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"strings"
 
@@ -105,7 +105,7 @@ func CheckFlags(f *Flags) error {
 }
 
 func ParseCheckpointFile(f *Flags) (*checkpoint.State, error) {
-	checkpointJson, err := ioutil.ReadFile(f.CheckpointFile)
+	checkpointJson, err := os.ReadFile(f.CheckpointFile)
 	if err != nil {
 		return nil, fmt.Errorf("read error: %v", err)
 	}

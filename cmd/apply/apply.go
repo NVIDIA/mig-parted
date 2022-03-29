@@ -18,7 +18,7 @@ package apply
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"reflect"
 
 	hooks "github.com/NVIDIA/mig-parted/api/hooks/v1"
@@ -114,7 +114,7 @@ func ParseHooksFile(hooksFile string) (*hooks.Spec, error) {
 	var err error
 	var hooksYaml []byte
 
-	hooksYaml, err = ioutil.ReadFile(hooksFile)
+	hooksYaml, err = os.ReadFile(hooksFile)
 	if err != nil {
 		return nil, fmt.Errorf("read error: %v", err)
 	}
