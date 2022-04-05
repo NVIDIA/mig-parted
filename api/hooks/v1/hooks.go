@@ -22,13 +22,16 @@ import (
 	"os/exec"
 )
 
+// Version indicates the version of the 'Spec' struct used to hold 'Hooks' information.
 const Version = "v1"
 
+// Spec is a versioned struct used to hold 'Hooks' information.
 type Spec struct {
 	Version string   `json:"version"`
 	Hooks   HooksMap `json:"hooks"`
 }
 
+// HookSpec holds the actual data associated with a runnable Hook.
 type HookSpec struct {
 	Command string   `json:"command"`
 	Args    []string `json:"args"`
@@ -36,9 +39,15 @@ type HookSpec struct {
 	Workdir string   `json:"workdir"`
 }
 
+// EnvsMap holds the (key, value) pairs associated with a set of environment variables.
 type EnvsMap map[string]string
+
+// HooksMap holds (key, value) pairs mapping a list of HookSpec's to a named hook.
 type HooksMap map[string][]HookSpec
 
+// Run executes all of the hooks associated with a given name in the HooksMap.
+// It injects the environment variables associated with the provided EnvMap,
+// and optionally prints the output for each hook to stdout and stderr.
 func (h HooksMap) Run(name string, envs EnvsMap, output bool) error {
 	hooks, exists := h[name]
 	if !exists {
@@ -53,6 +62,9 @@ func (h HooksMap) Run(name string, envs EnvsMap, output bool) error {
 	return nil
 }
 
+// Run executes a specific hook from a HookSpec.
+// It injects the environment variables associated with the provided EnvMap,
+// and optionally prints the output for each hook to stdout and stderr.
 func (h *HookSpec) Run(envs EnvsMap, output bool) error {
 	cmd := exec.Command(h.Command, h.Args...)
 	cmd.Env = h.Envs.Combine(envs).Format()
@@ -64,9 +76,11 @@ func (h *HookSpec) Run(envs EnvsMap, output bool) error {
 	return cmd.Run()
 }
 
-func (e1 EnvsMap) Combine(e2 EnvsMap) EnvsMap {
+// Combine merges to EnvMaps together
+// Overlapping enviroment variables from e2 take precendence over those in e.
+func (e EnvsMap) Combine(e2 EnvsMap) EnvsMap {
 	combined := make(EnvsMap)
-	for k, v := range e1 {
+	for k, v := range e {
 		combined[k] = v
 	}
 	for k, v := range e2 {
@@ -75,6 +89,7 @@ func (e1 EnvsMap) Combine(e2 EnvsMap) EnvsMap {
 	return combined
 }
 
+// Format converts an EnvMap into a list of strings, where each entry is of the form "key=value".
 func (e EnvsMap) Format() []string {
 	var envs []string
 	for k, v := range e {

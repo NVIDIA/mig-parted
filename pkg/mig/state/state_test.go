@@ -27,13 +27,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func NewMockMigStateManagerOnLunaServer() *migStateManager {
+func newMockMigStateManagerOnLunaServer() *migStateManager {
 	nvml := nvml.NewMockNVMLOnLunaServer()
 	return NewMockMigStateManager(nvml).(*migStateManager)
 }
 
 func TestFetchRestore(t *testing.T) {
-	manager := NewMockMigStateManagerOnLunaServer()
+	manager := newMockMigStateManagerOnLunaServer()
 
 	numGPUs, ret := manager.nvml.DeviceGetCount()
 	require.NotNil(t, ret, "Unexpected nil return from DeviceGetCount")

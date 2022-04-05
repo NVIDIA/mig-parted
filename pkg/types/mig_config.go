@@ -27,14 +27,16 @@ import (
 // particular type) should be instantiated on a GPU.
 type MigConfig map[string]int
 
+// NewMigConfig creates a new 'MigConfig' from a slice of 'MigProfile's.
 func NewMigConfig(mps []*MigProfile) MigConfig {
 	config := make(MigConfig)
 	for _, mp := range mps {
-		config[mp.String()] += 1
+		config[mp.String()]++
 	}
 	return config
 }
 
+// AssertValid checks to ensure that all of the 'MigProfiles's making up a 'MigConfig' are valid.
 func (m MigConfig) AssertValid() error {
 	if len(m) == 0 {
 		return nil
@@ -56,6 +58,7 @@ func (m MigConfig) AssertValid() error {
 	return fmt.Errorf("all counts for all MigProfiles are 0")
 }
 
+// IsSubsetOf checks if the provided 'MigConfig' is a subset of the originating 'MigConfig'.
 func (m MigConfig) IsSubsetOf(config MigConfig) bool {
 	for k, v := range m {
 		if v > 0 && !config.Contains(k) {
@@ -68,6 +71,7 @@ func (m MigConfig) IsSubsetOf(config MigConfig) bool {
 	return true
 }
 
+// Contains checks if the provided 'profile' is part of the 'MigConfig'.
 func (m MigConfig) Contains(profile string) bool {
 	if _, exists := m[profile]; !exists {
 		return false
@@ -75,6 +79,8 @@ func (m MigConfig) Contains(profile string) bool {
 	return m[profile] > 0
 }
 
+// Equals checks if two 'MigConfig's are equal.
+// Equality is determined by comparing the profiles contained in each 'MigConfig'.
 func (m MigConfig) Equals(config MigConfig) bool {
 	if len(m) != len(config) {
 		return false
@@ -90,6 +96,8 @@ func (m MigConfig) Equals(config MigConfig) bool {
 	return true
 }
 
+// Flatten converts a 'MigConfig' into a slice of 'MigProfile's.
+// Duplicate 'MigProfile's will exist in this slice for each profile represented in the 'MigConfig'.
 func (m MigConfig) Flatten() []*MigProfile {
 	var mps []*MigProfile
 	for k, v := range m {

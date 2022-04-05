@@ -23,13 +23,16 @@ import (
 	"github.com/NVIDIA/mig-parted/pkg/types"
 )
 
+// Version indicates the version of the 'Spec' struct used to hold information on 'MigConfigs'.
 const Version = "v1"
 
+// Spec is a versioned struct used to hold information on 'MigConfigs'.
 type Spec struct {
 	Version    string                        `json:"version"               yaml:"version"`
 	MigConfigs map[string]MigConfigSpecSlice `json:"mig-configs,omitempty" yaml:"mig-configs,omitempty"`
 }
 
+// MigConfigSpec defines the spec to declare the desired MIG configuration for a set of GPUs.
 type MigConfigSpec struct {
 	DeviceFilter interface{}     `json:"device-filter,omitempty" yaml:"device-filter,flow,omitempty"`
 	Devices      interface{}     `json:"devices"                 yaml:"devices,flow"`
@@ -37,13 +40,10 @@ type MigConfigSpec struct {
 	MigDevices   types.MigConfig `json:"mig-devices"             yaml:"mig-devices"`
 }
 
+// MigConfigSpecSlice represents a slice of 'MigConfigSpec'.
 type MigConfigSpecSlice []MigConfigSpec
 
-func containsKey(m map[string]json.RawMessage, s string) bool {
-	_, exists := m[s]
-	return exists
-}
-
+// UnmarshalJSON unmarshals raw bytes into a versioned 'Spec'.
 func (s *Spec) UnmarshalJSON(b []byte) error {
 	spec := make(map[string]json.RawMessage)
 	err := json.Unmarshal(b, &spec)
@@ -99,6 +99,7 @@ func (s *Spec) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// UnmarshalJSON unmarshals raw bytes into a 'MigConfigSpec'.
 func (s *MigConfigSpec) UnmarshalJSON(b []byte) error {
 	spec := make(map[string]json.RawMessage)
 	err := json.Unmarshal(b, &spec)
@@ -180,4 +181,9 @@ func (s *MigConfigSpec) UnmarshalJSON(b []byte) error {
 
 	*s = result
 	return nil
+}
+
+func containsKey(m map[string]json.RawMessage, s string) bool {
+	_, exists := m[s]
+	return exists
 }

@@ -72,14 +72,14 @@ func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
 	}
 
 	migConfig := types.MigConfig{}
-	err = m.nvlib.Mig.Device(device).WalkGpuInstances(func(gi nvml.GpuInstance, giProfileId int, giProfileInfo nvml.GpuInstanceProfileInfo) error {
-		err := m.nvlib.Mig.GpuInstance(gi).WalkComputeInstances(func(ci nvml.ComputeInstance, ciProfileId int, ciEngProfileId int, ciProfileInfo nvml.ComputeInstanceProfileInfo) error {
-			mp := types.NewMigProfile(giProfileId, ciProfileId, ciEngProfileId, &giProfileInfo, &ciProfileInfo)
+	err = m.nvlib.Mig.Device(device).WalkGpuInstances(func(gi nvml.GpuInstance, giProfileID int, giProfileInfo nvml.GpuInstanceProfileInfo) error {
+		err := m.nvlib.Mig.GpuInstance(gi).WalkComputeInstances(func(ci nvml.ComputeInstance, ciProfileID int, ciEngProfileID int, ciProfileInfo nvml.ComputeInstanceProfileInfo) error {
+			mp := types.NewMigProfile(giProfileID, ciProfileID, ciEngProfileID, &giProfileInfo, &ciProfileInfo)
 			migConfig[mp.String()]++
 			return nil
 		})
 		if err != nil {
-			return fmt.Errorf("error walking compute instances for '%v': %v", giProfileId, err)
+			return fmt.Errorf("error walking compute instances for '%v': %v", giProfileID, err)
 		}
 		return nil
 	})
@@ -132,16 +132,16 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 			clearAttempts++
 		}
 
-		var lastGIProfileId int = -1
+		var lastGIProfileID int = -1
 		var gi nvml.GpuInstance = nil
 		for _, mp := range mps {
-			giProfileInfo, ret := device.GetGpuInstanceProfileInfo(mp.GIProfileId)
+			giProfileInfo, ret := device.GetGpuInstanceProfileInfo(mp.GIProfileID)
 			if ret.Value() != nvml.SUCCESS {
 				return fmt.Errorf("error getting GPU instance profile info for '%v': %v", mp, ret)
 			}
 
-			reuseGI := (gi != nil) && (lastGIProfileId == mp.GIProfileId)
-			lastGIProfileId = mp.GIProfileId
+			reuseGI := (gi != nil) && (lastGIProfileID == mp.GIProfileID)
+			lastGIProfileID = mp.GIProfileID
 
 			for {
 				if !reuseGI {
@@ -151,7 +151,7 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 					}
 				}
 
-				ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(mp.CIProfileId, mp.CIEngProfileId)
+				ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(mp.CIProfileID, mp.CIEngProfileID)
 				if ret.Value() != nvml.SUCCESS {
 					if reuseGI {
 						reuseGI = false
@@ -169,7 +169,7 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 					return fmt.Errorf("error creating Compute instance for '%v': %v", mp, ret)
 				}
 
-				valid := types.NewMigProfile(mp.GIProfileId, mp.CIProfileId, mp.CIEngProfileId, &giProfileInfo, &ciProfileInfo)
+				valid := types.NewMigProfile(mp.GIProfileID, mp.CIProfileID, mp.CIEngProfileID, &giProfileInfo, &ciProfileInfo)
 				if !mp.Equals(valid) {
 					if reuseGI {
 						reuseGI = false
@@ -212,21 +212,21 @@ func (m *nvmlMigConfigManager) ClearMigConfig(gpu int) error {
 		return fmt.Errorf("error asserting MIG enabled: %v", err)
 	}
 
-	err = m.nvlib.Mig.Device(device).WalkGpuInstances(func(gi nvml.GpuInstance, giProfileId int, giProfileInfo nvml.GpuInstanceProfileInfo) error {
-		err := m.nvlib.Mig.GpuInstance(gi).WalkComputeInstances(func(ci nvml.ComputeInstance, ciProfileId int, ciEngProfileId int, ciProfileInfo nvml.ComputeInstanceProfileInfo) error {
+	err = m.nvlib.Mig.Device(device).WalkGpuInstances(func(gi nvml.GpuInstance, giProfileID int, giProfileInfo nvml.GpuInstanceProfileInfo) error {
+		err := m.nvlib.Mig.GpuInstance(gi).WalkComputeInstances(func(ci nvml.ComputeInstance, ciProfileID int, ciEngProfileID int, ciProfileInfo nvml.ComputeInstanceProfileInfo) error {
 			ret := ci.Destroy()
 			if ret.Value() != nvml.SUCCESS {
-				return fmt.Errorf("error destroying Compute instance for profile '(%v, %v)': %v", ciProfileId, ciEngProfileId, ret)
+				return fmt.Errorf("error destroying Compute instance for profile '(%v, %v)': %v", ciProfileID, ciEngProfileID, ret)
 			}
 			return nil
 		})
 		if err != nil {
-			return fmt.Errorf("error walking compute instances for '%v': %v", giProfileId, err)
+			return fmt.Errorf("error walking compute instances for '%v': %v", giProfileID, err)
 		}
 
 		ret := gi.Destroy()
 		if ret.Value() != nvml.SUCCESS {
-			return fmt.Errorf("error destroying GPU instance for profile '%v': %v", giProfileId, ret)
+			return fmt.Errorf("error destroying GPU instance for profile '%v': %v", giProfileID, ret)
 		}
 		return nil
 	})

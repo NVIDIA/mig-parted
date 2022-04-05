@@ -21,23 +21,27 @@ import (
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 )
 
+// MigState stores the MIG state for a set of GPUs.
 type MigState struct {
 	Devices []DeviceState
 }
 
+// DeviceState stores the MIG state for a specific GPU.
 type DeviceState struct {
 	UUID         string
 	MigMode      mig.Mode
 	GpuInstances []GpuInstanceState
 }
 
+// GpuInstanceState stores the MIG state for a specific GPUInstance.
 type GpuInstanceState struct {
-	ProfileId        int
+	ProfileID        int
 	Placement        nvml.GpuInstancePlacement
 	ComputeInstances []ComputeInstanceState
 }
 
+// ComputeInstanceState stores the MIG state for a specific ComputeInstance.
 type ComputeInstanceState struct {
-	ProfileId    int
-	EngProfileId int
+	ProfileID    int
+	EngProfileID int
 }

@@ -25,6 +25,7 @@ import (
 )
 
 const (
+	// AttributeMediaExtensions holds the string representation for the media extension MIG profile attribute.
 	AttributeMediaExtensions = "me"
 )
 
@@ -34,20 +35,20 @@ type MigProfile struct {
 	C              int
 	G              int
 	GB             int
-	GIProfileId    int
-	CIProfileId    int
-	CIEngProfileId int
+	GIProfileID    int
+	CIProfileID    int
+	CIEngProfileID int
 }
 
 // NewMigProfile constructs a new MigProfile struct using info from the giProfiles and ciProfiles used to create it.
-func NewMigProfile(giProfileId, ciProfileId, ciEngProfileId int, giProfileInfo *nvml.GpuInstanceProfileInfo, ciProfileInfo *nvml.ComputeInstanceProfileInfo) *MigProfile {
+func NewMigProfile(giProfileID, ciProfileID, ciEngProfileID int, giProfileInfo *nvml.GpuInstanceProfileInfo, ciProfileInfo *nvml.ComputeInstanceProfileInfo) *MigProfile {
 	return &MigProfile{
 		C:              int(ciProfileInfo.SliceCount),
 		G:              int(giProfileInfo.SliceCount),
 		GB:             int((giProfileInfo.MemorySizeMB + 1024 - 1) / 1024),
-		GIProfileId:    giProfileId,
-		CIProfileId:    ciProfileId,
-		CIEngProfileId: ciEngProfileId,
+		GIProfileID:    giProfileID,
+		CIProfileID:    ciProfileID,
+		CIEngProfileID: ciEngProfileID,
 	}
 }
 
@@ -82,48 +83,48 @@ func ParseMigProfile(profile string) (*MigProfile, error) {
 
 	switch c {
 	case 1:
-		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_1_SLICE
+		m.CIProfileID = nvml.COMPUTE_INSTANCE_PROFILE_1_SLICE
 	case 2:
-		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_2_SLICE
+		m.CIProfileID = nvml.COMPUTE_INSTANCE_PROFILE_2_SLICE
 	case 3:
-		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_3_SLICE
+		m.CIProfileID = nvml.COMPUTE_INSTANCE_PROFILE_3_SLICE
 	case 4:
-		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_4_SLICE
+		m.CIProfileID = nvml.COMPUTE_INSTANCE_PROFILE_4_SLICE
 	case 6:
-		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_6_SLICE
+		m.CIProfileID = nvml.COMPUTE_INSTANCE_PROFILE_6_SLICE
 	case 7:
-		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_7_SLICE
+		m.CIProfileID = nvml.COMPUTE_INSTANCE_PROFILE_7_SLICE
 	case 8:
-		m.CIProfileId = nvml.COMPUTE_INSTANCE_PROFILE_8_SLICE
+		m.CIProfileID = nvml.COMPUTE_INSTANCE_PROFILE_8_SLICE
 	default:
 		return nil, fmt.Errorf("unknown Compute Instance slice size: %v", c)
 	}
 
 	switch g {
 	case 1:
-		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_1_SLICE
+		m.GIProfileID = nvml.GPU_INSTANCE_PROFILE_1_SLICE
 	case 2:
-		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_2_SLICE
+		m.GIProfileID = nvml.GPU_INSTANCE_PROFILE_2_SLICE
 	case 3:
-		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_3_SLICE
+		m.GIProfileID = nvml.GPU_INSTANCE_PROFILE_3_SLICE
 	case 4:
-		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_4_SLICE
+		m.GIProfileID = nvml.GPU_INSTANCE_PROFILE_4_SLICE
 	case 6:
-		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_6_SLICE
+		m.GIProfileID = nvml.GPU_INSTANCE_PROFILE_6_SLICE
 	case 7:
-		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_7_SLICE
+		m.GIProfileID = nvml.GPU_INSTANCE_PROFILE_7_SLICE
 	case 8:
-		m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_8_SLICE
+		m.GIProfileID = nvml.GPU_INSTANCE_PROFILE_8_SLICE
 	default:
 		return nil, fmt.Errorf("unknown GPU Instance slice size: %v", g)
 	}
 
-	m.CIEngProfileId = nvml.COMPUTE_INSTANCE_ENGINE_PROFILE_SHARED
+	m.CIEngProfileID = nvml.COMPUTE_INSTANCE_ENGINE_PROFILE_SHARED
 
 	for _, a := range attr {
 		switch a {
 		case AttributeMediaExtensions:
-			m.GIProfileId = nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV1
+			m.GIProfileID = nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV1
 		default:
 			return nil, fmt.Errorf("unknown MigProfile attribute: %v", a)
 		}
@@ -141,7 +142,7 @@ func MustParseMigProfile(profile string) *MigProfile {
 // Attributes returns the list of attributes associated with a MigProfile
 func (m MigProfile) Attributes() []string {
 	var attr []string
-	switch m.GIProfileId {
+	switch m.GIProfileID {
 	case nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV1:
 		attr = append(attr, AttributeMediaExtensions)
 	}
