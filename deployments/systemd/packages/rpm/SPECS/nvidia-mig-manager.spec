@@ -81,6 +81,17 @@ systemctl disable nvidia-mig-manager.service
 systemctl daemon-reload
 
 %changelog
+* Tue Apr 05 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.4.0-1
+- Update nvidia-mig-parted.sh to include MIG_PARTED_CHECKPOINT_FILE
+- Add checkpoint / restore commands to mig-parted CLI
+- Update golang version to 1.16.4
+- Support instantiation of *_PROFILE_6_SLICE GIs and CIs
+- Update cyrus-sasl-lib to address CVE-2022-24407
+- Add support for MIG profiles with +me as an attribute extension
+- Support Compute Instances in mig-parted config such that CI != GI
+- Update go-nvml to v0.11.6
+- Change semantics of 'all' to mean 'all-mig-capable' in mig-parted config
+
 * Fri Mar 18 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.3.0-1
 - k8s-mig-manager: Add support for multi-arch images
 - k8s-mig-manager: Handle eviction of NVSM pod when applying MIG changes
