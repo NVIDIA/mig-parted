@@ -23,6 +23,7 @@ import (
 	"os"
 
 	"github.com/NVIDIA/mig-parted/api/spec/v1"
+	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
@@ -49,6 +50,7 @@ type Flags struct {
 type Context struct {
 	*cli.Context
 	Flags *Flags
+	Nvml  nvml.Interface
 }
 
 func BuildCommand() *cli.Command {
@@ -96,6 +98,7 @@ func exportWrapper(c *cli.Context, f *Flags) error {
 	context := Context{
 		Context: c,
 		Flags:   f,
+		Nvml:    nvml.New(),
 	}
 
 	spec, err := ExportMigConfigs(&context)
