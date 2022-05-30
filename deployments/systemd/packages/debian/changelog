@@ -1,3 +1,10 @@
+nvidia-mig-manager (0.4.1-1) UNRELEASED; urgency=medium
+
+  * Keep NVML alive across all mig-parted commands (except GPU reset)
+  * Remove unnecessary services from hooks.sh
+
+ -- NVIDIA CORPORATION <cudatools@nvidia.com>  Mon, 30 May 2022 11:45:10 +0200
+
 nvidia-mig-manager (0.4.0-1) UNRELEASED; urgency=medium
 
   * Update nvidia-mig-parted.sh to include MIG_PARTED_CHECKPOINT_FILE
