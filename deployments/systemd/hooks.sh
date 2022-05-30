@@ -20,11 +20,6 @@ source ${CURRDIR}/utils.sh
 
 driver_services=(
 	nvsm.service
-	nvsm-mqtt.service
-	nvsm-core.service
-	nvsm-api-gateway.service
-	nvsm-notifier.service
-	nv_peer_mem.service
 	dcgm.service
 	nvidia-dcgm.service
 )
