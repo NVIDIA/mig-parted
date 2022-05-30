@@ -23,6 +23,8 @@ import (
 	"strings"
 
 	checkpoint "github.com/NVIDIA/mig-parted/api/checkpoint/v1"
+	"github.com/NVIDIA/mig-parted/cmd/util"
+	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/mig/state"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
@@ -82,6 +84,13 @@ func checkpointWrapper(c *cli.Context, f *Flags) error {
 		cli.ShowSubcommandHelp(c)
 		return err
 	}
+
+	nvml := nvml.New()
+	err = util.NvmlInit(nvml)
+	if err != nil {
+		return fmt.Errorf("error initializing NVML: %v", err)
+	}
+	defer util.TryNvmlShutdown(nvml)
 
 	migState, err := state.NewMigStateManager().Fetch()
 	if err != nil {
