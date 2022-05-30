@@ -26,6 +26,19 @@ import (
 )
 
 func AssertMigMode(c *Context) error {
+	nvidiaModuleLoaded, err := util.IsNvidiaModuleLoaded()
+	if err != nil {
+		return fmt.Errorf("error checking if nvidia module loaded: %v", err)
+	}
+
+	if nvidiaModuleLoaded {
+		err := util.NvmlInit(c.Nvml)
+		if err != nil {
+			return fmt.Errorf("error initializing NVML: %v", err)
+		}
+		defer util.TryNvmlShutdown(c.Nvml)
+	}
+
 	return WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
 		if mc.MigEnabled {
 			log.Debugf("    Asserting MIG mode: %v", mode.Enabled)

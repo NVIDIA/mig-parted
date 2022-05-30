@@ -156,3 +156,24 @@ func NvidiaSmiReset(gpus ...string) (string, error) {
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
+
+func NvmlInit(nvmlLib nvml.Interface) error {
+	if nvmlLib == nil {
+		nvmlLib = nvml.New()
+	}
+	ret := nvmlLib.Init()
+	if ret.Value() != nvml.SUCCESS {
+		return ret
+	}
+	return nil
+}
+
+func TryNvmlShutdown(nvmlLib nvml.Interface) {
+	if nvmlLib == nil {
+		nvmlLib = nvml.New()
+	}
+	ret := nvmlLib.Shutdown()
+	if ret.Value() != nvml.SUCCESS {
+		log.Warnf("error shutting down NVML: %v", ret)
+	}
+}

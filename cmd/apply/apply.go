@@ -23,6 +23,7 @@ import (
 
 	hooks "github.com/NVIDIA/mig-parted/api/hooks/v1"
 	"github.com/NVIDIA/mig-parted/cmd/assert"
+	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
@@ -215,6 +216,7 @@ func applyWrapper(c *cli.Context, f *Flags) error {
 			Context:   c,
 			Flags:     &f.Flags,
 			MigConfig: migConfig,
+			Nvml:      nvml.New(),
 		},
 	}
 

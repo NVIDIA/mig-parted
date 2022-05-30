@@ -27,6 +27,12 @@ import (
 )
 
 func ApplyMigConfig(c *Context) error {
+	err := util.NvmlInit(c.Nvml)
+	if err != nil {
+		return fmt.Errorf("error initializing NVML: %v", err)
+	}
+	defer util.TryNvmlShutdown(c.Nvml)
+
 	return assert.WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
 		modeManager, err := util.NewMigModeManager()
 		if err != nil {
