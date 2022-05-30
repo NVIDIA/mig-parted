@@ -34,6 +34,13 @@ func ApplyMigMode(c *Context) error {
 		return fmt.Errorf("error checking if nvidia module loaded: %v", err)
 	}
 
+	if nvidiaModuleLoaded {
+		err := util.NvmlInit(c.Nvml)
+		if err != nil {
+			return fmt.Errorf("error initializing NVML: %v", err)
+		}
+	}
+
 	nvpci := nvpci.New()
 	gpus, err := nvpci.GetGPUs()
 	if err != nil {
@@ -92,6 +99,10 @@ func ApplyMigMode(c *Context) error {
 
 		return nil
 	})
+
+	if nvidiaModuleLoaded {
+		util.TryNvmlShutdown(c.Nvml)
+	}
 
 	if err != nil {
 		return err

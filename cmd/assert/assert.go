@@ -24,6 +24,7 @@ import (
 
 	"github.com/NVIDIA/mig-parted/api/spec/v1"
 	"github.com/NVIDIA/mig-parted/cmd/util"
+	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/types"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
@@ -51,6 +52,7 @@ type Context struct {
 	*cli.Context
 	Flags     *Flags
 	MigConfig v1.MigConfigSpecSlice
+	Nvml      nvml.Interface
 }
 
 func BuildCommand() *cli.Command {
@@ -128,6 +130,7 @@ func assertWrapper(c *cli.Context, f *Flags) error {
 		Context:   c,
 		Flags:     f,
 		MigConfig: migConfig,
+		Nvml:      nvml.New(),
 	}
 
 	log.Debugf("Asserting MIG mode configuration...")

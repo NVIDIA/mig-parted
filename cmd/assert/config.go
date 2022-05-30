@@ -28,6 +28,12 @@ import (
 )
 
 func AssertMigConfig(c *Context) error {
+	err := util.NvmlInit(c.Nvml)
+	if err != nil {
+		return fmt.Errorf("error initializing NVML: %v", err)
+	}
+	defer util.TryNvmlShutdown(c.Nvml)
+
 	nvpci := nvpci.New()
 	gpus, err := nvpci.GetGPUs()
 	if err != nil {
