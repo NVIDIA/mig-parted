@@ -81,6 +81,10 @@ systemctl disable nvidia-mig-manager.service
 systemctl daemon-reload
 
 %changelog
+* Mon May 30 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.4.1-1
+- Keep NVML alive across all mig-parted commands (except GPU reset)
+- Remove unnecessary services from hooks.sh
+
 * Tue Apr 05 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.4.0-1
 - Update nvidia-mig-parted.sh to include MIG_PARTED_CHECKPOINT_FILE
 - Add checkpoint / restore commands to mig-parted CLI
