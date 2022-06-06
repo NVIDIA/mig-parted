@@ -36,7 +36,7 @@ RUN chmod a+x /artifacts/kubectl
 
 FROM nvidia/cuda:${CUDA_VERSION}-base-${BASE_DIST}
 
-COPY ./LICENSE ./licenses/LICENSE
+RUN mkdir /licenses && mv /NGC-DL-CONTAINER-LICENSE /licenses/NGC-DL-CONTAINER-LICENSE
 COPY --from=build /artifacts/nvidia-mig-parted  /usr/bin/nvidia-mig-parted
 COPY --from=build /artifacts/nvidia-mig-manager /usr/bin/nvidia-mig-manager
 COPY --from=build /artifacts/reconfigure-mig.sh /usr/bin/reconfigure-mig.sh
