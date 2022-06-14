@@ -45,7 +45,11 @@ function apply-start() {
 }
 
 function pre-apply-mode() {
-	stop_k8s_components
+	stop_k8s_services
+	if [ "${?}" != "0" ]; then
+		return 1
+	fi
+	stop_k8s_pods
 	if [ "${?}" != "0" ]; then
 		return 1
 	fi
@@ -57,8 +61,15 @@ function pre-apply-mode() {
 }
 
 function pre-apply-config() {
-	stop_k8s_components
-	return ${?}
+	stop_k8s_services
+	if [ "${?}" != "0" ]; then
+		return 1
+	fi
+	stop_k8s_pods
+	if [ "${?}" != "0" ]; then
+		return 1
+	fi
+	return 0
 }
 
 function apply-exit() {
@@ -66,7 +77,7 @@ function apply-exit() {
 	if [ "${?}" != "0" ]; then
 		return 1
 	fi
-	start_k8s_components
+	start_k8s_services
 	if [ "${?}" != "0" ]; then
 		return 1
 	fi
@@ -86,30 +97,28 @@ function start_driver_services() {
 	return ${?}
 }
 
-function stop_k8s_components() {
+function stop_k8s_services() {
 	local services=()
 	nvidia-mig-manager::service::reverse_array \
 		k8s_services \
 		services
 	nvidia-mig-manager::service::stop_systemd_services services
-	if [ "${?}" != "0" ]; then
-		return 1
-	fi
+	return ${?}
+}
 
+function start_k8s_services() {
+	nvidia-mig-manager::service::start_systemd_services k8s_services
+	return ${?}
+}
+
+function stop_k8s_pods() {
 	nvidia-mig-manager::service::kill_k8s_containers_via_docker_by_image k8s_pod_images
 	if [ "${?}" != "0" ]; then
 		return 1
 	fi
-
 	nvidia-mig-manager::service::kill_k8s_containers_via_containerd_by_image k8s_pod_images
 	if [ "${?}" != "0" ]; then
 		return 1
 	fi
-
 	return 0
-}
-
-function start_k8s_components() {
-	nvidia-mig-manager::service::start_systemd_services k8s_services
-	return ${?}
 }
