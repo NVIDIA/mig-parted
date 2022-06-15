@@ -21,7 +21,7 @@ SOURCE4 = override.conf
 SOURCE5 = service.sh
 SOURCE6 = utils.sh
 SOURCE7 = hooks.sh
-SOURCE8 = hooks.yaml
+SOURCE8 = hooks-default.yaml
 SOURCE9 = config.yaml
 
 build:

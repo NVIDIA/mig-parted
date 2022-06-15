@@ -57,7 +57,7 @@ cp override.conf         ${OVERRIDE_DIR}
 cp service.sh            ${CONFIG_DIR}
 cp utils.sh              ${CONFIG_DIR}
 cp hooks.sh              ${CONFIG_DIR}
-cp hooks.yaml            ${CONFIG_DIR}
+cp hooks-default.yaml    ${CONFIG_DIR}
 cp config.yaml           ${CONFIG_DIR}
 
 chmod a+r ${SYSTEMD_DIR}/${SERVICE_NAME}
@@ -66,10 +66,19 @@ chmod a+r ${OVERRIDE_DIR}/override.conf
 chmod a+r ${CONFIG_DIR}/service.sh
 chmod a+r ${CONFIG_DIR}/utils.sh
 chmod a+r ${CONFIG_DIR}/hooks.sh
-chmod a+r ${CONFIG_DIR}/hooks.yaml
+chmod a+r ${CONFIG_DIR}/hooks-default.yaml
 chmod a+r ${CONFIG_DIR}/config.yaml
 
 chmod ug+x ${CONFIG_DIR}/service.sh
 
 systemctl daemon-reload
 systemctl enable ${SERVICE_NAME}
+
+function maybe_add_hooks_symlink() {
+  if [ -e ${CONFIG_DIR}/hooks.yaml ]; then
+    return
+  fi
+  ln -s hooks-default.yaml ${CONFIG_DIR}/hooks.yaml
+}
+
+maybe_add_hooks_symlink

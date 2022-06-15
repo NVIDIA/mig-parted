@@ -1,3 +1,2 @@
 /etc/systemd/system/nvidia-mig-manager.service.d/override.conf
 /etc/nvidia-mig-manager/config.yaml
-/etc/nvidia-mig-manager/hooks.yaml
