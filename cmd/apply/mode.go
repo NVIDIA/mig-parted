@@ -22,6 +22,7 @@ import (
 	"github.com/NVIDIA/mig-parted/api/spec/v1"
 	"github.com/NVIDIA/mig-parted/cmd/assert"
 	"github.com/NVIDIA/mig-parted/cmd/util"
+	"github.com/NVIDIA/mig-parted/pkg/mig/config"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
 	"github.com/NVIDIA/mig-parted/pkg/types"
 
@@ -49,6 +50,11 @@ func ApplyMigMode(c *Context) error {
 
 	pending := make([]bool, len(gpus))
 	err = assert.WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
+		desiredMode := mode.Disabled
+		if mc.MigEnabled {
+			desiredMode = mode.Enabled
+		}
+
 		manager, err := util.NewMigModeManager()
 		if err != nil {
 			return fmt.Errorf("error creating MIG mode Manager: %v", err)
@@ -74,19 +80,23 @@ func ApplyMigMode(c *Context) error {
 			return fmt.Errorf("cannot set MIG mode on non MIG-capable GPU")
 		}
 
-		m, err := manager.GetMigMode(i)
+		currentMode, err := manager.GetMigMode(i)
 		if err != nil {
 			return fmt.Errorf("error getting MIG mode: %v", err)
 		}
-		log.Debugf("    Current MIG mode: %v", m)
+		log.Debugf("    Current MIG mode: %v", currentMode)
 
-		if mc.MigEnabled {
-			log.Debugf("    Updating MIG mode: %v", mode.Enabled)
-			err = manager.SetMigMode(i, mode.Enabled)
-		} else {
-			log.Debugf("    Updating MIG mode: %v", mode.Disabled)
-			err = manager.SetMigMode(i, mode.Disabled)
+		if nvidiaModuleLoaded && currentMode != mode.Disabled {
+			log.Debugf("    Clearing existing MIG configuration")
+			manager := config.NewNvmlMigConfigManager()
+			err := manager.ClearMigConfig(i)
+			if err != nil {
+				return fmt.Errorf("error clearing existing MIG configurations: %v", err)
+			}
 		}
+
+		log.Debugf("    Updating MIG mode: %v", desiredMode)
+		err = manager.SetMigMode(i, desiredMode)
 		if err != nil {
 			return fmt.Errorf("error setting MIG mode: %v", err)
 		}
