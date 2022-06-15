@@ -142,17 +142,21 @@ more details.
 ## Installing `nvidia-mig-parted`
 
 At the moment, there is no common distribution platform for
-`nvidia-mig-parted`, and the only way to get it is to build it from source.
-Below are some common methods.
+`nvidia-mig-parted`. However, we do build `deb`, `rpm` and `tarball` packages
+and distribute them as assets with every release. Please see our release page
+[here](https://github.com/NVIDIA/mig-parted/releases) to download them and
+install them.
 
-#### Use `docker` with `go get` and `go install`:
+To build fromm source, plase follow one of the methods below.
+
+#### Use `docker` with `go install`:
 ```
-docker run \
+${DOCKER} run \
     -v $(pwd):/dest \
-    golang:1.15 \
+    golang:1.16.4 \
     sh -c "
-    GO111MODULE=off go get -u github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
-    GOBIN=/dest     go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
+    go install github.com/NVIDIA/mig-parted/cmd@latest
+    mv /go/bin/cmd /dest/nvidia-mig-parted
     "
 ```
 

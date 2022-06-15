@@ -21,8 +21,9 @@ SOURCE4 = override.conf
 SOURCE5 = service.sh
 SOURCE6 = utils.sh
 SOURCE7 = hooks.sh
-SOURCE8 = hooks.yaml
-SOURCE9 = config.yaml
+SOURCE8 = hooks-default.yaml
+SOURCE9 = hooks-minimal.yaml
+SOURCE10 = config.yaml
 
 build:
 
@@ -43,3 +44,4 @@ install:
 	install -m 644 -t $(DESTDIR)/etc/nvidia-mig-manager $(SOURCE7)
 	install -m 644 -t $(DESTDIR)/etc/nvidia-mig-manager $(SOURCE8)
 	install -m 644 -t $(DESTDIR)/etc/nvidia-mig-manager $(SOURCE9)
+	install -m 644 -t $(DESTDIR)/etc/nvidia-mig-manager $(SOURCE10)
