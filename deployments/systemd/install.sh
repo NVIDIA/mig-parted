@@ -45,10 +45,10 @@ chmod a+rx ${PROFILED_DIR}
 
 ${DOCKER} run \
 	-v ${BINARY_DIR}:/dest \
-	golang:1.15 \
+	golang:1.16.4 \
 	sh -c "
-	GO111MODULE=off go get -u github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
-	GOBIN=/dest     go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
+	go install github.com/NVIDIA/mig-parted/cmd@latest
+	mv /go/bin/cmd /dest/nvidia-mig-parted
 	"
 
 cp ${SERVICE_NAME}       ${SYSTEMD_DIR}
