@@ -7,6 +7,9 @@ set -e
 
 function maybe_remove_hooks_symlink() {
   local target=$(readlink -f /etc/nvidia-mig-manager/hooks.yaml)
+  if [ "${target}" = "/etc/nvidia-mig-manager/hooks-minimal.yaml" ]; then
+    rm -rf /etc/nvidia-mig-manager/hooks.yaml
+  fi
   if [ "${target}" = "/etc/nvidia-mig-manager/hooks-default.yaml" ]; then
     rm -rf /etc/nvidia-mig-manager/hooks.yaml
   fi

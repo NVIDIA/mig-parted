@@ -39,6 +39,7 @@ COPY ./deployments/systemd/packages/tarball/install.sh ${DESTDIR}
 COPY ./deployments/systemd/config.yaml ${DESTDIR}
 COPY ./deployments/systemd/hooks.sh ${DESTDIR}
 COPY ./deployments/systemd/hooks-default.yaml ${DESTDIR}
+COPY ./deployments/systemd/hooks-minimal.yaml ${DESTDIR}
 COPY ./deployments/systemd/nvidia-mig-manager.service ${DESTDIR}
 COPY ./deployments/systemd/nvidia-mig-parted.sh ${DESTDIR}
 COPY ./deployments/systemd/override.conf ${DESTDIR}
