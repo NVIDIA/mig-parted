@@ -1,3 +1,11 @@
+nvidia-mig-manager (0.4.2-1) UNRELEASED; urgency=medium
+
+  * Update CUDA image to 11.7.0
+  * Add extra assert in k8s-mig-manager to double check mig-mode change applied
+  * Update mig-manager image to use NGC DL license
+
+ -- NVIDIA CORPORATION <cudatools@nvidia.com>  Thu, 16 Jun 2022 16:49:39 +0200
+
 nvidia-mig-manager (0.4.1-1) UNRELEASED; urgency=medium
 
   * Keep NVML alive across all mig-parted commands (except GPU reset)

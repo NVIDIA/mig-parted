@@ -81,6 +81,11 @@ systemctl disable nvidia-mig-manager.service
 systemctl daemon-reload
 
 %changelog
+* Thu Jun 16 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.4.2-1
+- Update CUDA image to 11.7.0
+- Add extra assert in k8s-mig-manager to double check mig-mode change applied
+- Update mig-manager image to use NGC DL license
+
 * Mon May 30 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.4.1-1
 - Keep NVML alive across all mig-parted commands (except GPU reset)
 - Remove unnecessary services from hooks.sh
