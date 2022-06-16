@@ -463,9 +463,10 @@ if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
 	fi
 fi
 
-echo "Applying the MIG mode change from the selected config to the node"
+echo "Applying the MIG mode change from the selected config to the node (and double checking it took effect)"
 echo "If the -r option was passed, the node will be automatically rebooted if this is not successful"
 nvidia-mig-parted -d apply --mode-only -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
+nvidia-mig-parted -d assert --mode-only -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
 if [ "${?}" != "0" ] && [ "${WITH_REBOOT}" = "true" ]; then
 	echo "Changing the 'nvidia.com/mig.config.state' node label to 'rebooting'"
 	kubectl label --overwrite  \
