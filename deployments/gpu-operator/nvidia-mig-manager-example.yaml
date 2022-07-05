@@ -19,8 +19,8 @@ spec:
       hostIPC: true
       nodeSelector:
         nvidia.com/gpu.deploy.mig-manager: "true"
-      serviceAccount: gpu-operator
-      serviceAccountName: gpu-operator
+      serviceAccount: nvidia-mig-manager-service-account
+      serviceAccountName: nvidia-mig-manager-service-account
       containers:
       - name: nvidia-mig-manager
         image: nvcr.io/nvidia/cloud-native/k8s-mig-manager:v0.5.0-ubi8
@@ -42,8 +42,8 @@ spec:
           value: "kubelet.service"
         - name: HOST_MIG_MANAGER_STATE_FILE
           value: "/etc/systemd/system/nvidia-mig-manager.service.d/override.conf"
-        - name: OPERATOR_NAMESPACE
-          value: "gpu-operator-resources"
+        - name: DEFAULT_GPU_CLIENTS_NAMESPACE
+          value: "gpu-operator"
         - name: WITH_SHUTDOWN_HOST_GPU_CLIENTS
           value: "true"
         - name: WITH_REBOOT
@@ -74,6 +74,33 @@ spec:
       - name: mig-parted-config
         configMap:
           name: mig-parted-config
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nvidia-mig-manager-service-account
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nvidia-mig-manager-role
+rules:
+  - apiGroups: [""]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: nvidia-mig-manager-role-binding
+subjects:
+  - kind: ServiceAccount
+    name: nvidia-mig-manager-service-account
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: nvidia-mig-manager-role
+  apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: v1
 kind: ConfigMap
