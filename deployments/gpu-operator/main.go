@@ -253,6 +253,10 @@ func parseGPUCLientsFile(file string) (*GPUClients, error) {
 	var err error
 	var yamlBytes []byte
 
+	if file == "" {
+		return &GPUClients{}, nil
+	}
+
 	yamlBytes, err = os.ReadFile(file)
 	if err != nil {
 		return nil, fmt.Errorf("read error: %v", err)
