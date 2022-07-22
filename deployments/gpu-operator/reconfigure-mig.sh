@@ -444,6 +444,18 @@ kubectl wait --for=delete pod \
 	-n "${DEFAULT_GPU_CLIENTS_NAMESPACE}" \
 	-l app=nvidia-dcgm
 
+echo "Removing the cuda-validator pod"
+kubectl delete pod \
+	--field-selector "spec.nodeName=${NODE_NAME}" \
+	-n "${DEFAULT_GPU_CLIENTS_NAMESPACE}" \
+	-l app=nvidia-cuda-validator
+
+echo "Removing the plugin-validator pod"
+kubectl delete pod \
+	--field-selector "spec.nodeName=${NODE_NAME}" \
+	-n "${DEFAULT_GPU_CLIENTS_NAMESPACE}" \
+	-l app=nvidia-device-plugin-validator
+
 if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
 	echo "Shutting down all GPU clients on the host by stopping their systemd services"
 	host_stop_systemd_services
