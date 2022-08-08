@@ -23,7 +23,7 @@ SOURCE6 = utils.sh
 SOURCE7 = hooks.sh
 SOURCE8 = hooks-default.yaml
 SOURCE9 = hooks-minimal.yaml
-SOURCE10 = config.yaml
+SOURCE10 = config-ampere.yaml
 
 build:
 
