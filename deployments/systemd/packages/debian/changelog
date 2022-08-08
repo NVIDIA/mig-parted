@@ -1,3 +1,9 @@
+nvidia-mig-manager (0.5.0-1) UNRELEASED; urgency=medium
+
+  * Placeholder
+
+ -- NVIDIA CORPORATION <cudatools@nvidia.com>  Mon, 08 Aug 2022 17:11:39 +0200
+
 nvidia-mig-manager (0.4.2-1) UNRELEASED; urgency=medium
 
   * Update CUDA image to 11.7.0

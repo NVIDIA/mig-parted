@@ -117,6 +117,9 @@ function maybe_remove_hooks_symlink() {
 maybe_remove_hooks_symlink
 
 %changelog
+* Mon Aug 08 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.5.0-1
+- Placeholder
+
 * Thu Jun 16 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.4.2-1
 - Update CUDA image to 11.7.0
 - Add extra assert in k8s-mig-manager to double check mig-mode change applied
