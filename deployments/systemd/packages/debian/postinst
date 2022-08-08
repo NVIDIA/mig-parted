@@ -27,7 +27,18 @@ function maybe_add_config_symlink() {
   if [ -e /etc/nvidia-mig-manager/config.yaml ]; then
     return
   fi
-  ln -s config-ampere.yaml /etc/nvidia-mig-manager/config.yaml
+
+  which nvidia-smi > /dev/null 2>&1
+  if [ "${?}" != 0 ]; then
+    return
+  fi
+
+  local compute_cap=$(nvidia-smi -i 0 --query-gpu=compute_cap --format=csv,noheader)
+  if [ "${compute_cap/./}" -ge "90" ]; then
+    ln -s config-hopper.yaml /etc/nvidia-mig-manager/config.yaml
+  else
+    ln -s config-ampere.yaml /etc/nvidia-mig-manager/config.yaml
+  fi
 }
 
 case "${1}" in

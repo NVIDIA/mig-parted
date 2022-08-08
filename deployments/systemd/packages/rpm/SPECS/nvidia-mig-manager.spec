@@ -19,6 +19,7 @@ Source7: hooks.sh
 Source8: hooks-default.yaml
 Source9: hooks-minimal.yaml
 Source10: config-ampere.yaml
+Source11: config-hopper.yaml
 
 %description
 The NVIDIA MIG Partition Editor allows administrators to declaratively define a
@@ -38,7 +39,7 @@ cp %{SOURCE0} %{SOURCE1} \
    %{SOURCE4} %{SOURCE5} \
    %{SOURCE6} %{SOURCE7} \
    %{SOURCE8} %{SOURCE9} \
-   %{SOURCE10} \
+   %{SOURCE10} %{SOURCE11} \
     .
 
 %install
@@ -59,6 +60,7 @@ install -m 644 -t %{buildroot}/etc/nvidia-mig-manager %{SOURCE7}
 install -m 644 -t %{buildroot}/etc/nvidia-mig-manager %{SOURCE8}
 install -m 644 -t %{buildroot}/etc/nvidia-mig-manager %{SOURCE9}
 install -m 644 -t %{buildroot}/etc/nvidia-mig-manager %{SOURCE10}
+install -m 644 -t %{buildroot}/etc/nvidia-mig-manager %{SOURCE11}
 
 %files
 %license LICENSE
@@ -70,6 +72,7 @@ install -m 644 -t %{buildroot}/etc/nvidia-mig-manager %{SOURCE10}
 /etc/nvidia-mig-manager/utils.sh
 /etc/nvidia-mig-manager/hooks.sh
 /etc/nvidia-mig-manager/config-ampere.yaml
+/etc/nvidia-mig-manager/config-hopper.yaml
 /etc/nvidia-mig-manager/hooks-default.yaml
 /etc/nvidia-mig-manager/hooks-minimal.yaml
 %dir /etc/systemd/system/nvidia-mig-manager.service.d
@@ -102,7 +105,18 @@ function maybe_add_config_symlink() {
   if [ -e /etc/nvidia-mig-manager/config.yaml ]; then
     return
   fi
-  ln -s config-ampere.yaml /etc/nvidia-mig-manager/config.yaml
+
+  which nvidia-smi > /dev/null 2>&1
+  if [ "${?}" != 0 ]; then
+    return
+  fi
+
+  local compute_cap=$(nvidia-smi -i 0 --query-gpu=compute_cap --format=csv,noheader)
+  if [ "${compute_cap/./}" -ge "90" ]; then
+    ln -s config-hopper.yaml /etc/nvidia-mig-manager/config.yaml
+  else
+    ln -s config-ampere.yaml /etc/nvidia-mig-manager/config.yaml
+  fi
 }
 
 maybe_add_hooks_symlink
@@ -124,6 +138,9 @@ function maybe_remove_hooks_symlink() {
 
 function maybe_remove_config_symlink() {
   local target=$(readlink -f /etc/nvidia-mig-manager/config.yaml)
+  if [ "${target}" = "/etc/nvidia-mig-manager/config-hopper.yaml" ]; then
+    rm -rf /etc/nvidia-mig-manager/config.yaml
+  fi
   if [ "${target}" = "/etc/nvidia-mig-manager/config-ampere.yaml" ]; then
     rm -rf /etc/nvidia-mig-manager/config.yaml
   fi
