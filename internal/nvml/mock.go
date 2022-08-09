@@ -29,6 +29,7 @@ type MockA100Device struct {
 	MigMode            int
 	GpuInstances       map[*MockA100GpuInstance]struct{}
 	GpuInstanceCounter uint32
+	MemoryInfo         Memory
 }
 type MockA100GpuInstance struct {
 	Info                   GpuInstanceInfo
@@ -330,6 +331,7 @@ func NewMockA100Device(index int) Device {
 		Index:              index,
 		GpuInstances:       make(map[*MockA100GpuInstance]struct{}),
 		GpuInstanceCounter: 0,
+		MemoryInfo:         Memory{42949672960, 0, 0},
 	}
 }
 
@@ -385,6 +387,10 @@ func (d *MockA100Device) GetIndex() (int, Return) {
 
 func (d *MockA100Device) GetUUID() (string, Return) {
 	return d.UUID, MockReturn(SUCCESS)
+}
+
+func (d *MockA100Device) GetMemoryInfo() (Memory, Return) {
+	return d.MemoryInfo, MockReturn(SUCCESS)
 }
 
 func (d *MockA100Device) GetPciInfo() (PciInfo, Return) {

@@ -72,6 +72,11 @@ func (d nvmlDevice) GetUUID() (string, Return) {
 	return u, nvmlReturn(r)
 }
 
+func (d nvmlDevice) GetMemoryInfo() (Memory, Return) {
+	m, r := nvml.Device(d).GetMemoryInfo()
+	return Memory(m), nvmlReturn(r)
+}
+
 func (d nvmlDevice) GetPciInfo() (PciInfo, Return) {
 	p, r := nvml.Device(d).GetPciInfo()
 	return PciInfo(p), nvmlReturn(r)

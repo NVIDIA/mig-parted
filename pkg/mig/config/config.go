@@ -66,6 +66,11 @@ func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
 		return nil, fmt.Errorf("error getting device handle: %v", ret)
 	}
 
+	deviceMemory, ret := device.GetMemoryInfo()
+	if ret.Value() != nvml.SUCCESS {
+		return nil, fmt.Errorf("error getting device memory: %v", ret)
+	}
+
 	err := m.nvlib.Mig.Device(device).AssertMigEnabled()
 	if err != nil {
 		return nil, fmt.Errorf("error asserting MIG enabled: %v", err)
@@ -74,7 +79,7 @@ func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
 	migConfig := types.MigConfig{}
 	err = m.nvlib.Mig.Device(device).WalkGpuInstances(func(gi nvml.GpuInstance, giProfileID int, giProfileInfo nvml.GpuInstanceProfileInfo) error {
 		err := m.nvlib.Mig.GpuInstance(gi).WalkComputeInstances(func(ci nvml.ComputeInstance, ciProfileID int, ciEngProfileID int, ciProfileInfo nvml.ComputeInstanceProfileInfo) error {
-			mp := types.NewMigProfile(giProfileID, ciProfileID, ciEngProfileID, &giProfileInfo, &ciProfileInfo)
+			mp := types.NewMigProfile(giProfileID, ciProfileID, ciEngProfileID, &giProfileInfo, &ciProfileInfo, deviceMemory.Total)
 			migConfig[mp.String()]++
 			return nil
 		})
@@ -100,6 +105,11 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 	device, ret := m.nvml.DeviceGetHandleByIndex(gpu)
 	if ret.Value() != nvml.SUCCESS {
 		return fmt.Errorf("error getting device handle: %v", ret)
+	}
+
+	deviceMemory, ret := device.GetMemoryInfo()
+	if ret.Value() != nvml.SUCCESS {
+		return fmt.Errorf("error getting device memory: %v", ret)
 	}
 
 	err := m.nvlib.Mig.Device(device).AssertMigEnabled()
@@ -169,7 +179,7 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 					return fmt.Errorf("error creating Compute instance for '%v': %v", mp, ret)
 				}
 
-				valid := types.NewMigProfile(mp.GIProfileID, mp.CIProfileID, mp.CIEngProfileID, &giProfileInfo, &ciProfileInfo)
+				valid := types.NewMigProfile(mp.GIProfileID, mp.CIProfileID, mp.CIEngProfileID, &giProfileInfo, &ciProfileInfo, deviceMemory.Total)
 				if !mp.Equals(valid) {
 					if reuseGI {
 						reuseGI = false
