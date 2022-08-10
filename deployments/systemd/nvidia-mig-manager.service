@@ -16,7 +16,7 @@
 Description=Configure MIG on NVIDIA GPUs
 DefaultDependencies=no
 After=sysinit.target local-fs.target
-Before=basic.target nvidia-persistenced.service
+Before=basic.target nvidia-persistenced.service systemd-resolved.service
 
 [Service]
 Type=oneshot
