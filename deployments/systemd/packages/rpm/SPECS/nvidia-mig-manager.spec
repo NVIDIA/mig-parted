@@ -153,6 +153,10 @@ maybe_remove_config_symlink
 * Mon Aug 08 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.5.0-1
 - Placeholder
 
+* Wed Aug 10 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.4.3-1
+- Update calculation for GB in MIG profile name
+- Make the systemd-mig-manager a dependency of systemd-resolved.service
+
 * Thu Jun 16 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.4.2-1
 - Update CUDA image to 11.7.0
 - Add extra assert in k8s-mig-manager to double check mig-mode change applied

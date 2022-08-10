@@ -4,6 +4,13 @@ nvidia-mig-manager (0.5.0-1) UNRELEASED; urgency=medium
 
  -- NVIDIA CORPORATION <cudatools@nvidia.com>  Mon, 08 Aug 2022 17:11:39 +0200
 
+nvidia-mig-manager (0.4.3-1) UNRELEASED; urgency=medium
+
+  * Update calculation for GB in MIG profile name
+  * Make the systemd-mig-manager a dependency of systemd-resolved.service
+
+ -- NVIDIA CORPORATION <cudatools@nvidia.com>  Wed, 10 Aug 2022 13:25:11 +0200
+
 nvidia-mig-manager (0.4.2-1) UNRELEASED; urgency=medium
 
   * Update CUDA image to 11.7.0
