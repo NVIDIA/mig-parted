@@ -17,6 +17,7 @@
 package types
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -263,6 +264,51 @@ func TestParseMigProfile(t *testing.T) {
 			} else {
 				require.Error(t, err)
 			}
+		})
+	}
+}
+
+func TestGetMigMemorySizeInGB(t *testing.T) {
+	type testCase struct {
+		totalDeviceMemory    uint64
+		migMemorySizeMB      uint64
+		expectedMemorySizeGB uint64
+	}
+
+	const maxMemorySlices = 8
+	const oneMB = uint64(1024 * 1024)
+	const oneGB = uint64(1024 * 1024 * 1024)
+
+	totalDeviceMemory := []uint64{
+		24 * oneGB,
+		40 * oneGB,
+		80 * oneGB,
+	}
+
+	testCases := []testCase{}
+	for _, tdm := range totalDeviceMemory {
+		sliceSize := tdm / maxMemorySlices
+
+		const stepSize = oneGB / 32
+		for i := stepSize; i <= tdm; i += stepSize {
+			tc := testCase{
+				totalDeviceMemory: tdm,
+				migMemorySizeMB:   i / oneMB,
+			}
+			for j := uint64(sliceSize); j <= tdm; j += sliceSize {
+				if i <= j {
+					tc.expectedMemorySizeGB = j / oneGB
+					break
+				}
+			}
+			testCases = append(testCases, tc)
+		}
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%v", tc.migMemorySizeMB), func(t *testing.T) {
+			memorySizeGB := getMigMemorySizeInGB(tc.totalDeviceMemory, tc.migMemorySizeMB)
+			require.Equal(t, int(tc.expectedMemorySizeGB), int(memorySizeGB))
 		})
 	}
 }

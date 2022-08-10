@@ -18,6 +18,7 @@ package types
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -41,11 +42,11 @@ type MigProfile struct {
 }
 
 // NewMigProfile constructs a new MigProfile struct using info from the giProfiles and ciProfiles used to create it.
-func NewMigProfile(giProfileID, ciProfileID, ciEngProfileID int, giProfileInfo *nvml.GpuInstanceProfileInfo, ciProfileInfo *nvml.ComputeInstanceProfileInfo) *MigProfile {
+func NewMigProfile(giProfileID, ciProfileID, ciEngProfileID int, giProfileInfo *nvml.GpuInstanceProfileInfo, ciProfileInfo *nvml.ComputeInstanceProfileInfo, totalDeviceMemory uint64) *MigProfile {
 	return &MigProfile{
 		C:              int(ciProfileInfo.SliceCount),
 		G:              int(giProfileInfo.SliceCount),
-		GB:             int((giProfileInfo.MemorySizeMB + 1024 - 1) / 1024),
+		GB:             int(getMigMemorySizeInGB(totalDeviceMemory, giProfileInfo.MemorySizeMB)),
 		GIProfileID:    giProfileID,
 		CIProfileID:    ciProfileID,
 		CIEngProfileID: ciEngProfileID,
@@ -255,4 +256,14 @@ func parseMigProfileAttributes(s string) ([]string, error) {
 		unique[a]++
 	}
 	return attr, nil
+}
+
+func getMigMemorySizeInGB(totalDeviceMemory, migMemorySizeMB uint64) uint64 {
+	const fracDenominator = 8
+	const oneMB = 1024 * 1024
+	const oneGB = 1024 * 1024 * 1024
+	fractionalGpuMem := (float64(migMemorySizeMB) * oneMB) / float64(totalDeviceMemory)
+	fractionalGpuMem = math.Ceil(fractionalGpuMem*fracDenominator) / fracDenominator
+	totalMemGB := float64((totalDeviceMemory + oneGB - 1) / oneGB)
+	return uint64(math.Round(fractionalGpuMem * totalMemGB))
 }

@@ -32,6 +32,7 @@ type Interface interface {
 type Device interface {
 	GetIndex() (int, Return)
 	GetUUID() (string, Return)
+	GetMemoryInfo() (Memory, Return)
 	GetPciInfo() (PciInfo, Return)
 	SetMigMode(Mode int) (Return, Return)
 	GetMigMode() (int, int, Return)
@@ -69,6 +70,7 @@ type ComputeInstanceInfo struct {
 	Placement   ComputeInstancePlacement
 }
 
+type Memory nvml.Memory
 type PciInfo nvml.PciInfo
 type GpuInstanceProfileInfo nvml.GpuInstanceProfileInfo
 type GpuInstancePlacement nvml.GpuInstancePlacement
