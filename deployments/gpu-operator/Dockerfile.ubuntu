@@ -36,6 +36,9 @@ RUN chmod a+x /artifacts/kubectl
 
 FROM nvidia/cuda:${CUDA_VERSION}-base-${BASE_DIST}
 
+# Remove CUDA libs(compat etc) in favor of libs installed by the NVIDIA driver
+RUN apt-get --purge -y autoremove cuda-*
+
 RUN mkdir /licenses && mv /NGC-DL-CONTAINER-LICENSE /licenses/NGC-DL-CONTAINER-LICENSE
 COPY --from=build /artifacts/nvidia-mig-parted  /usr/bin/nvidia-mig-parted
 COPY --from=build /artifacts/nvidia-mig-manager /usr/bin/nvidia-mig-manager
