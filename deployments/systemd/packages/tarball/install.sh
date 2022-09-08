@@ -79,7 +79,7 @@ function maybe_add_hooks_symlink() {
   fi
 
   local compute_cap=$(nvidia-smi -i 0 --query-gpu=compute_cap --format=csv,noheader)
-  if [ "${compute_cap/./}" -ge "90" ]; then
+  if [ "${compute_cap/./}" -ge "90" ] 2> /dev/null; then
     ln -s hooks-minimal.yaml ${CONFIG_DIR}/hooks.yaml
   else
     ln -s hooks-default.yaml ${CONFIG_DIR}/hooks.yaml
