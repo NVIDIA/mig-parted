@@ -17,10 +17,7 @@ function maybe_remove_hooks_symlink() {
 
 function maybe_remove_config_symlink() {
   local target=$(readlink -f /etc/nvidia-mig-manager/config.yaml)
-  if [ "${target}" = "/etc/nvidia-mig-manager/config-hopper.yaml" ]; then
-    rm -rf /etc/nvidia-mig-manager/config.yaml
-  fi
-  if [ "${target}" = "/etc/nvidia-mig-manager/config-ampere.yaml" ]; then
+  if [ "${target}" = "/etc/nvidia-mig-manager/config-default.yaml" ]; then
     rm -rf /etc/nvidia-mig-manager/config.yaml
   fi
 }

@@ -50,8 +50,7 @@ cp utils.sh              ${CONFIG_DIR}
 cp hooks.sh              ${CONFIG_DIR}
 cp hooks-default.yaml    ${CONFIG_DIR}
 cp hooks-minimal.yaml    ${CONFIG_DIR}
-cp config-ampere.yaml    ${CONFIG_DIR}
-cp config-hopper.yaml    ${CONFIG_DIR}
+cp config-default.yaml    ${CONFIG_DIR}
 
 chmod a+r ${SYSTEMD_DIR}/${SERVICE_NAME}
 chmod a+r ${PROFILED_DIR}/${MIG_PARTED_NAME}.sh
@@ -61,8 +60,7 @@ chmod a+r ${CONFIG_DIR}/utils.sh
 chmod a+r ${CONFIG_DIR}/hooks.sh
 chmod a+r ${CONFIG_DIR}/hooks-default.yaml
 chmod a+r ${CONFIG_DIR}/hooks-minimal.yaml
-chmod a+r ${CONFIG_DIR}/config-ampere.yaml
-chmod a+r ${CONFIG_DIR}/config-hopper.yaml
+chmod a+r ${CONFIG_DIR}/config-default.yaml
 
 chmod a+x ${BINARY_DIR}/${MIG_PARTED_NAME}
 chmod ug+x ${CONFIG_DIR}/service.sh
@@ -81,7 +79,7 @@ function maybe_add_hooks_symlink() {
   fi
 
   local compute_cap=$(nvidia-smi -i 0 --query-gpu=compute_cap --format=csv,noheader)
-  if [ "${compute_cap/./}" -ge "90" ]; then
+  if [ "${compute_cap/./}" -ge "90" ] 2> /dev/null; then
     ln -s hooks-minimal.yaml ${CONFIG_DIR}/hooks.yaml
   else
     ln -s hooks-default.yaml ${CONFIG_DIR}/hooks.yaml
@@ -92,18 +90,7 @@ function maybe_add_config_symlink() {
   if [ -e ${CONFIG_DIR}/config.yaml ]; then
     return
   fi
-
-  which nvidia-smi > /dev/null 2>&1
-  if [ "${?}" != 0 ]; then
-    return
-  fi
-
-  local compute_cap=$(nvidia-smi -i 0 --query-gpu=compute_cap --format=csv,noheader)
-  if [ "${compute_cap/./}" -ge "90" ]; then
-    ln -s config-hopper.yaml ${CONFIG_DIR}/config.yaml
-  else
-    ln -s config-ampere.yaml ${CONFIG_DIR}/config.yaml
-  fi
+  ln -s config-default.yaml ${CONFIG_DIR}/config.yaml
 }
 
 maybe_add_hooks_symlink
