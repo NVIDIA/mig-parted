@@ -27,7 +27,7 @@ function maybe_add_config_symlink() {
   if [ -e /etc/nvidia-mig-manager/config.yaml ]; then
     return
   fi
-  ln -s config-ampere.yaml /etc/nvidia-mig-manager/config.yaml
+  ln -s config-default.yaml /etc/nvidia-mig-manager/config.yaml
 }
 
 case "${1}" in
