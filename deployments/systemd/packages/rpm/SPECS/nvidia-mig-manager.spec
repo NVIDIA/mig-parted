@@ -133,8 +133,19 @@ maybe_remove_hooks_symlink
 maybe_remove_config_symlink
 
 %changelog
-* Mon Aug 08 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.5.0-1
-- Placeholder
+* Thu Sep 08 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.5.0-1
+- Bump CUDA base image to 11.7.1
+- Remove CUDA compat libs from mig-manager in favor of libs installed by the Driver
+- Use symlink for config.yaml instead of static config file
+- Add k8s-mig-manager-example for Hopper
+- Update k8s-mig-manager-example with standalone RBAC objects
+- Explicitly delete pods launched by operator validator before reconfig
+- Allow missing GPUClients file in k8s-mig-manager
+- Add hooks-minimal.yaml that gets linked if on Hopper or above
+- Use symlink for hooks.yaml instead of static config file
+- Update install script to use go 1.16.4
+- Update hooks.sh to split out start/stop of k8s services from k8s pods
+- Explicitly clear all MIG configurations before disabling MIG mode
 
 * Wed Aug 10 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.4.3-1
 - Update calculation for GB in MIG profile name
