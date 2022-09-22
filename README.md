@@ -147,7 +147,7 @@ and distribute them as assets with every release. Please see our release page
 [here](https://github.com/NVIDIA/mig-parted/releases) to download them and
 install them.
 
-To build fromm source, plase follow one of the methods below.
+To build from source, please follow one of the methods below.
 
 #### Use `docker` with `go install`:
 ```
@@ -175,7 +175,7 @@ go build ./cmd/nvidia-mig-parted
 
 When followed exactly, any of these methods should generate a binary called
 `nvidia-mig-parted` in your current directory. Once this is done, it is advised
-that you move this binary to somewhere in your path so you can follow the
+that you move this binary to somewhere in your path, so you can follow the
 commands below verbatim.
 
 ## Quick Start
