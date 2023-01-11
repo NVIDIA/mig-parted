@@ -85,8 +85,8 @@ function maybe_add_hooks_symlink() {
     return
   fi
 
-  which nvidia-smi > /dev/null 2>&1
-  if [ "${?}" != 0 ]; then
+  if ! which nvidia-smi > /dev/null 2>&1; then
+    ln -s hooks-default.yaml /etc/nvidia-mig-manager/hooks.yaml
     return
   fi
 
