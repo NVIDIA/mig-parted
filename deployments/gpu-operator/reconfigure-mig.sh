@@ -142,7 +142,8 @@ function __set_state_and_exit() {
 			nvidia.com/gpu.deploy.device-plugin=$(maybe_set_true ${PLUGIN_DEPLOYED}) \
 			nvidia.com/gpu.deploy.gpu-feature-discovery=$(maybe_set_true ${GFD_DEPLOYED}) \
 			nvidia.com/gpu.deploy.dcgm-exporter=$(maybe_set_true ${DCGM_EXPORTER_DEPLOYED}) \
-			nvidia.com/gpu.deploy.dcgm=$(maybe_set_true ${DCGM_DEPLOYED})
+			nvidia.com/gpu.deploy.dcgm=$(maybe_set_true ${DCGM_DEPLOYED}) \
+			nvidia.com/gpu.deploy.operator-validator=$(maybe_set_true ${VALIDATOR_DEPLOYED})
 			if [ "${?}" != "0" ]; then
 				echo "Unable to bring up GPU client pods by setting their daemonset labels"
 				exit_code=1
@@ -348,6 +349,14 @@ if [ "${?}" != "0" ]; then
 fi
 echo "Current value of 'nvidia.com/gpu.deploy.nvsm=${NVSM_DEPLOYED}'"
 
+echo "Getting current value of the 'nvidia.com/gpu.deploy.operator-validator' node label"
+VALIDATOR_DEPLOYED=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.operator-validator}')
+if [ "${?}" != "0" ]; then
+	echo "Unable to get the value of the 'nvidia.com/gpu.deploy.operator-validator' label"
+	exit_failed
+fi
+echo "Current value of 'nvidia.com/gpu.deploy.operator-validator=${VALIDATOR_DEPLOYED}'"
+
 echo "Asserting that the requested configuration is present in the configuration file"
 nvidia-mig-parted assert --valid-config -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
 if [ "${?}" != "0" ]; then
@@ -410,7 +419,8 @@ kubectl label --overwrite \
 	nvidia.com/gpu.deploy.gpu-feature-discovery=$(maybe_set_paused ${GFD_DEPLOYED}) \
 	nvidia.com/gpu.deploy.dcgm-exporter=$(maybe_set_paused ${DCGM_EXPORTER_DEPLOYED}) \
 	nvidia.com/gpu.deploy.dcgm=$(maybe_set_paused ${DCGM_DEPLOYED}) \
-	nvidia.com/gpu.deploy.nvsm=$(maybe_set_paused ${NVSM_DEPLOYED})
+	nvidia.com/gpu.deploy.nvsm=$(maybe_set_paused ${NVSM_DEPLOYED}) \
+	nvidia.com/gpu.deploy.operator-validator=$(maybe_set_paused ${VALIDATOR_DEPLOYED})
 if [ "${?}" != "0" ]; then
 	echo "Unable to tear down GPU client pods by setting their daemonset labels"
 	exit_failed
@@ -443,6 +453,13 @@ kubectl wait --for=delete pod \
 	--field-selector "spec.nodeName=${NODE_NAME}" \
 	-n "${DEFAULT_GPU_CLIENTS_NAMESPACE}" \
 	-l app=nvidia-dcgm
+
+echo "Waiting for the operator-validator to shutdown"
+kubectl wait --for=delete pod \
+	--timeout=5m \
+	--field-selector "spec.nodeName=${NODE_NAME}" \
+	-n "${DEFAULT_GPU_CLIENTS_NAMESPACE}" \
+	-l app=nvidia-operator-validator
 
 echo "Removing the cuda-validator pod"
 kubectl delete pod \
@@ -517,16 +534,11 @@ kubectl label --overwrite \
 	nvidia.com/gpu.deploy.gpu-feature-discovery=$(maybe_set_true ${GFD_DEPLOYED}) \
 	nvidia.com/gpu.deploy.dcgm-exporter=$(maybe_set_true ${DCGM_EXPORTER_DEPLOYED}) \
 	nvidia.com/gpu.deploy.dcgm=$(maybe_set_true ${DCGM_DEPLOYED}) \
-	nvidia.com/gpu.deploy.nvsm=$(maybe_set_true ${NVSM_DEPLOYED})
+	nvidia.com/gpu.deploy.nvsm=$(maybe_set_true ${NVSM_DEPLOYED}) \
+	nvidia.com/gpu.deploy.operator-validator=$(maybe_set_true ${VALIDATOR_DEPLOYED})
 if [ "${?}" != "0" ]; then
 	echo "Unable to bring up GPU client components by setting their daemonset labels"
 	exit_failed
 fi
-
-echo "Restarting validator pod to re-run all validations"
-kubectl delete pod \
-	--field-selector "spec.nodeName=${NODE_NAME}" \
-	-n "${DEFAULT_GPU_CLIENTS_NAMESPACE}" \
-	-l app=nvidia-operator-validator
 
 exit_success
