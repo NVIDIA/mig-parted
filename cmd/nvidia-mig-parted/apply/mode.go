@@ -19,9 +19,9 @@ package apply
 import (
 	"fmt"
 
-	"github.com/NVIDIA/mig-parted/api/spec/v1"
-	"github.com/NVIDIA/mig-parted/cmd/assert"
-	"github.com/NVIDIA/mig-parted/cmd/util"
+	v1 "github.com/NVIDIA/mig-parted/api/spec/v1"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/assert"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/util"
 	"github.com/NVIDIA/mig-parted/pkg/mig/config"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
 	"github.com/NVIDIA/mig-parted/pkg/types"

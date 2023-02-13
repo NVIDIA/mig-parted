@@ -22,8 +22,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/NVIDIA/mig-parted/api/spec/v1"
-	"github.com/NVIDIA/mig-parted/cmd/util"
+	v1 "github.com/NVIDIA/mig-parted/api/spec/v1"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/util"
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/types"
 	"github.com/sirupsen/logrus"

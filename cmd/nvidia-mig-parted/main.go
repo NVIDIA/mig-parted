@@ -19,12 +19,12 @@ package main
 import (
 	"os"
 
-	"github.com/NVIDIA/mig-parted/cmd/apply"
-	"github.com/NVIDIA/mig-parted/cmd/assert"
-	"github.com/NVIDIA/mig-parted/cmd/checkpoint"
-	"github.com/NVIDIA/mig-parted/cmd/export"
-	"github.com/NVIDIA/mig-parted/cmd/restore"
-	"github.com/NVIDIA/mig-parted/cmd/util"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/apply"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/assert"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/checkpoint"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/export"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/restore"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/util"
 	log "github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 )
