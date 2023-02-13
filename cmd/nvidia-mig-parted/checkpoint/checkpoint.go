@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	checkpoint "github.com/NVIDIA/mig-parted/api/checkpoint/v1"
-	"github.com/NVIDIA/mig-parted/cmd/util"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/util"
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/mig/state"
 	"github.com/sirupsen/logrus"
