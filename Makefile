@@ -135,6 +135,18 @@ $(DOCKER_TARGETS): docker-%: .build-image
 		$(BUILDIMAGE) \
 			make $(*)
 
+# Start an interactive shell using the development image.
+PHONY: .shell
+.shell:
+	$(DOCKER) run \
+		--rm \
+		-ti \
+		-e GOCACHE=/tmp/.cache \
+		-v $(PWD):$(PWD) \
+		-w $(PWD) \
+		--user $$(id -u):$$(id -g) \
+		$(BUILDIMAGE)
+
 # Deployment targets are forwarded to the Makefile in the following directory
 DEPLOYMENT_DIR = deployments/gpu-operator
 

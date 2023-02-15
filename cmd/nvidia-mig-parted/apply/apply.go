@@ -22,7 +22,7 @@ import (
 	"reflect"
 
 	hooks "github.com/NVIDIA/mig-parted/api/hooks/v1"
-	"github.com/NVIDIA/mig-parted/cmd/assert"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/assert"
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"

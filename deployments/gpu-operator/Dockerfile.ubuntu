@@ -15,7 +15,6 @@
 ARG BASE_DIST=ubuntu20.04
 ARG CUDA_VERSION
 ARG GOLANG_VERSION=x.x.x
-ARG VERSION="N/A"
 
 # NOTE: In cases where the libc version is a concern, we would have to use an
 # image based on the target OS to build the golang executables here -- especially
@@ -27,7 +26,11 @@ SHELL ["/bin/bash", "-c"]
 ARG TARGETARCH
 WORKDIR /build
 COPY . .
-RUN go build -o /artifacts/nvidia-mig-parted ./cmd
+
+ARG VERSION="N/A"
+ARG GIT_COMMIT="unknown"
+RUN make PREFIX=/artifacts cmds
+
 RUN go build -o /artifacts/nvidia-mig-manager ./deployments/gpu-operator/
 RUN cp ./deployments/gpu-operator/reconfigure-mig.sh /artifacts/reconfigure-mig.sh
 

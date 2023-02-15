@@ -14,47 +14,49 @@
  * limitations under the License.
  */
 
-package assert
+package apply
 
 import (
 	"fmt"
 
-	"github.com/NVIDIA/mig-parted/api/spec/v1"
-	"github.com/NVIDIA/mig-parted/cmd/util"
+	v1 "github.com/NVIDIA/mig-parted/api/spec/v1"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/assert"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/util"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
 	"github.com/NVIDIA/mig-parted/pkg/types"
-
-	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
 )
 
-func AssertMigConfig(c *Context) error {
+func ApplyMigConfig(c *Context) error {
 	err := util.NvmlInit(c.Nvml)
 	if err != nil {
 		return fmt.Errorf("error initializing NVML: %v", err)
 	}
 	defer util.TryNvmlShutdown(c.Nvml)
 
-	nvpci := nvpci.New()
-	gpus, err := nvpci.GetGPUs()
-	if err != nil {
-		return fmt.Errorf("error enumerating GPUs: %v", err)
-	}
-
-	matched := make([]bool, len(gpus))
-	err = WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
+	return assert.WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
 		modeManager, err := util.NewMigModeManager()
 		if err != nil {
-			return fmt.Errorf("error creating MIG Mode Manager: %v", err)
+			return fmt.Errorf("error creating MIG mode Manager: %v", err)
 		}
 
 		capable, err := modeManager.IsMigCapable(i)
 		if err != nil {
 			return fmt.Errorf("error checking MIG capable: %v", err)
 		}
+		log.Debugf("    MIG capable: %v\n", capable)
+
+		if !capable && mc.MatchesAllDevices() {
+			log.Debugf("    Skipping -- non MIG-capable GPU")
+			return nil
+		}
 
 		if !capable && !mc.MigEnabled {
-			matched[i] = true
+			log.Debugf("    Skipping -- non MIG-capable GPU with MIG mode disabled")
 			return nil
+		}
+
+		if !capable && mc.MigEnabled {
+			return fmt.Errorf("cannot set MIG config on non MIG-capable GPU")
 		}
 
 		m, err := modeManager.GetMigMode(i)
@@ -62,14 +64,22 @@ func AssertMigConfig(c *Context) error {
 			return fmt.Errorf("error getting MIG mode: %v", err)
 		}
 
-		if !mc.MigEnabled && m == mode.Disabled {
-			matched[i] = true
+		if mc.MigEnabled && m == mode.Disabled {
+			return fmt.Errorf("unable to apply MIG config with MIG mode disabled")
+		}
+
+		if !mc.MigEnabled && m == mode.Enabled {
+			return fmt.Errorf("MIG mode is currently enabled, but the configuration specifies it should be disabled")
+		}
+
+		if !mc.MigEnabled {
+			log.Debugf("    Skipping MIG config -- MIG disabled")
 			return nil
 		}
 
 		configManager, err := util.NewMigConfigManager()
 		if err != nil {
-			return fmt.Errorf("error creating MIG Config Manager: %v", err)
+			return fmt.Errorf("error creating MIG config Manager: %v", err)
 		}
 
 		current, err := configManager.GetMigConfig(i)
@@ -77,24 +87,18 @@ func AssertMigConfig(c *Context) error {
 			return fmt.Errorf("error getting MIGConfig: %v", err)
 		}
 
-		log.Debugf("    Asserting MIG config: %v", mc.MigDevices)
+		log.Debugf("    Updating MIG config: %v", mc.MigDevices)
 
 		if current.Equals(mc.MigDevices) {
-			matched[i] = true
+			log.Debugf("    Skipping -- already set to desired value")
 			return nil
 		}
 
-		matched[i] = false
+		err = configManager.SetMigConfig(i, mc.MigDevices)
+		if err != nil {
+			return fmt.Errorf("error setting MIGConfig: %v", err)
+		}
+
 		return nil
 	})
-
-	if err != nil {
-		return err
-	}
-
-	if util.CountTrue(matched) != len(gpus) {
-		return fmt.Errorf("not all GPUs match the specified config")
-	}
-
-	return nil
 }
