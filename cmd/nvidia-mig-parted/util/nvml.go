@@ -19,7 +19,6 @@ package util
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -79,17 +78,6 @@ func IsNVMLVersionSupported() (bool, error) {
 	}
 
 	return true, nil
-}
-
-func NvidiaSmiReset(gpus ...string) (string, error) {
-	var cmd *exec.Cmd
-	if len(gpus) == 0 {
-		return "", fmt.Errorf("no gpus specified")
-	} else {
-		cmd = exec.Command("nvidia-smi", "-r", "-i", strings.Join(gpus, ","))
-	}
-	output, err := cmd.CombinedOutput()
-	return string(output), err
 }
 
 func NvmlInit(nvmlLib nvml.Interface) error {

@@ -23,8 +23,6 @@ import (
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/util"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
 	"github.com/NVIDIA/mig-parted/pkg/types"
-
-	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
 )
 
 func AssertMigConfig(c *Context) error {
@@ -34,13 +32,12 @@ func AssertMigConfig(c *Context) error {
 	}
 	defer util.TryNvmlShutdown(c.Nvml)
 
-	nvpci := nvpci.New()
-	gpus, err := nvpci.GetGPUs()
+	deviceIDs, err := util.GetGPUDeviceIDs()
 	if err != nil {
 		return fmt.Errorf("error enumerating GPUs: %v", err)
 	}
 
-	matched := make([]bool, len(gpus))
+	matched := make([]bool, len(deviceIDs))
 	err = WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
 		modeManager, err := util.NewMigModeManager()
 		if err != nil {
@@ -92,7 +89,7 @@ func AssertMigConfig(c *Context) error {
 		return err
 	}
 
-	if util.CountTrue(matched) != len(gpus) {
+	if util.CountTrue(matched) != len(deviceIDs) {
 		return fmt.Errorf("not all GPUs match the specified config")
 	}
 
