@@ -18,25 +18,27 @@ package nvpci
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+
+	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/pciids"
 )
 
 const (
-	// pciDevicesRoot represents base path for all pci devices under sysfs
-	pciDevicesRoot = "/sys/bus/pci/devices"
-	// pciNvidiaVendorID represents PCI vendor id for NVIDIA
-	pciNvidiaVendorID uint16 = 0x10de
-	// pciVgaControllerClass represents the PCI class for VGA Controllers
-	pciVgaControllerClass uint32 = 0x030000
-	// pci3dControllerClass represents the PCI class for 3D Graphics accellerators
-	pci3dControllerClass uint32 = 0x030200
-	// pciNvSwitchClass represents the PCI class for NVSwitches
-	pciNvSwitchClass uint32 = 0x068000
+	// PCIDevicesRoot represents base path for all pci devices under sysfs
+	PCIDevicesRoot = "/sys/bus/pci/devices"
+	// PCINvidiaVendorID represents PCI vendor id for NVIDIA
+	PCINvidiaVendorID uint16 = 0x10de
+	// PCIVgaControllerClass represents the PCI class for VGA Controllers
+	PCIVgaControllerClass uint32 = 0x030000
+	// PCI3dControllerClass represents the PCI class for 3D Graphics accellerators
+	PCI3dControllerClass uint32 = 0x030200
+	// PCINvSwitchClass represents the PCI class for NVSwitches
+	PCINvSwitchClass uint32 = 0x068000
 )
 
 // Interface allows us to get a list of all NVIDIA PCI devices
@@ -46,6 +48,19 @@ type Interface interface {
 	GetVGAControllers() ([]*NvidiaPCIDevice, error)
 	GetNVSwitches() ([]*NvidiaPCIDevice, error)
 	GetGPUs() ([]*NvidiaPCIDevice, error)
+	GetGPUByIndex(int) (*NvidiaPCIDevice, error)
+	GetGPUByPciBusID(string) (*NvidiaPCIDevice, error)
+	GetNetworkControllers() ([]*NvidiaPCIDevice, error)
+	GetPciBridges() ([]*NvidiaPCIDevice, error)
+	GetDPUs() ([]*NvidiaPCIDevice, error)
+}
+
+// MemoryResources a more human readable handle
+type MemoryResources map[int]*MemoryResource
+
+// ResourceInterface exposes some higher level functions of resources
+type ResourceInterface interface {
+	GetTotalAddressableMemory(bool) (uint64, uint64)
 }
 
 type nvpci struct {
@@ -53,144 +68,94 @@ type nvpci struct {
 }
 
 var _ Interface = (*nvpci)(nil)
+var _ ResourceInterface = (*MemoryResources)(nil)
 
 // NvidiaPCIDevice represents a PCI device for an NVIDIA product
 type NvidiaPCIDevice struct {
-	Path      string
-	Address   string
-	Vendor    uint16
-	Class     uint32
-	Device    uint16
-	Config    *ConfigSpace
-	Resources map[int]*MemoryResource
+	Path       string
+	Address    string
+	Vendor     uint16
+	Class      uint32
+	ClassName  string
+	Device     uint16
+	DeviceName string
+	Driver     string
+	IommuGroup int
+	NumaNode   int
+	Config     *ConfigSpace
+	Resources  MemoryResources
+	IsVF       bool
 }
 
+// IsVGAController if class == 0x300
 func (d *NvidiaPCIDevice) IsVGAController() bool {
-	return d.Class == pciVgaControllerClass
+	return d.Class == PCIVgaControllerClass
 }
 
+// Is3DController if class == 0x302
 func (d *NvidiaPCIDevice) Is3DController() bool {
-	return d.Class == pci3dControllerClass
+	return d.Class == PCI3dControllerClass
 }
 
+// IsNVSwitch if class == 0x068
 func (d *NvidiaPCIDevice) IsNVSwitch() bool {
-	return d.Class == pciNvSwitchClass
+	return d.Class == PCINvSwitchClass
 }
 
+// IsGPU either VGA for older cards or 3D for newer
 func (d *NvidiaPCIDevice) IsGPU() bool {
 	return d.IsVGAController() || d.Is3DController()
 }
 
+// IsResetAvailable some devices can be reset without rebooting,
+// check if applicable
 func (d *NvidiaPCIDevice) IsResetAvailable() bool {
 	_, err := os.Stat(path.Join(d.Path, "reset"))
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
+// Reset perform a reset to apply a new configuration at HW level
 func (d *NvidiaPCIDevice) Reset() error {
-	err := ioutil.WriteFile(path.Join(d.Path, "reset"), []byte("1"), 0)
+	err := os.WriteFile(path.Join(d.Path, "reset"), []byte("1"), 0)
 	if err != nil {
 		return fmt.Errorf("unable to write to reset file: %v", err)
 	}
 	return nil
 }
 
+// New interface that allows us to get a list of all NVIDIA PCI devices
 func New() Interface {
-	return &nvpci{pciDevicesRoot}
+	return NewFrom(PCIDevicesRoot)
+}
+
+// NewFrom interface allows us to get a list of all NVIDIA PCI devices at a specific root directory
+func NewFrom(root string) Interface {
+	return &nvpci{
+		pciDevicesRoot: root,
+	}
 }
 
 // GetAllDevices returns all Nvidia PCI devices on the system
 func (p *nvpci) GetAllDevices() ([]*NvidiaPCIDevice, error) {
-	deviceDirs, err := ioutil.ReadDir(p.pciDevicesRoot)
+	deviceDirs, err := os.ReadDir(p.pciDevicesRoot)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read PCI bus devices: %v", err)
 	}
 
 	var nvdevices []*NvidiaPCIDevice
 	for _, deviceDir := range deviceDirs {
-		devicePath := path.Join(p.pciDevicesRoot, deviceDir.Name())
-		address := deviceDir.Name()
-
-		vendor, err := ioutil.ReadFile(path.Join(devicePath, "vendor"))
+		deviceAddress := deviceDir.Name()
+		nvdevice, err := p.GetGPUByPciBusID(deviceAddress)
 		if err != nil {
-			return nil, fmt.Errorf("unable to read PCI device vendor id for %s: %v", address, err)
+			return nil, fmt.Errorf("error constructing NVIDIA PCI device %s: %v", deviceAddress, err)
 		}
-		vendorStr := strings.TrimSpace(string(vendor))
-		vendorID, err := strconv.ParseUint(vendorStr, 0, 16)
-		if err != nil {
-			return nil, fmt.Errorf("unable to convert vendor string to uint16: %v", vendorStr)
-		}
-
-		if uint16(vendorID) != pciNvidiaVendorID {
+		if nvdevice == nil {
 			continue
 		}
-
-		class, err := ioutil.ReadFile(path.Join(devicePath, "class"))
-		if err != nil {
-			return nil, fmt.Errorf("unable to read PCI device class for %s: %v", address, err)
-		}
-		classStr := strings.TrimSpace(string(class))
-		classID, err := strconv.ParseUint(classStr, 0, 32)
-		if err != nil {
-			return nil, fmt.Errorf("unable to convert class string to uint32: %v", classStr)
-		}
-
-		device, err := ioutil.ReadFile(path.Join(devicePath, "device"))
-		if err != nil {
-			return nil, fmt.Errorf("unable to read PCI device id for %s: %v", address, err)
-		}
-		deviceStr := strings.TrimSpace(string(device))
-		deviceID, err := strconv.ParseUint(deviceStr, 0, 16)
-		if err != nil {
-			return nil, fmt.Errorf("unable to convert device string to uint16: %v", deviceStr)
-		}
-
-		config := &ConfigSpace{
-			Path: path.Join(devicePath, "config"),
-		}
-
-		resource, err := ioutil.ReadFile(path.Join(devicePath, "resource"))
-		if err != nil {
-			return nil, fmt.Errorf("unable to read PCI resource file for %s: %v", address, err)
-		}
-
-		resources := make(map[int]*MemoryResource)
-		for i, line := range strings.Split(strings.TrimSpace(string(resource)), "\n") {
-			values := strings.Split(line, " ")
-			if len(values) != 3 {
-				return nil, fmt.Errorf("more than 3 entries in line '%d' of resource file", i)
-			}
-
-			start, _ := strconv.ParseUint(values[0], 0, 64)
-			end, _ := strconv.ParseUint(values[1], 0, 64)
-			flags, _ := strconv.ParseUint(values[2], 0, 64)
-
-			if (end - start) != 0 {
-				resources[i] = &MemoryResource{
-					uintptr(start),
-					uintptr(end),
-					flags,
-					fmt.Sprintf("%s/resource%d", devicePath, i),
-				}
-			}
-		}
-
-		nvdevice := &NvidiaPCIDevice{
-			Path:      devicePath,
-			Address:   address,
-			Vendor:    uint16(vendorID),
-			Class:     uint32(classID),
-			Device:    uint16(deviceID),
-			Config:    config,
-			Resources: resources,
-		}
-
 		nvdevices = append(nvdevices, nvdevice)
 	}
 
-	addressToId := func(address string) uint64 {
+	addressToID := func(address string) uint64 {
 		address = strings.ReplaceAll(address, ":", "")
 		address = strings.ReplaceAll(address, ".", "")
 		id, _ := strconv.ParseUint(address, 16, 64)
@@ -198,10 +163,142 @@ func (p *nvpci) GetAllDevices() ([]*NvidiaPCIDevice, error) {
 	}
 
 	sort.Slice(nvdevices, func(i, j int) bool {
-		return addressToId(nvdevices[i].Address) < addressToId(nvdevices[j].Address)
+		return addressToID(nvdevices[i].Address) < addressToID(nvdevices[j].Address)
 	})
 
 	return nvdevices, nil
+}
+
+// GetGPUByPciBusID constructs an NvidiaPCIDevice for the specified address (PCI Bus ID)
+func (p *nvpci) GetGPUByPciBusID(address string) (*NvidiaPCIDevice, error) {
+	devicePath := filepath.Join(p.pciDevicesRoot, address)
+
+	vendor, err := os.ReadFile(path.Join(devicePath, "vendor"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to read PCI device vendor id for %s: %v", address, err)
+	}
+	vendorStr := strings.TrimSpace(string(vendor))
+	vendorID, err := strconv.ParseUint(vendorStr, 0, 16)
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert vendor string to uint16: %v", vendorStr)
+	}
+
+	if uint16(vendorID) != PCINvidiaVendorID && uint16(vendorID) != PCIMellanoxVendorID {
+		return nil, nil
+	}
+
+	class, err := os.ReadFile(path.Join(devicePath, "class"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to read PCI device class for %s: %v", address, err)
+	}
+	classStr := strings.TrimSpace(string(class))
+	classID, err := strconv.ParseUint(classStr, 0, 32)
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert class string to uint32: %v", classStr)
+	}
+
+	device, err := os.ReadFile(path.Join(devicePath, "device"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to read PCI device id for %s: %v", address, err)
+	}
+	deviceStr := strings.TrimSpace(string(device))
+	deviceID, err := strconv.ParseUint(deviceStr, 0, 16)
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert device string to uint16: %v", deviceStr)
+	}
+
+	driver, err := filepath.EvalSymlinks(path.Join(devicePath, "driver"))
+	if err == nil {
+		driver = filepath.Base(driver)
+	} else if os.IsNotExist(err) {
+		driver = ""
+	} else {
+		return nil, fmt.Errorf("unable to detect driver for %s: %v", address, err)
+	}
+
+	var iommuGroup int64
+	iommu, err := filepath.EvalSymlinks(path.Join(devicePath, "iommu_group"))
+	if err == nil {
+		iommuGroupStr := strings.TrimSpace(filepath.Base(iommu))
+		iommuGroup, err = strconv.ParseInt(iommuGroupStr, 0, 64)
+		if err != nil {
+			return nil, fmt.Errorf("unable to convert iommu_group string to int64: %v", iommuGroupStr)
+		}
+	} else if os.IsNotExist(err) {
+		iommuGroup = -1
+	} else {
+		return nil, fmt.Errorf("unable to detect iommu_group for %s: %v", address, err)
+	}
+
+	// device is a virtual function (VF) if "physfn" symlink exists
+	var isVF bool
+	_, err = filepath.EvalSymlinks(path.Join(devicePath, "physfn"))
+	if err == nil {
+		isVF = true
+	}
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("unable to resolve %s: %v", path.Join(devicePath, "physfn"), err)
+	}
+
+	numa, err := os.ReadFile(path.Join(devicePath, "numa_node"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to read PCI NUMA node for %s: %v", address, err)
+	}
+	numaStr := strings.TrimSpace(string(numa))
+	numaNode, err := strconv.ParseInt(numaStr, 0, 64)
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert NUMA node string to int64: %v", numaNode)
+	}
+
+	config := &ConfigSpace{
+		Path: path.Join(devicePath, "config"),
+	}
+
+	resource, err := os.ReadFile(path.Join(devicePath, "resource"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to read PCI resource file for %s: %v", address, err)
+	}
+
+	resources := make(map[int]*MemoryResource)
+	for i, line := range strings.Split(strings.TrimSpace(string(resource)), "\n") {
+		values := strings.Split(line, " ")
+		if len(values) != 3 {
+			return nil, fmt.Errorf("more than 3 entries in line '%d' of resource file", i)
+		}
+
+		start, _ := strconv.ParseUint(values[0], 0, 64)
+		end, _ := strconv.ParseUint(values[1], 0, 64)
+		flags, _ := strconv.ParseUint(values[2], 0, 64)
+
+		if (end - start) != 0 {
+			resources[i] = &MemoryResource{
+				uintptr(start),
+				uintptr(end),
+				flags,
+				fmt.Sprintf("%s/resource%d", devicePath, i),
+			}
+		}
+	}
+
+	pciDB := pciids.NewDB()
+
+	nvdevice := &NvidiaPCIDevice{
+		Path:       devicePath,
+		Address:    address,
+		Vendor:     uint16(vendorID),
+		Class:      uint32(classID),
+		Device:     uint16(deviceID),
+		Driver:     driver,
+		IommuGroup: int(iommuGroup),
+		NumaNode:   int(numaNode),
+		Config:     config,
+		Resources:  resources,
+		IsVF:       isVF,
+		DeviceName: pciDB.GetDeviceName(uint16(vendorID), uint16(deviceID)),
+		ClassName:  pciDB.GetClassName(uint32(classID)),
+	}
+
+	return nvdevice, nil
 }
 
 // Get3DControllers returns all NVIDIA 3D Controller PCI devices on the system
@@ -264,10 +361,24 @@ func (p *nvpci) GetGPUs() ([]*NvidiaPCIDevice, error) {
 
 	var filtered []*NvidiaPCIDevice
 	for _, d := range devices {
-		if d.IsGPU() {
+		if d.IsGPU() && !d.IsVF {
 			filtered = append(filtered, d)
 		}
 	}
 
 	return filtered, nil
+}
+
+// GetGPUByIndex returns an NVIDIA GPU device at a particular index
+func (p *nvpci) GetGPUByIndex(i int) (*NvidiaPCIDevice, error) {
+	gpus, err := p.GetGPUs()
+	if err != nil {
+		return nil, fmt.Errorf("error getting all gpus: %v", err)
+	}
+
+	if i < 0 || i >= len(gpus) {
+		return nil, fmt.Errorf("invalid index '%d'", i)
+	}
+
+	return gpus[i], nil
 }

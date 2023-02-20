@@ -25,6 +25,7 @@ import (
 	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci/bytes"
 )
 
+// Mmio memory map a region
 type Mmio interface {
 	bytes.Raw
 	bytes.Reader
@@ -41,25 +42,25 @@ type mmio struct {
 }
 
 func open(path string, offset int, size int, flags int) (Mmio, error) {
-	var mmap_flags int
+	var mmapFlags int
 	switch flags {
 	case os.O_RDONLY:
-		mmap_flags = syscall.PROT_READ
+		mmapFlags = syscall.PROT_READ
 	case os.O_RDWR:
-		mmap_flags = syscall.PROT_READ | syscall.PROT_WRITE
+		mmapFlags = syscall.PROT_READ | syscall.PROT_WRITE
 	default:
-		return nil, fmt.Errorf("invalid flags: %v\n", flags)
+		return nil, fmt.Errorf("invalid flags: %v", flags)
 	}
 
 	file, err := os.OpenFile(path, flags, 0)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %v\n", err)
+		return nil, fmt.Errorf("failed to open file: %v", err)
 	}
 	defer file.Close()
 
 	fi, err := file.Stat()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file info: %v\n", err)
+		return nil, fmt.Errorf("failed to get file info: %v", err)
 	}
 
 	if size > int(fi.Size()) {
@@ -74,19 +75,21 @@ func open(path string, offset int, size int, flags int) (Mmio, error) {
 		int(file.Fd()),
 		int64(offset),
 		size,
-		mmap_flags,
+		mmapFlags,
 		syscall.MAP_SHARED)
 	if err != nil {
-		return nil, fmt.Errorf("failed to mmap file: %v\n", err)
+		return nil, fmt.Errorf("failed to mmap file: %v", err)
 	}
 
 	return &mmio{bytes.New(&mmap)}, nil
 }
 
+// OpenRO open region readonly
 func OpenRO(path string, offset int, size int) (Mmio, error) {
 	return open(path, offset, size, os.O_RDONLY)
 }
 
+// OpenRW open region read write
 func OpenRW(path string, offset int, size int) (Mmio, error) {
 	return open(path, offset, size, os.O_RDWR)
 }
@@ -106,7 +109,7 @@ func (m *mmio) BigEndian() Mmio {
 func (m *mmio) Close() error {
 	err := syscall.Munmap(*m.Bytes.Raw())
 	if err != nil {
-		return fmt.Errorf("failed to munmap file: %v\n", err)
+		return fmt.Errorf("failed to munmap file: %v", err)
 	}
 	return nil
 }
