@@ -62,6 +62,11 @@ func (n *nvmlLib) DeviceGetHandleByUUID(uuid string) (Device, Return) {
 	return nvmlDevice(d), nvmlReturn(r)
 }
 
+func (n *nvmlLib) DeviceGetHandleByPciBusId(busID string) (Device, Return) {
+	d, r := nvml.DeviceGetHandleByPciBusId(busID)
+	return nvmlDevice(d), nvmlReturn(r)
+}
+
 func (d nvmlDevice) GetIndex() (int, Return) {
 	i, r := nvml.Device(d).GetIndex()
 	return i, nvmlReturn(r)
