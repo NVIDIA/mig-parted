@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -9,17 +9,18 @@
 
 package unix
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 func bytes2iovec(bs [][]byte) []Iovec {
 	iovecs := make([]Iovec, len(bs))
 	for i, b := range bs {
 		iovecs[i].SetLen(len(b))
 		if len(b) > 0 {
-			// somehow Iovec.Base on illumos is (*int8), not (*byte)
-			iovecs[i].Base = (*int8)(unsafe.Pointer(&b[0]))
+			iovecs[i].Base = &b[0]
 		} else {
-			iovecs[i].Base = (*int8)(unsafe.Pointer(&_zero))
+			iovecs[i].Base = (*byte)(unsafe.Pointer(&_zero))
 		}
 	}
 	return iovecs
