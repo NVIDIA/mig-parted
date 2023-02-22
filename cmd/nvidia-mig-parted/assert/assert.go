@@ -29,8 +29,6 @@ import (
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
-	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
-
 	"sigs.k8s.io/yaml"
 )
 
@@ -212,10 +210,9 @@ func GetSelectedMigConfig(f *Flags, spec *v1.Spec) (v1.MigConfigSpecSlice, error
 }
 
 func WalkSelectedMigConfigForEachGPU(migConfig v1.MigConfigSpecSlice, f func(*v1.MigConfigSpec, int, types.DeviceID) error) error {
-	nvpci := nvpci.New()
-	gpus, err := nvpci.GetGPUs()
+	deviceIDs, err := util.GetGPUDeviceIDs()
 	if err != nil {
-		return fmt.Errorf("Error enumerating GPUs: %v", err)
+		return fmt.Errorf("Error enumerating GPU device IDs: %v", err)
 	}
 
 	for _, mc := range migConfig {
@@ -225,9 +222,7 @@ func WalkSelectedMigConfigForEachGPU(migConfig v1.MigConfigSpecSlice, f func(*v1
 			log.Debugf("Walking MigConfig for (device-filter=%v, devices=%v)", mc.DeviceFilter, mc.Devices)
 		}
 
-		for i, gpu := range gpus {
-			deviceID := types.NewDeviceID(gpu.Device, gpu.Vendor)
-
+		for i, deviceID := range deviceIDs {
 			if !mc.MatchesDeviceFilter(deviceID) {
 				continue
 			}

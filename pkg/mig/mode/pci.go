@@ -73,7 +73,7 @@ func (m *pciMigModeManager) openBar0(gpu int) (mmio.Mmio, error) {
 		return nil, fmt.Errorf("missing bar0 MMIO resource")
 	}
 
-	bar0, err := device.Resources[0].Open()
+	bar0, err := device.Resources[0].OpenRW()
 	if err != nil {
 		return nil, fmt.Errorf("error opening bar0 MMIO resource: %v", err)
 	}
@@ -96,7 +96,7 @@ func (m *pciMigModeManager) openBar0ReadOnly(gpu int) (mmio.Mmio, error) {
 		return nil, fmt.Errorf("missing bar0 MMIO resource")
 	}
 
-	bar0, err := device.Resources[0].OpenReadOnly()
+	bar0, err := device.Resources[0].OpenRO()
 	if err != nil {
 		return nil, fmt.Errorf("error opening bar0 MMIO resource: %v", err)
 	}

@@ -17,6 +17,8 @@
 package nvml
 
 import (
+	"fmt"
+
 	"github.com/google/uuid"
 )
 
@@ -25,6 +27,7 @@ type MockLunaServer struct {
 }
 type MockA100Device struct {
 	UUID               string
+	PciBusID           string
 	Index              int
 	MigMode            int
 	GpuInstances       map[*MockA100GpuInstance]struct{}
@@ -328,6 +331,7 @@ func NewMockNVMLOnLunaServer() Interface {
 func NewMockA100Device(index int) Device {
 	return &MockA100Device{
 		UUID:               "GPU-" + uuid.New().String(),
+		PciBusID:           fmt.Sprintf("0000:%02x:00.0", index),
 		Index:              index,
 		GpuInstances:       make(map[*MockA100GpuInstance]struct{}),
 		GpuInstanceCounter: 0,
@@ -375,6 +379,15 @@ func (n *MockLunaServer) DeviceGetHandleByIndex(index int) (Device, Return) {
 func (n *MockLunaServer) DeviceGetHandleByUUID(uuid string) (Device, Return) {
 	for _, d := range n.Devices {
 		if uuid == d.(*MockA100Device).UUID {
+			return d, MockReturn(SUCCESS)
+		}
+	}
+	return nil, MockReturn(ERROR_INVALID_ARGUMENT)
+}
+
+func (n *MockLunaServer) DeviceGetHandleByPciBusId(busID string) (Device, Return) {
+	for _, d := range n.Devices {
+		if busID == d.(*MockA100Device).PciBusID {
 			return d, MockReturn(SUCCESS)
 		}
 	}

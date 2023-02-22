@@ -24,8 +24,6 @@ import (
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/util"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
 	"github.com/NVIDIA/mig-parted/pkg/types"
-
-	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
 )
 
 func ExportMigConfigs(c *Context) (*v1.Spec, error) {
@@ -35,15 +33,13 @@ func ExportMigConfigs(c *Context) (*v1.Spec, error) {
 	}
 	defer util.TryNvmlShutdown(c.Nvml)
 
-	nvpci := nvpci.New()
-	gpus, err := nvpci.GetGPUs()
+	deviceIDs, err := util.GetGPUDeviceIDs()
 	if err != nil {
 		return nil, fmt.Errorf("error enumerating GPUs: %v", err)
 	}
 
-	configSpecs := make(v1.MigConfigSpecSlice, len(gpus))
-	for i, gpu := range gpus {
-		deviceID := types.NewDeviceID(gpu.Device, gpu.Vendor)
+	configSpecs := make(v1.MigConfigSpecSlice, len(deviceIDs))
+	for i, deviceID := range deviceIDs {
 		deviceFilter := deviceID.String()
 
 		modeManager, err := util.NewMigModeManager()

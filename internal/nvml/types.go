@@ -27,6 +27,7 @@ type Interface interface {
 	DeviceGetCount() (int, Return)
 	DeviceGetHandleByIndex(Index int) (Device, Return)
 	DeviceGetHandleByUUID(UUID string) (Device, Return)
+	DeviceGetHandleByPciBusId(busID string) (Device, Return)
 }
 
 type Device interface {

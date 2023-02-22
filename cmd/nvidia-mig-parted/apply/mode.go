@@ -25,8 +25,6 @@ import (
 	"github.com/NVIDIA/mig-parted/pkg/mig/config"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
 	"github.com/NVIDIA/mig-parted/pkg/types"
-
-	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
 )
 
 func ApplyMigMode(c *Context) error {
@@ -42,13 +40,12 @@ func ApplyMigMode(c *Context) error {
 		}
 	}
 
-	nvpci := nvpci.New()
-	gpus, err := nvpci.GetGPUs()
+	deviceIDs, err := util.GetGPUDeviceIDs()
 	if err != nil {
 		return fmt.Errorf("error enumerating GPUs: %v", err)
 	}
 
-	pending := make([]bool, len(gpus))
+	pending := make([]bool, len(deviceIDs))
 	err = assert.WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
 		desiredMode := mode.Disabled
 		if mc.MigEnabled {
@@ -123,34 +120,13 @@ func ApplyMigMode(c *Context) error {
 	}
 
 	log.Debugf("At least one mode change pending")
-	log.Debugf("Resetting GPUs...")
-
-	if nvidiaModuleLoaded {
-		log.Debugf("  NVIDIA kernel module loaded")
-		log.Debugf("  Using nvidia-smi to perform GPU reset")
-		var pci []string
-		for _, gpu := range gpus {
-			if gpu.Is3DController() {
-				pci = append(pci, gpu.Address)
-			}
-		}
-		output, err := util.NvidiaSmiReset(pci...)
-		if err != nil {
-			log.Errorf("%v", output)
-			return fmt.Errorf("error resetting all GPUs: %v", err)
-		}
-	} else {
-		log.Debugf("  No NVIDIA kernel module loaded")
-		log.Debugf("  Using PCIe to perform GPU reset")
-		for i, gpu := range gpus {
-			if pending[i] {
-				err = gpu.Reset()
-				if err != nil {
-					return fmt.Errorf("error resetting GPU %v: %v", i, err)
-				}
-			}
-		}
+	log.Debugf("Resetting all GPUs...")
+	output, err := util.ResetAllGPUs()
+	if err != nil {
+		log.Errorf("\n%v", output)
+		return fmt.Errorf("error resetting all GPUs: %v", err)
 	}
+	log.Debugf("\n%v", output)
 
 	return nil
 }

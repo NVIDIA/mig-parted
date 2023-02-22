@@ -31,9 +31,14 @@ type mockPciMigModeManager struct {
 }
 
 func NewMockPciA100Device() (*mockPciMigModeManager, error) {
-	nvpci, err := nvpci.NewMockA100()
+	nvpci, err := nvpci.NewMockNvpci()
 	if err != nil {
 		return nil, fmt.Errorf("error creating Mock A100 PCI device: %v", err)
+	}
+
+	err = nvpci.AddMockA100("0000:80:05.1", 0)
+	if err != nil {
+		return nil, fmt.Errorf("error adding Mock A100 device to MockNvpci: %v", err)
 	}
 
 	mock := &mockPciMigModeManager{
@@ -45,7 +50,7 @@ func NewMockPciA100Device() (*mockPciMigModeManager, error) {
 }
 
 func (m *mockPciMigModeManager) Cleanup() {
-	m.nvpci.(*nvpci.MockA100).Cleanup()
+	m.nvpci.(*nvpci.MockNvpci).Cleanup()
 }
 
 func (m *mockPciMigModeManager) SetBooted(gpu int, booted bool) error {
