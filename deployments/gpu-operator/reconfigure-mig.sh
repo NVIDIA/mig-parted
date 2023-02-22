@@ -509,6 +509,12 @@ if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
 	fi
 fi
 
+echo "Restarting validator pod to re-run all validations"
+kubectl delete pod \
+	--field-selector "spec.nodeName=${NODE_NAME}" \
+	-n "${DEFAULT_GPU_CLIENTS_NAMESPACE}" \
+	-l app=nvidia-operator-validator
+
 echo "Restarting all GPU clients previously shutdown in Kubernetes by reenabling their component-specific nodeSelector labels"
 NO_RESTART_K8S_DAEMONSETS_ON_EXIT=true
 kubectl label --overwrite \
@@ -522,11 +528,5 @@ if [ "${?}" != "0" ]; then
 	echo "Unable to bring up GPU client components by setting their daemonset labels"
 	exit_failed
 fi
-
-echo "Restarting validator pod to re-run all validations"
-kubectl delete pod \
-	--field-selector "spec.nodeName=${NODE_NAME}" \
-	-n "${DEFAULT_GPU_CLIENTS_NAMESPACE}" \
-	-l app=nvidia-operator-validator
 
 exit_success
