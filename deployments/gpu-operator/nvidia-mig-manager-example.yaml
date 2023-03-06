@@ -237,7 +237,7 @@ data:
           mig-devices:
             "7g.96gb": 1
 
-      #  A100-40GB, A100-80GB, A800-40GB, A800-80GB, A30-24GB, PG506-96GB
+      # A100-40GB, A100-80GB, A800-40GB, A800-80GB, A30-24GB, PG506-96GB
       all-balanced:
         # A100-40GB
         - device-filter: ["0x20B010DE", "0x20B110DE", "0x20F110DE"]
