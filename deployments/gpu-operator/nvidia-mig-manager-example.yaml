@@ -159,21 +159,13 @@ data:
           mig-devices:
             "7g.40gb": 1
 
-      # A100-80GB, A800-80GB, A100-40GB, A800-40GB
+      # A100-80GB, A800-80GB
       all-1g.10gb:
-        # A100-80GB, A800-80GB
         - device-filter: ["0x20B210DE", "0x20B510DE", "0x20F310DE", "0x20F510DE"]
           devices: all
           mig-enabled: true
           mig-devices:
             "1g.10gb": 7
-
-        # A100-40GB, A800-40GB
-        - device-filter: ["0x20B010DE", "0x20B110DE", "0x20F110DE", "0x20F610DE"]
-          devices: all
-          mig-enabled: true
-          mig-devices:
-            "1g.10gb": 4
 
       all-2g.20gb:
         - devices: all
@@ -239,8 +231,8 @@ data:
 
       # A100-40GB, A100-80GB, A800-40GB, A800-80GB, A30-24GB, PG506-96GB
       all-balanced:
-        # A100-40GB
-        - device-filter: ["0x20B010DE", "0x20B110DE", "0x20F110DE"]
+        # A100-40GB, A800-40GB
+        - device-filter: ["0x20B010DE", "0x20B110DE", "0x20F110DE", "0x20F610DE"]
           devices: all
           mig-enabled: true
           mig-devices:
@@ -248,26 +240,8 @@ data:
             "2g.10gb": 1
             "3g.20gb": 1
 
-        # A100-80GB
-        - device-filter: ["0x20B210DE", "0x20B510DE"]
-          devices: all
-          mig-enabled: true
-          mig-devices:
-            "1g.10gb": 2
-            "2g.20gb": 1
-            "3g.40gb": 1
-
-        # A800-40GB
-        - device-filter: ["0x20F610DE"]
-          devices: all
-          mig-enabled: true
-          mig-devices:
-            "1g.5gb": 2
-            "2g.10gb": 1
-            "3g.20gb": 1
-
-        # A800-80GB
-        - device-filter: ["0x20F310DE", "0x20F510DE"]
+        # A100-80GB, A800-80GB
+        - device-filter: ["0x20B210DE", "0x20B510DE", "0x20F310DE", "0x20F510DE"]
           devices: all
           mig-enabled: true
           mig-devices:

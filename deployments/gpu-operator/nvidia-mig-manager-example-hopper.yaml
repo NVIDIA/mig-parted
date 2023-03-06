@@ -120,11 +120,11 @@ data:
           mig-devices:
             "2g.20gb": 3
 
-      all-4g.40gb:
+      all-3g.40gb:
         - devices: all
           mig-enabled: true
           mig-devices:
-            "4g.40gb": 1
+            "3g.40gb": 1
 
       all-7g.80gb:
         - devices: all
