@@ -107,30 +107,30 @@ data:
         - devices: all
           mig-enabled: false
 
-      # H100-80GB
+      # H100-80GB, H800-80GB
       all-1g.10gb:
         - devices: all
           mig-enabled: true
           mig-devices:
-            "1g.10gb": 8
+            "1g.10gb": 7
 
       all-2g.20gb:
         - devices: all
           mig-enabled: true
           mig-devices:
-            "2g.20gb": 4
+            "2g.20gb": 3
 
-      all-4g.40gb:
+      all-3g.40gb:
         - devices: all
           mig-enabled: true
           mig-devices:
-            "4g.40gb": 2
+            "3g.40gb": 2
 
-      all-8g.80gb:
+      all-7g.80gb:
         - devices: all
           mig-enabled: true
           mig-devices:
-            "8g.80gb": 1
+            "7g.80gb": 1
 
       all-balanced:
         - devices: all
@@ -138,4 +138,4 @@ data:
           mig-devices:
             "1g.10gb": 2
             "2g.20gb": 1
-            "4g.40gb": 1
+            "3g.40gb": 1
