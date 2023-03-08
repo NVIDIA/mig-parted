@@ -114,6 +114,18 @@ data:
           mig-devices:
             "1g.10gb": 7
 
+      all-1g.10gb.me:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "1g.10gb+me": 1
+
+      all-1g.20gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "1g.20gb": 4
+
       all-2g.20gb:
         - devices: all
           mig-enabled: true
