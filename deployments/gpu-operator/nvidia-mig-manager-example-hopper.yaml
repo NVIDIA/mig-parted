@@ -107,7 +107,7 @@ data:
         - devices: all
           mig-enabled: false
 
-      # H100-80GB
+      # H100-80GB, H800-80GB
       all-1g.10gb:
         - devices: all
           mig-enabled: true
