@@ -161,7 +161,6 @@ data:
 
       # A100-80GB, A800-80GB
       all-1g.10gb:
-        - device-filter: ["0x20B210DE", "0x20B510DE", "0x20F310DE", "0x20F510DE"]
           devices: all
           mig-enabled: true
           mig-devices:

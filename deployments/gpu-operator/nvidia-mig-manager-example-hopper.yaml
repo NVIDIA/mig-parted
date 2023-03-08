@@ -124,7 +124,7 @@ data:
         - devices: all
           mig-enabled: true
           mig-devices:
-            "3g.40gb": 1
+            "3g.40gb": 2
 
       all-7g.80gb:
         - devices: all
@@ -138,4 +138,4 @@ data:
           mig-devices:
             "1g.10gb": 2
             "2g.20gb": 1
-            "4g.40gb": 1
+            "3g.40gb": 1
