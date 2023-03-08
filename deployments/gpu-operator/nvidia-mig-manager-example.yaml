@@ -161,7 +161,7 @@ data:
 
       # A100-80GB, A800-80GB
       all-1g.10gb:
-          devices: all
+        - devices: all
           mig-enabled: true
           mig-devices:
             "1g.10gb": 7
