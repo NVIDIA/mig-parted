@@ -100,8 +100,8 @@ mig-configs:
 
   # H100-80GB, A100-40GB, A100-80GB, A800-40GB, A800-80GB, A30-24GB, PG506-96GB
   all-balanced:
-    # H100-80GB
-    - device-filter: ["0x233110DE"]
+    # H100-80GB, A100-80GB, A800-80GB
+    - device-filter: ["0x233110DE", "0x20B210DE", "0x20B510DE", "0x20F310DE", "0x20F510DE"]
       devices: all
       mig-enabled: true
       mig-devices:
@@ -117,15 +117,6 @@ mig-configs:
         "1g.5gb": 2
         "2g.10gb": 1
         "3g.20gb": 1
-
-    # A100-80GB, A800-80GB
-    - device-filter: ["0x20B210DE", "0x20B510DE", "0x20F310DE", "0x20F510DE"]
-      devices: all
-      mig-enabled: true
-      mig-devices:
-        "1g.10gb": 2
-        "2g.20gb": 1
-        "3g.40gb": 1
 
     # A30-24GB
     - device-filter: "0x20B710DE"
