@@ -133,6 +133,16 @@ maybe_remove_hooks_symlink
 maybe_remove_config_symlink
 
 %changelog
+* Thu Mar 09 2023 NVIDIA CORPORATION <cudatools@nvidia.com> 0.5.1-1
+- Update to latest CUDA image 12.0.1
+- Add newer MIG profiles supported with NVML 12.0 to default config.yaml files
+- Add profiles with media extensions for A30-24GB to default config.yaml files
+- Add H100 and H800 profiles to default config.yaml files
+- Add A800 profiles to default config.yaml files
+- Update all calls to enumerate GPUs to use NVML or PCI as appropriate
+- Bump vendored go-nvml to v12.0
+- Bump Golang version to 1.20.1
+
 * Thu Sep 08 2022 NVIDIA CORPORATION <cudatools@nvidia.com> 0.5.0-1
 - Bump CUDA base image to 11.7.1
 - Remove CUDA compat libs from mig-manager in favor of libs installed by the Driver

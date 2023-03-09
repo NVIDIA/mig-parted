@@ -19,7 +19,7 @@ FROM golang:${GOLANG_VERSION} AS go-build
 
 WORKDIR /build
 COPY . .
-RUN go build -o /artifacts/nvidia-mig-parted ./cmd
+RUN go build -o /artifacts/nvidia-mig-parted ./cmd/nvidia-mig-parted
 
 # build package
 FROM ${BASE_IMAGE}
