@@ -1,3 +1,16 @@
+nvidia-mig-manager (0.5.1-1) UNRELEASED; urgency=medium
+
+  * Update to latest CUDA image 12.0.1
+  * Add newer MIG profiles supported with NVML 12.0 to default config.yaml files
+  * Add profiles with media extensions for A30-24GB to default config.yaml files
+  * Add H100 and H800 profiles to default config.yaml files
+  * Add A800 profiles to default config.yaml files
+  * Update all calls to enumerate GPUs to use NVML or PCI as appropriate
+  * Bump vendored go-nvml to v12.0
+  * Bump Golang version to 1.20.1
+
+ -- NVIDIA CORPORATION <cudatools@nvidia.com>  Thu, 09 Mar 2023 11:12:52 +0200
+
 nvidia-mig-manager (0.5.0-1) UNRELEASED; urgency=medium
 
   * Bump CUDA base image to 11.7.1
