@@ -123,6 +123,7 @@ func TestMarshallUnmarshall(t *testing.T) {
 		},
 	}
 
+	types.SetMockNVdevlib()
 	y, err := yaml.Marshal(spec)
 	require.Nil(t, err, "Unexpected failure yaml.Marshal")
 
