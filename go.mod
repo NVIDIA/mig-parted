@@ -3,7 +3,7 @@ module github.com/NVIDIA/mig-parted
 go 1.20
 
 require (
-	github.com/NVIDIA/go-nvml v0.12.0-0
+	github.com/NVIDIA/go-nvml v0.12.0-1
 	github.com/google/uuid v1.1.2
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.7.0
