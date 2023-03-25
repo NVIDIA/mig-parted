@@ -161,7 +161,7 @@ func (s *MigConfigSpec) UnmarshalJSON(b []byte) error {
 			if err != nil {
 				return err
 			}
-			err = devices.AssertValid()
+			err = devices.AssertValidFormat()
 			if err != nil {
 				return fmt.Errorf("error validating values in '%v' field: %v", k, err)
 			}
