@@ -44,7 +44,7 @@ func (m *MigConfigGroupBase) GetPossibleConfigurations() []MigConfig {
 
 // AssertValidConfiguration checks to ensure that the supplied 'MigConfig' is both valid and part of the 'MigConfigGroup'.
 func (m *MigConfigGroupBase) AssertValidConfiguration(config MigConfig) error {
-	err := config.AssertValid()
+	err := config.AssertValidFormat()
 	if err != nil {
 		return fmt.Errorf("invalid MigConfig: %v", err)
 	}

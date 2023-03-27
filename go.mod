@@ -3,12 +3,12 @@ module github.com/NVIDIA/mig-parted
 go 1.20
 
 require (
-	github.com/NVIDIA/go-nvml v0.12.0-0
+	github.com/NVIDIA/go-nvml v0.12.0-1
 	github.com/google/uuid v1.1.2
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
-	gitlab.com/nvidia/cloud-native/go-nvlib v0.0.0-20230209143738-95328d8c4438
+	gitlab.com/nvidia/cloud-native/go-nvlib v0.0.0-20230327171225-18ad7cd513cf
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.21.0
 	k8s.io/apimachinery v0.21.0

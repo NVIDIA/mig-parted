@@ -15,6 +15,18 @@ mig-configs:
       mig-devices:
         "1g.5gb": 7
 
+  all-1g.5gb.me:
+    - devices: all
+      mig-enabled: true
+      mig-devices:
+        "1g.5gb+me": 1
+
+  all-1g.10gb:
+    - devices: all
+      mig-enabled: true
+      mig-devices:
+        "1g.10gb": 4
+
   all-2g.10gb:
     - devices: all
       mig-enabled: true

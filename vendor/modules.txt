@@ -1,4 +1,4 @@
-# github.com/NVIDIA/go-nvml v0.12.0-0
+# github.com/NVIDIA/go-nvml v0.12.0-1
 ## explicit; go 1.15
 github.com/NVIDIA/go-nvml/pkg/dl
 github.com/NVIDIA/go-nvml/pkg/nvml
@@ -78,8 +78,10 @@ github.com/stretchr/testify/require
 # github.com/urfave/cli/v2 v2.3.0
 ## explicit; go 1.11
 github.com/urfave/cli/v2
-# gitlab.com/nvidia/cloud-native/go-nvlib v0.0.0-20230209143738-95328d8c4438
-## explicit; go 1.16
+# gitlab.com/nvidia/cloud-native/go-nvlib v0.0.0-20230327171225-18ad7cd513cf
+## explicit; go 1.20
+gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvlib/device
+gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvml
 gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci
 gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci/bytes
 gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci/mmio

@@ -36,13 +36,13 @@ func NewMigConfig(mps []*MigProfile) MigConfig {
 	return config
 }
 
-// AssertValid checks to ensure that all of the 'MigProfiles's making up a 'MigConfig' are valid.
-func (m MigConfig) AssertValid() error {
+// AssertValidFormat checks to ensure that all of the 'MigProfiles's making up a 'MigConfig' are of a valid format.
+func (m MigConfig) AssertValidFormat() error {
 	if len(m) == 0 {
 		return nil
 	}
 	for k, v := range m {
-		_, err := ParseMigProfile(k)
+		err := AssertValidMigProfileFormat(k)
 		if err != nil {
 			return fmt.Errorf("invalid format for '%v': %v", k, err)
 		}
@@ -128,7 +128,7 @@ func (m MigConfig) Flatten() []*MigProfile {
 		if mps[j].C < mps[i].C {
 			return true
 		}
-		return strings.Join(mps[j].Attributes(), ",") < strings.Join(mps[i].Attributes(), ",")
+		return strings.Join(mps[j].Attributes, ",") < strings.Join(mps[i].Attributes, ",")
 	})
 	return mps
 }

@@ -28,6 +28,15 @@ func TestMarshallUnmarshall(t *testing.T) {
 	spec := Spec{
 		Version: "v1",
 		MigConfigs: map[string]MigConfigSpecSlice{
+			"valid-format-non-existant-devices": []MigConfigSpec{
+				{
+					Devices:    "all",
+					MigEnabled: true,
+					MigDevices: types.MigConfig{
+						"0g.0gb": 100,
+					},
+				},
+			},
 			"all-disabled": []MigConfigSpec{
 				{
 					DeviceFilter: "A100-SXM4-40GB",
@@ -114,6 +123,7 @@ func TestMarshallUnmarshall(t *testing.T) {
 		},
 	}
 
+	types.SetMockNVdevlib()
 	y, err := yaml.Marshal(spec)
 	require.Nil(t, err, "Unexpected failure yaml.Marshal")
 

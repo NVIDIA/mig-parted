@@ -128,6 +128,7 @@ func TestValidConfiguration(t *testing.T) {
 		},
 	}
 
+	types.SetMockNVdevlib()
 	configs := GetKnownMigConfigGroups()
 
 	for _, tc := range testCases {

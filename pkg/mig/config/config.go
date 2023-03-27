@@ -79,7 +79,10 @@ func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
 	migConfig := types.MigConfig{}
 	err = m.nvlib.Mig.Device(device).WalkGpuInstances(func(gi nvml.GpuInstance, giProfileID int, giProfileInfo nvml.GpuInstanceProfileInfo) error {
 		err := m.nvlib.Mig.GpuInstance(gi).WalkComputeInstances(func(ci nvml.ComputeInstance, ciProfileID int, ciEngProfileID int, ciProfileInfo nvml.ComputeInstanceProfileInfo) error {
-			mp := types.NewMigProfile(giProfileID, ciProfileID, ciEngProfileID, &giProfileInfo, &ciProfileInfo, deviceMemory.Total)
+			mp, err := types.NewMigProfile(giProfileID, ciProfileID, ciEngProfileID, giProfileInfo.MemorySizeMB, deviceMemory.Total)
+			if err != nil {
+				return fmt.Errorf("error creating new MIG profile for (%v, %v, %v): %v", giProfileID, ciProfileID, ciEngProfileID, err)
+			}
 			migConfig[mp.String()]++
 			return nil
 		})
@@ -149,7 +152,6 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 			if ret.Value() != nvml.SUCCESS {
 				return fmt.Errorf("error getting GPU instance profile info for '%v': %v", mp, ret)
 			}
-
 			reuseGI := (gi != nil) && (lastGIProfileID == mp.GIProfileID)
 			lastGIProfileID = mp.GIProfileID
 
@@ -179,7 +181,10 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 					return fmt.Errorf("error creating Compute instance for '%v': %v", mp, ret)
 				}
 
-				valid := types.NewMigProfile(mp.GIProfileID, mp.CIProfileID, mp.CIEngProfileID, &giProfileInfo, &ciProfileInfo, deviceMemory.Total)
+				valid, err := types.NewMigProfile(mp.GIProfileID, mp.CIProfileID, mp.CIEngProfileID, giProfileInfo.MemorySizeMB, deviceMemory.Total)
+				if err != nil {
+					return fmt.Errorf("error creating new MIG profile for %v: %v", mp, err)
+				}
 				if !mp.Equals(valid) {
 					if reuseGI {
 						reuseGI = false
