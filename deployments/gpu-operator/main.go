@@ -26,7 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -45,6 +45,8 @@ const (
 	DefaultHostMigManagerStateFile   = "/etc/systemd/system/nvidia-mig-manager.service.d/override.conf"
 	DefaultHostKubeletSystemdService = "kubelet.service"
 	DefaultGPUClientsNamespace       = "default"
+	DefaultDriverRoot                = "/run/nvidia/driver"
+	DefaultDriverRootCtrPath         = "/run/nvidia/driver"
 )
 
 var (
@@ -60,6 +62,10 @@ var (
 	hostMigManagerStateFileFlag    string
 	hostKubeletSystemdServiceFlag  string
 	defaultGPUClientsNamespaceFlag string
+
+	cdiEnabledFlag    bool
+	driverRoot        string
+	driverRootCtrPath string
 )
 
 type GPUClients struct {
@@ -200,6 +206,28 @@ func main() {
 			Destination: &defaultGPUClientsNamespaceFlag,
 			EnvVars:     []string{"DEFAULT_GPU_CLIENTS_NAMESPACE"},
 		},
+		&cli.StringFlag{
+			Name:        "driver-root",
+			Aliases:     []string{"t"},
+			Value:       DefaultDriverRoot,
+			Usage:       "Root path to the NVIDIA driver installation. Only used if --cdi-enabled is set.",
+			Destination: &driverRoot,
+			EnvVars:     []string{"DRIVER_ROOT"},
+		},
+		&cli.StringFlag{
+			Name:        "driver-root-ctr-path",
+			Aliases:     []string{"a"},
+			Value:       DefaultDriverRootCtrPath,
+			Usage:       "Root path to the NVIDIA driver installation mounted in the container. Only used if --cdi-enabled is set.",
+			Destination: &driverRootCtrPath,
+			EnvVars:     []string{"DRIVER_ROOT_CTR_PATH"},
+		},
+		&cli.BoolFlag{
+			Name:        "cdi-enabled",
+			Usage:       "Enable CDI support",
+			Destination: &cdiEnabledFlag,
+			EnvVars:     []string{"CDI_ENABLED"},
+		},
 	}
 
 	err := c.Run(os.Args)
@@ -287,6 +315,9 @@ func runScript(migConfigValue string) error {
 		"-g", strings.Join(gpuClients.SystemdServices, ","),
 		"-k", hostKubeletSystemdServiceFlag,
 		"-p", defaultGPUClientsNamespaceFlag,
+	}
+	if cdiEnabledFlag {
+		args = append(args, "-e", "-t", driverRoot, "-a", driverRootCtrPath)
 	}
 	if withRebootFlag {
 		args = append(args, "-r")

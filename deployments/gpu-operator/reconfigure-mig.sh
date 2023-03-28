@@ -25,30 +25,36 @@ NODE_NAME=""
 MIG_CONFIG_FILE=""
 SELECTED_MIG_CONFIG=""
 DEFAULT_GPU_CLIENTS_NAMESPACE=""
+CDI_ENABLED="false"
+DRIVER_ROOT=""
+DRIVER_ROOT_CTR_PATH=""
 
 export SYSTEMD_LOG_LEVEL="info"
 
 function usage() {
   echo "USAGE:"
   echo "    ${0} -h "
-  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> -t <driver-root> -a <driver-root-ctr-path> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
   echo ""
   echo "OPTIONS:"
-  echo "    -h                                   Display this help message"
-  echo "    -r                                   Automatically reboot the node if changing the MIG mode fails for any reason"
-  echo "    -d                                   Automatically shutdown/restart any required host GPU clients across a MIG configuration"
-  echo "    -n <node>                            The kubernetes node to change the MIG configuration on"
-  echo "    -f <config-file>                     The mig-parted configuration file"
-  echo "    -c <selected-config>                 The selected mig-parted configuration to apply to the node"
-  echo "    -m <host-root-mount>                 Container path where host root directory is mounted"
-  echo "    -i <host-nvidia-dir>                 Host path of the directory where NVIDIA managed software directory is typically located"
-  echo "    -o <host-mig-manager-state-file>     Host path where the systemd mig-manager state file is located"
-  echo "    -g <host-gpu-client-services>        Comma separated list of host systemd services to shutdown/restart across a MIG reconfiguration"
-  echo "    -k <host-kubelet-service>            Name of the host's 'kubelet' systemd service which may need to be shutdown/restarted across a MIG mode reconfiguration"
-  echo "    -p <default-gpu-clients-namespace>   Default name of the Kubernetes Namespace in which the GPU client Pods are installed in"
+  echo "    -h                                            Display this help message"
+  echo "    -r                                            Automatically reboot the node if changing the MIG mode fails for any reason"
+  echo "    -d                                            Automatically shutdown/restart any required host GPU clients across a MIG configuration"
+  echo "    -e                                            Enable CDI support"
+  echo "    -n <node>                                     The kubernetes node to change the MIG configuration on"
+  echo "    -f <config-file>                              The mig-parted configuration file"
+  echo "    -c <selected-config>                          The selected mig-parted configuration to apply to the node"
+  echo "    -m <host-root-mount>                          Container path where host root directory is mounted"
+  echo "    -i <host-nvidia-dir>                          Host path of the directory where NVIDIA managed software directory is typically located"
+  echo "    -o <host-mig-manager-state-file>              Host path where the systemd mig-manager state file is located"
+  echo "    -g <host-gpu-client-services>                 Comma separated list of host systemd services to shutdown/restart across a MIG reconfiguration"
+  echo "    -k <host-kubelet-service>                     Name of the host's 'kubelet' systemd service which may need to be shutdown/restarted across a MIG mode reconfiguration"
+  echo "    -p <default-gpu-clients-namespace>            Default name of the Kubernetes Namespace in which the GPU client Pods are installed in"
+  echo "    -t <driver-root>                              Root path to the NVIDIA driver installation"
+  echo "    -a <driver-root-ctr-path>                     Root path to the NVIDIA driver installation mounted in the container"
 }
 
-while getopts "hrdn:f:c:m:i:o:g:k:p:" opt; do
+while getopts "hrden:f:c:m:i:o:g:k:p:t:a:" opt; do
   case ${opt} in
     h ) # process option h
       usage; exit 0
@@ -58,6 +64,9 @@ while getopts "hrdn:f:c:m:i:o:g:k:p:" opt; do
       ;;
     d ) # process option d
       WITH_SHUTDOWN_HOST_GPU_CLIENTS="true"
+      ;;
+    e) # process option e
+      CDI_ENABLED="true"
       ;;
     n ) # process option n
       NODE_NAME=${OPTARG}
@@ -86,7 +95,13 @@ while getopts "hrdn:f:c:m:i:o:g:k:p:" opt; do
     p ) # process option p
       DEFAULT_GPU_CLIENTS_NAMESPACE=${OPTARG}
       ;;
-    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+    t ) # process option t
+      DRIVER_ROOT=${OPTARG}
+      ;;
+    a ) # process option a
+      DRIVER_ROOT_CTR_PATH=${OPTARG}
+      ;;
+    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path>] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
       ;;
   esac
 done
@@ -106,6 +121,16 @@ fi
 if [ "${DEFAULT_GPU_CLIENTS_NAMESPACE}" = "" ]; then
   echo "Error: missing -p <default-gpu-clients-namespace> flag"
   usage; exit 1
+fi
+if [ "${CDI_ENABLED}" = "true" ]; then
+	if [ "${DRIVER_ROOT}" = "" ]; then
+	echo "Error: missing -t <driver-root> flag"
+	usage; exit 1
+	fi
+	if [ "${DRIVER_ROOT_CTR_PATH}" = "" ]; then
+	echo "Error: missing -a <driver-root-ctr-path> flag"
+	usage; exit 1
+	fi
 fi
 
 HOST_GPU_CLIENT_SERVICES=(${HOST_GPU_CLIENT_SERVICES//,/ })
@@ -160,11 +185,11 @@ function __set_state_and_exit() {
 	fi
 
 	exit ${exit_code}
-}	
+}
 
 function exit_success() {
 	__set_state_and_exit "success" 0
-}	
+}
 
 function exit_failed() {
 	__set_state_and_exit "failed" 1
@@ -497,6 +522,35 @@ echo "Applying the selected MIG config to the node"
 nvidia-mig-parted -d apply -f ${MIG_CONFIG_FILE} -c ${SELECTED_MIG_CONFIG}
 if [ "${?}" != "0" ]; then
 	exit_failed
+fi
+
+if [ "${CDI_ENABLED}" = "true" ]; then
+	echo "Running nvidia-smi"
+	chroot ${DRIVER_ROOT_CTR_PATH} nvidia-smi >/dev/null
+	if [ "${?}" != "0" ]; then
+		exit_failed
+	fi
+
+	echo "Creating NVIDIA control device nodes"
+	nvidia-ctk system create-device-nodes --control-devices --driver-root=${DRIVER_ROOT_CTR_PATH}
+	if [ "${?}" != "0" ]; then
+		exit_failed
+	fi
+
+	echo "Creating management CDI spec"
+	nvidia-ctk cdi generate --mode=management \
+		--driver-root=${DRIVER_ROOT_CTR_PATH} \
+		--vendor="management.nvidia.com" \
+		--class="gpu" \
+		--nvidia-ctk-path="/usr/local/nvidia/toolkit/nvidia-ctk" | \
+			nvidia-ctk cdi transform root \
+				--from=$DRIVER_ROOT_CTR_PATH \
+				--to=$DRIVER_ROOT \
+				--input="-" \
+				--output="/var/run/cdi/management.nvidia.com-gpu.yaml"
+	if [ "${?}" != "0" ]; then
+		exit_failed
+	fi
 fi
 
 if [ "${WITH_SHUTDOWN_HOST_GPU_CLIENTS}" = "true" ]; then
