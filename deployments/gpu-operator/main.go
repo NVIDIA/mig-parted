@@ -23,6 +23,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/NVIDIA/mig-parted/internal/info"
 	log "github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
@@ -109,6 +110,7 @@ func main() {
 	c := cli.NewApp()
 	c.Before = validateFlags
 	c.Action = start
+	c.Version = info.GetVersionString()
 
 	c.Flags = []cli.Flag{
 		&cli.StringFlag{

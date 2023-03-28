@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-MODULE := github.com/NVIDIA/mig-parted
-
 DOCKER ?= docker
 
 include $(CURDIR)/versions.mk
@@ -44,6 +42,12 @@ DOCKER_TARGETS := $(patsubst %, docker-%, $(TARGETS))
 .PHONY: $(TARGETS) $(DOCKER_TARGETS)
 
 GOOS := linux
+ifeq ($(VERSION),)
+CLI_VERSION = $(LIB_VERSION)$(if $(LIB_TAG),-$(LIB_TAG))
+else
+CLI_VERSION = $(VERSION)
+endif
+CLI_VERSION_PACKAGE = $(MODULE)/internal/info
 
 binaries: cmds
 ifneq ($(PREFIX),)
@@ -51,7 +55,7 @@ cmd-%: COMMAND_BUILD_OPTIONS = -o $(PREFIX)/$(*)
 endif
 cmds: $(CMD_TARGETS)
 $(CMD_TARGETS): cmd-%:
-	GOOS=$(GOOS) go build -ldflags "-s -w" $(COMMAND_BUILD_OPTIONS) $(MODULE)/cmd/$(*)
+	GOOS=$(GOOS) go build -ldflags "-extldflags=-Wl,-z,lazy -s -w -X $(CLI_VERSION_PACKAGE).gitCommit=$(GIT_COMMIT) -X $(CLI_VERSION_PACKAGE).version=$(CLI_VERSION)" $(COMMAND_BUILD_OPTIONS) $(MODULE)/cmd/$(*)
 
 build:
 	GOOS=$(GOOS) go build $(MODULE)/...
