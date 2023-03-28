@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION ?= 0.5.1
+VERSION ?= 0.5.2
 
 vVERSION := v$(VERSION:v%=%)
 
-CUDA_VERSION := 12.0.1
+CUDA_VERSION := 12.1.0
 GOLANG_VERSION := 1.20.1
