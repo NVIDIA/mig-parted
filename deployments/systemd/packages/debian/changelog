@@ -1,3 +1,14 @@
+nvidia-mig-manager (0.5.2-1) UNRELEASED; urgency=medium
+
+  * Update to latest CUDA image 12.1.0
+  * Update k8s-mig-manager to support CDI
+  * Add two new example configs for the newly supported profiles on A100
+  * Update MIG profile code to rely on go-nvlib
+  * Update vendored go-nvlib to latest
+  * Update NVML wrapper to include MIG profiles from NVML v12.0
+
+ -- NVIDIA CORPORATION <cudatools@nvidia.com>  Tue, 28 Mar 2023 13:36:29 +0200
+
 nvidia-mig-manager (0.5.1-1) UNRELEASED; urgency=medium
 
   * Update to latest CUDA image 12.0.1

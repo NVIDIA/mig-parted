@@ -133,6 +133,14 @@ maybe_remove_hooks_symlink
 maybe_remove_config_symlink
 
 %changelog
+* Tue Mar 28 2023 NVIDIA CORPORATION <cudatools@nvidia.com> 0.5.2-1
+- Update to latest CUDA image 12.1.0
+- Update k8s-mig-manager to support CDI
+- Add two new example configs for the newly supported profiles on A100
+- Update MIG profile code to rely on go-nvlib
+- Update vendored go-nvlib to latest
+- Update NVML wrapper to include MIG profiles from NVML v12.0
+
 * Thu Mar 09 2023 NVIDIA CORPORATION <cudatools@nvidia.com> 0.5.1-1
 - Update to latest CUDA image 12.0.1
 - Add newer MIG profiles supported with NVML 12.0 to default config.yaml files
