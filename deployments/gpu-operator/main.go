@@ -39,7 +39,7 @@ const (
 	ResourceNodes  = "nodes"
 	MigConfigLabel = "nvidia.com/mig.config"
 
-	DefaultReconfigureScript         = "/usr/bin/reconfigure-mig.sh"
+	DefaultReconfigureScript         = "/usr/bin/reconfigure-mig.go"
 	DefaultHostRootMount             = "/host"
 	DefaultHostNvidiaDir             = "/usr/local/nvidia"
 	DefaultHostMigManagerStateFile   = "/etc/systemd/system/nvidia-mig-manager.service.d/override.conf"
@@ -325,10 +325,11 @@ func runScript(migConfigValue string) error {
 	if withShutdownHostGPUClientsFlag {
 		args = append(args, "-d")
 	}
-	cmd := exec.Command(reconfigureScriptFlag, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	hostGPUClientServices := strings.Join(gpuClients.SystemdServices, ",")
+	if err := reconfigure(nodeNameFlag, configFileFlag, migConfigValue, hostRootMountFlag, hostNvidiaDirFlag, hostMigManagerStateFileFlag, hostGPUClientServices, hostKubeletSystemdServiceFlag, defaultGPUClientsNamespaceFlag, cdiEnabledFlag, driverRoot, driverRootCtrPath, withRebootFlag, withShutdownHostGPUClientsFlag); err != nil{
+		return err
+	}
+	return nil
 }
 
 func ContinuouslySyncMigConfigChanges(clientset *kubernetes.Clientset, migConfig *SyncableMigConfig) chan struct{} {
