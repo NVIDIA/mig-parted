@@ -19,7 +19,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
+	// "os/exec"
 	"strings"
 	"sync"
 
@@ -39,7 +39,7 @@ const (
 	ResourceNodes  = "nodes"
 	MigConfigLabel = "nvidia.com/mig.config"
 
-	DefaultReconfigureScript         = "/usr/bin/reconfigure-mig.go"
+	DefaultReconfigureScript         = "/usr/bin/reconfigure-mig.sh"
 	DefaultHostRootMount             = "/host"
 	DefaultHostNvidiaDir             = "/usr/local/nvidia"
 	DefaultHostMigManagerStateFile   = "/etc/systemd/system/nvidia-mig-manager.service.d/override.conf"
@@ -325,7 +325,8 @@ func runScript(migConfigValue string) error {
 	if withShutdownHostGPUClientsFlag {
 		args = append(args, "-d")
 	}
-	hostGPUClientServices := strings.Join(gpuClients.SystemdServices, ",")
+	// hostGPUClientServices := strings.Join(gpuClients.SystemdServices, ",")
+	hostGPUClientServices := gpuClients.SystemdServices
 	if err := reconfigure(nodeNameFlag, configFileFlag, migConfigValue, hostRootMountFlag, hostNvidiaDirFlag, hostMigManagerStateFileFlag, hostGPUClientServices, hostKubeletSystemdServiceFlag, defaultGPUClientsNamespaceFlag, cdiEnabledFlag, driverRoot, driverRootCtrPath, withRebootFlag, withShutdownHostGPUClientsFlag); err != nil{
 		return err
 	}
