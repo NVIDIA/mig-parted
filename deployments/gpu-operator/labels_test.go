@@ -19,16 +19,35 @@ package main
 import "testing"
 
 func TestMaybeSetTrue(t *testing.T) {
-	//Test 1: value is "false"
-	result := maybeSetTrue("false")
-	if result != "false" {
-		t.Errorf("Expected 'false', got '%s'", result)
+	testCases := []struct{
+		description string
+		input string
+		expected string
+	}{
+		{
+			description: "value is 'false'",
+			input: "false",
+			expected: "false",
+		},
+		{
+			description: "value is 'true'",
+			input: "true",
+			expected: "true",
+		},
+		{
+			description: "value is 'paused'",
+			input: "paused",
+			expected: "true",
+		},
 	}
 
-	//Test 2: value is "true"
-	result = maybeSetTrue("true")
-	if result != "true" {
-		t.Errorf("Expected 'true', got '%s'", result)
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			result := maybeSetTrue(tc.input)
+			if result != tc.expected {
+				require.Equal(t, tc.expected, result)
+			}
+		})
 	}
 }
 
