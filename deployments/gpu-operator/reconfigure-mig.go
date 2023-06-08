@@ -487,8 +487,7 @@ func hostStopSystemdServices(hostRootMount string, hostGPUClientServices []strin
 }
 
 // Applying the MIG mode change from the selected config to the node (and double checking it took effect)
-func applyMIGModeChange(migConfigProperties migConfig, selectedMIGConfig string,
-	nodeName string, withReboot bool, hostRootMount string, currentLabels map[string]string, hostGPUClientServices []string, withShutdownHostGPUClients bool) error {
+func applyMIGModeChange(migConfigProperties migConfig, selectedMIGConfig string) (bool, error) {
 
 	applyCmd := exec.Command(migConfigProperties.migParted, "-d", "apply", "--mode-only", "-f", migConfigProperties.migConfigFile, "-c", selectedMIGConfig)
 	if err := applyCmd.Run(); err != nil {
