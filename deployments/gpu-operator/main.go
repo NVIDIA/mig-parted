@@ -17,9 +17,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
-	// "os/exec"
 	"strings"
 	"sync"
 
@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"sigs.k8s.io/yaml"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -106,6 +107,11 @@ func (m *SyncableMigConfig) Get() string {
 }
 
 func main() {
+
+	klog.InitFlags(nil)
+	defer klog.Flush()
+	flag.Parse()
+
 	c := cli.NewApp()
 	c.Before = validateFlags
 	c.Action = start
@@ -325,9 +331,8 @@ func runScript(migConfigValue string) error {
 	if withShutdownHostGPUClientsFlag {
 		args = append(args, "-d")
 	}
-	// hostGPUClientServices := strings.Join(gpuClients.SystemdServices, ",")
-	hostGPUClientServices := gpuClients.SystemdServices
-	if err := reconfigure(nodeNameFlag, configFileFlag, migConfigValue, hostRootMountFlag, hostNvidiaDirFlag, hostMigManagerStateFileFlag, hostGPUClientServices, hostKubeletSystemdServiceFlag, defaultGPUClientsNamespaceFlag, cdiEnabledFlag, driverRoot, driverRootCtrPath, withRebootFlag, withShutdownHostGPUClientsFlag); err != nil{
+
+	if err := reconfigure(nodeNameFlag, configFileFlag, migConfigValue, hostRootMountFlag, hostNvidiaDirFlag, hostMigManagerStateFileFlag, gpuClients.SystemdServices, hostKubeletSystemdServiceFlag, defaultGPUClientsNamespaceFlag, cdiEnabledFlag, driverRoot, driverRootCtrPath, withRebootFlag, withShutdownHostGPUClientsFlag); err != nil{
 		return err
 	}
 	return nil

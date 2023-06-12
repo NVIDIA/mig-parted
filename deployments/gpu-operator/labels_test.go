@@ -16,33 +16,73 @@
 
 package main
 
-import "testing"
+import (
+	"testing"
+	"github.com/stretchr/testify/require"
+)
 
 func TestMaybeSetTrue(t *testing.T) {
-	//Test 1: value is "false"
-	result := maybeSetTrue("false")
-	if result != "false" {
-		t.Errorf("Expected 'false', got '%s'", result)
+	testCases := []struct{
+		description string
+		input string
+		expected string
+	}{
+		{
+			description: "value is 'false'",
+			input: "false",
+			expected: "false",
+		},
+		{
+			description: "value is 'true'",
+			input: "true",
+			expected: "true",
+		},
+		{
+			description: "value is 'paused'",
+			input: "paused",
+			expected: "true",
+		},
 	}
 
-	//Test 2: value is "true"
-	result = maybeSetTrue("true")
-	if result != "true" {
-		t.Errorf("Expected 'true', got '%s'", result)
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			result := maybeSetTrue(tc.input)
+			if result != tc.expected {
+				require.Equal(t, tc.expected, result)
+			}
+		})
 	}
 }
 
 func TestMaybeSetPaused(t *testing.T) {
-	//Test 1: value is "false"
-	result := maybeSetPaused("false")
-	if result != "false" {
-		t.Errorf("Expected 'false', got '%s'", result)
+	testCases := []struct{
+		description string
+		input string
+		expected string
+	}{
+		{
+			description: "value is 'false'",
+			input: "false",
+			expected: "false",
+		},
+		{
+			description: "value is 'true'",
+			input: "true",
+			expected: "paused-for-mig-change",
+		},
+		{
+			description: "value is 'paused'",
+			input: "paused",
+			expected: "paused-for-mig-change",
+		},
 	}
 
-	//Test 2: value is "true"
-	result = maybeSetPaused("true")
-	if result != "paused-for-mig-change" {
-		t.Errorf("Expected 'paused-for-mig-change', got '%s'", result)
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			result := maybeSetPaused(tc.input)
+			if result != tc.expected {
+				require.Equal(t, tc.expected, result)
+			}
+		})
 	}
 }
-

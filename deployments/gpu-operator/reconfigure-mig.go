@@ -17,7 +17,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -43,27 +42,17 @@ type migConfig struct {
 func reconfigure(nodeName string, migConfigFile string, selectedMIGConfig string, hostRootMount string, hostNvidiaDir string, hostMIGManagerStateFile string, hostGPUClientServices []string, hostKubeletServices string,
 	defaultGPUClientsNamespace string, CDIEnabled bool, driverRoot string, driverRootCTRPath string, withReboot bool, withShutdownHostGPUClients bool) error {
 
-	klog.InitFlags(nil)
-	defer klog.Flush()
-	flag.Parse()
-
 	/*
 		preparing the environment to use MIG inorder to stop GPU client services
 		i/p: withShutdownHostGPUClients, hostRootMount, hostNvidiaDir, migConfigFile
 		o/p: sets -> nvidia-mig-parted, migConfigFile
 		exp: mig-parted should be on the container (we will be using it in our script)
 	*/
-	nvidiaMigPartedAlias, migConfigFile, err := initMigParted(hostRootMount, hostNvidiaDir, withShutdownHostGPUClients, migConfigFile)
-	if err != nil {
-		return err
-	}
-
-	// Declaring and initializing a struct using a struct literal
-	migConfigProperties := migConfig{nvidiaMigPartedAlias, migConfigFile}
+	migConfigProperties := initMigParted(hostRootMount, hostNvidiaDir, withShutdownHostGPUClients, migConfigFile)
 
 	/*
 		retrieves current values of kubernetes node labels
-		i/p: nodeName, (device-plugin, gpu-feature-discovery, dcgm-exporter, dcgm, nvsm)
+		i/p: nodeName
 		o/p: current value of labels
 	*/
 	currentLabels, err := getCurrentLabels(nodeName)
@@ -76,9 +65,9 @@ func reconfigure(nodeName string, migConfigFile string, selectedMIGConfig string
 		i/p: migConfigFile, selectedMigConfig
 		o/p: true or false
 	*/
-	if err := assertConfigPresent(migConfigProperties, selectedMIGConfig); err != nil {
-		setState("failed", 1, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
-		return err
+	if err := migConfigProperties.assertConfigPresent(selectedMIGConfig); err != nil {
+		return setState("failed", err, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
+
 	}
 
 	/*
@@ -88,8 +77,7 @@ func reconfigure(nodeName string, migConfigFile string, selectedMIGConfig string
 	*/
 	state, err := currentStateLabel(nodeName)
 	if err != nil {
-		setState("failed", 1, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
-		return err
+		return setState("failed", err, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
 	}
 
 	/*
@@ -97,18 +85,17 @@ func reconfigure(nodeName string, migConfigFile string, selectedMIGConfig string
 		i/p: nvidiaMigPartedAlias, migConfigFile, selectedMIGConfig
 		o/p: True or false
 	*/
-	if isMigConfigCurrentlyApplied(migConfigProperties, selectedMIGConfig) == true {
-		setState("success", 0, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
-		return nil
+	if migConfigProperties.isMigConfigCurrentlyApplied(selectedMIGConfig) == true {
+		return setState("success", nil, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
 	}
 
 	/*
-		TODO: rightConfigApplied
+		TODO: persistingMIGConfig
 		ensuring that right config is applied to the node if the MIG Parted is also installed as a systemd service
 		i/p: hostRootMount, hostMIGManagerStateFile, selectedMIGConfig, currentLabels, hostGPUClientServices, nodeName, withShutdownHostGPUClients
 		o/p: true or false
 
-		if err := rightConfigApplied(hostRootMount, hostMIGManagerStateFile, selectedMIGConfig, currentLabels, hostGPUClientServices, nodeName, withShutdownHostGPUClients); err != nil{
+		if err := persistingMIGConfig(hostRootMount, hostMIGManagerStateFile, selectedMIGConfig, currentLabels, hostGPUClientServices, nodeName, withShutdownHostGPUClients); err != nil{
 			return err
 		}
 	*/
@@ -119,11 +106,10 @@ func reconfigure(nodeName string, migConfigFile string, selectedMIGConfig string
 		     hostKubeletServices, migModeChangeRequired
 		o/p: migModeChangeRequired
 	*/
-	if err := migModeSettingApplied(migConfigProperties, selectedMIGConfig); err != nil {
+	if err := migConfigProperties.migModeSettingApplied(selectedMIGConfig); err != nil {
 		if state == "rebooting" {
 			fmt.Println("MIG mode change did not take effect after rebooting")
-			setState("failed", 1, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
-			return err
+			return setState("failed", err, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
 		}
 		if withShutdownHostGPUClients == true {
 			hostGPUClientServices = append(hostGPUClientServices, hostKubeletServices)
@@ -137,8 +123,7 @@ func reconfigure(nodeName string, migConfigFile string, selectedMIGConfig string
 	*/
 	if err := setStateToX(nodeName, "pending"); err != nil {
 		fmt.Println("Unable to set the value of 'nvidia.com/mig.config.state' to 'pending'")
-		setState("failed", 1, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
-		return err
+		return setState("failed", err, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
 	}
 
 	/*
@@ -156,8 +141,20 @@ func reconfigure(nodeName string, migConfigFile string, selectedMIGConfig string
 		applied successfully
 		i/p: migConfigFile, selectedMIGConfig, withReboot, nodeName, hostRootMount
 	*/
-	if err := applyMIGModeChange(migConfigProperties, selectedMIGConfig, nodeName, withReboot, hostRootMount, currentLabels, hostGPUClientServices, withShutdownHostGPUClients); err != nil {
-		return err
+	if check, err := migConfigProperties.applyMIGModeChange(selectedMIGConfig, withReboot); err != nil {
+		if check == true {
+			fmt.Println("Changing the 'nvidia.com/mig.config.state' node label to 'rebooting'")
+			if err := setStateToX(nodeName, "rebooting"); err != nil {
+				fmt.Println("Unable to set the value of 'nvidia.com/mig.config.state' to 'rebooting'")
+				fmt.Println("Exiting so as not to reboot multiple times unexpectedly")
+				_ = setState("failed", err, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
+			}
+
+			cmdRoot := exec.Command("chroot", hostRootMount, "reboot")
+			if err := cmdRoot.Run(); err != nil {
+				fmt.Println("Failed to reboot the node: ", err)
+			}
+		}
 	}
 
 	/*
@@ -165,9 +162,8 @@ func reconfigure(nodeName string, migConfigFile string, selectedMIGConfig string
 		i/p: migConfigFile, selectedMIGConfig
 		o/p: true or false (error)
 	*/
-	if err := applyMigConfig(migConfigProperties, selectedMIGConfig, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName); err != nil {
-		setState("failed", 1, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
-		return err
+	if err := migConfigProperties.applyMigConfig(selectedMIGConfig, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName); err != nil {
+		return setState("failed", err, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
 	}
 
 	/*
@@ -177,15 +173,13 @@ func reconfigure(nodeName string, migConfigFile string, selectedMIGConfig string
 			defaultGPUClientsNamespace, noRestartK8sDaemonsetsOnExit, currentLabels
 	*/
 	if err := restartingGPUClients(currentLabels, withShutdownHostGPUClients, defaultGPUClientsNamespace, hostRootMount, hostGPUClientServices, nodeName); err != nil {
-		setState("failed", 1, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
-		return err
+		return setState("failed", err, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
 	}
 
-	setState("success", 0, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
-	return nil
+	return setState("success", nil, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
 }
 
-func setState(state string, exitCode int, currentLabels map[string]string, hostGPUClientServices []string, withShutdownHostGPUClients bool, hostRootMount string, nodeName string) {
+func setState(state string, err error, currentLabels map[string]string, hostGPUClientServices []string, withShutdownHostGPUClients bool, hostRootMount string, nodeName string) error {
 
 	if withShutdownHostGPUClients == true {
 		if noRestartHostSystemdServicesOnExit != true {
@@ -193,7 +187,6 @@ func setState(state string, exitCode int, currentLabels map[string]string, hostG
 			ret := hostStartSystemdServices(hostRootMount, hostGPUClientServices)
 			if ret != nil {
 				fmt.Println("Unable to restart host systemd services")
-				exitCode = 1
 			}
 		}
 	}
@@ -213,44 +206,37 @@ func setState(state string, exitCode int, currentLabels map[string]string, hostG
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			fmt.Println("Unable to bring up GPU client pods by setting their daemonset labels")
-			exitCode = 1
 		}
 	}
 
+
 	fmt.Printf("Changing the 'nvidia.com/mig.config.state' node label to '%s'\n", state)
-	cmd := fmt.Sprintf("label --overwrite node %s nvidia.com/mig.config.state='%s'", nodeName, state)
-	_, err := getCmdOutput(cmd)
-	if err != nil {
-		fmt.Printf("Unable to set 'nvidia.com/mig.config.state' to '%s'\n", state)
-		fmt.Println("Exiting with incorrect value in 'nvidia.com/mig.config.state'")
-		exitCode = 1
-	}
-	os.Exit(exitCode)
+	_ = setStateToX(nodeName, state)
+	return err
 }
 
 // initMigParted sets up mig-parted on the host if required and sets the config file.
-func initMigParted(hostRootMount string, hostNvidiaDir string, withShutdownHostGpuClinets bool, migConfigFile string) (string, string, error) {
+func initMigParted(hostRootMount string, hostNvidiaDir string, withShutdownHostGpuClinets bool, migConfigFile string) migConfig {
 	if !withShutdownHostGpuClinets {
-		return "nvidia-mig-parted", migConfigFile, nil
+		return migConfig{"nvidia-mig-parted", migConfigFile}
 	}
 	os.MkdirAll(fmt.Sprintf("%s/%s/mig-manager/", hostRootMount, hostNvidiaDir), 0755)
 	exec.Command("cp ${which nvidia-mig-parted}", fmt.Sprintf("%s/%s/mig-manager/nvidia-mig-parted", hostRootMount, hostNvidiaDir)).Run()
 	exec.Command("cp", migConfigFile, fmt.Sprintf("%s/%s/mig-manager/config.yaml", hostRootMount, hostNvidiaDir)).Run()
 	nvidiaMigPartedAlias := fmt.Sprintf("chroot %s %s/mig-manager/nvidia-mig-parted", hostRootMount, hostNvidiaDir)
 	migConfigFile = fmt.Sprintf("%s/mig-manager/config.yaml", hostNvidiaDir)
-	return nvidiaMigPartedAlias, migConfigFile, nil
+	return migConfig{nvidiaMigPartedAlias, migConfigFile}
 }
 
-// Getting current value of the 'nvidia.com/gpu.deploy.__' node label,
-//
-//	and saving values in a map "currentLabels"
+
 func getCmdOutput(key string) (string, error) {
 	cmd := exec.Command(key)
 	stdout, err := cmd.Output()
 	str := string(stdout)
 	return str, err
 }
-
+// Getting current value of the 'nvidia.com/gpu.deploy.__' node label,
+//	and saving values in a map "currentLabels"
 func getCurrentLabels(nodeName string) (map[string]string, error) {
 	components := []string{
 		"device-plugin",
@@ -274,8 +260,8 @@ func getCurrentLabels(nodeName string) (map[string]string, error) {
 }
 
 // Asserting that the requested configuration is present in the configuration file
-func assertConfigPresent(migConfigProperties migConfig, selectedMIGConfig string) error {
-	_, err := getCmdOutput(fmt.Sprintf("%s assert --valid-config -f %s -c %s", migConfigProperties.migParted, migConfigProperties.migConfigFile, selectedMIGConfig))
+func (c migConfig) assertConfigPresent(selectedMIGConfig string) error {
+	_, err := getCmdOutput(fmt.Sprintf("%s assert --valid-config -f %s -c %s", c.migParted, c.migConfigFile, selectedMIGConfig))
 	if err != nil {
 		return fmt.Errorf("Unable to validate the selected MIG configuration: %w", err)
 	}
@@ -294,15 +280,15 @@ func currentStateLabel(nodeName string) (string, error) {
 }
 
 // Checking if the selected MIG config is currently applied or not
-func isMigConfigCurrentlyApplied(migConfigProperties migConfig, selectedMIGConfig string) bool {
-	cmd := exec.Command(migConfigProperties.migParted, "assert", "-f", migConfigProperties.migConfigFile, "-c", selectedMIGConfig)
+func (c migConfig) isMigConfigCurrentlyApplied(selectedMIGConfig string) bool {
+	cmd := exec.Command(c.migParted, "assert", "-f", c.migConfigFile, "-c", selectedMIGConfig)
 	if err := cmd.Run(); err != nil {
 		return false
 	}
 	return true
 }
 
-func rightConfigApplied(hostRootMount string, hostMIGManagerStateFile string, selectedMIGConfig string, currentLabels map[string]string, hostGPUClientServices []string, nodeName string, withShutdownHostGPUClients bool) error {
+func persistingMIGConfig(hostRootMount string, hostMIGManagerStateFile string, selectedMIGConfig string, currentLabels map[string]string, hostGPUClientServices []string, nodeName string, withShutdownHostGPUClients bool) error {
 	if hostRootMount == "" || hostMIGManagerStateFile == "" {
 		return fmt.Errorf("Either container or host path is missing")
 	}
@@ -310,7 +296,7 @@ func rightConfigApplied(hostRootMount string, hostMIGManagerStateFile string, se
 		fmt.Printf("Persisting %v to %v \n", selectedMIGConfig, hostMIGManagerStateFile)
 		if err := hostPersistConfig(selectedMIGConfig, hostRootMount, hostMIGManagerStateFile); err != nil {
 			fmt.Printf("Unable to persist %v to %v \n", selectedMIGConfig, hostMIGManagerStateFile)
-			setState("failed", 1, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
+			_ = setState("failed", err, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
 		}
 	}
 	return nil
@@ -331,10 +317,10 @@ func hostPersistConfig(selectedMIGConfig string, hostRootMount string, hostMIGMa
 	return nil
 }
 
-func migModeSettingApplied(migConfigProperties migConfig, selectedMIGConfig string) error {
+func (c migConfig) migModeSettingApplied(selectedMIGConfig string) error {
 	fmt.Println("Checking if the MIG mode setting in the selected config is currently applied or not")
 	fmt.Println("If the state is 'rebooting', we expect this to always return true")
-	cmd := exec.Command(migConfigProperties.migParted, "assert", "--mode-only", "-f", migConfigProperties.migConfigFile, "-c", selectedMIGConfig)
+	cmd := exec.Command(c.migParted, "assert", "--mode-only", "-f", c.migConfigFile, "-c", selectedMIGConfig)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("mig Mode setting not applied")
 	}
@@ -364,7 +350,7 @@ func shuttingGPUClients(currentLabels map[string]string, nodeName string, defaul
 	_, err := getCmdOutput(cmd)
 	if err != nil {
 		fmt.Println("Unable to tear down GPU client pods by setting their daemonset labels")
-		setState("failed", 1, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
+		_ = setState("failed", err, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
 	}
 
 	// shutting down pods & removing validator pods
@@ -377,7 +363,7 @@ func shuttingGPUClients(currentLabels map[string]string, nodeName string, defaul
 		fmt.Println("Shutting down all GPU clients on the host by stopping their systemd services")
 		if err := hostStopSystemdServices(hostRootMount, hostGPUClientServices); err != nil {
 			fmt.Println("Unable to shutdown GPU clients on host by stopping their systemd services")
-			setState("failed", 1, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
+			_ = setState("failed", err, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
 		}
 		if migModeChangeRequired {
 			time.Sleep(30 * time.Second)
@@ -487,46 +473,27 @@ func hostStopSystemdServices(hostRootMount string, hostGPUClientServices []strin
 }
 
 // Applying the MIG mode change from the selected config to the node (and double checking it took effect)
-func applyMIGModeChange(migConfigProperties migConfig, selectedMIGConfig string,
-	nodeName string, withReboot bool, hostRootMount string, currentLabels map[string]string, hostGPUClientServices []string, withShutdownHostGPUClients bool) error {
+func (c migConfig) applyMIGModeChange(selectedMIGConfig string, withReboot bool) (bool, error) {
 
-	applyCmd := exec.Command(migConfigProperties.migParted, "-d", "apply", "--mode-only", "-f", migConfigProperties.migConfigFile, "-c", selectedMIGConfig)
+	applyCmd := exec.Command(c.migParted, "-d", "apply", "--mode-only", "-f", c.migConfigFile, "-c", selectedMIGConfig)
 	if err := applyCmd.Run(); err != nil {
-		fmt.Println("Failed to apply MIG mode change: ", err)
+		klog.Info("Failed to apply MIG mode change: ", err)
 	}
 
-	if err := migModeSettingApplied(migConfigProperties, selectedMIGConfig); err != nil {
-		fmt.Println("Failed to assert MIG mode change: ", err)
-		if withReboot {
-			rebootNode(nodeName, hostRootMount, currentLabels, hostGPUClientServices, withShutdownHostGPUClients)
+	if err := c.migModeSettingApplied(selectedMIGConfig); err != nil {
+		klog.Info("Failed to assert MIG mode change: ", err)
+		if withReboot == true {			
+			return true, err
 		}
-		return err
 	}
 	klog.Info("MIG mode change applied successfully")
-	return nil
+	return withReboot, nil
 }
 
-func rebootNode(nodeName string, hostRootMount string, currentLabels map[string]string, hostGPUClientServices []string, withShutdownHostGPUClients bool) {
 
-	fmt.Println("Changing the 'nvidia.com/mig.config.state' node label to 'rebooting'")
-
-	if err := setStateToX(nodeName, "rebooting"); err != nil {
-		fmt.Println("Unable to set the value of 'nvidia.com/mig.config.state' to 'rebooting'")
-		fmt.Println("Exiting so as not to reboot multiple times unexpectedly")
-		setState("failed", 1, currentLabels, hostGPUClientServices, withShutdownHostGPUClients, hostRootMount, nodeName)
-		return
-	}
-
-	cmdRoot := exec.Command("chroot", hostRootMount, "reboot")
-	if err := cmdRoot.Run(); err != nil {
-		fmt.Println("Failed to reboot the node: ", err)
-		os.Exit(0)
-	}
-}
-
-func applyMigConfig(migConfigProperties migConfig, selectedMIGConfig string, currentLabels map[string]string, hostGPUClientServices []string, withShutdownHostGPUClients bool, hostRootMount string, nodeName string) error {
-	fmt.Println("Applying the selected MIG config to the node")
-	cmd := exec.Command(migConfigProperties.migParted, "-d", "apply", "-f", migConfigProperties.migConfigFile, "-c", selectedMIGConfig)
+func (c migConfig) applyMigConfig(selectedMIGConfig string, currentLabels map[string]string, hostGPUClientServices []string, withShutdownHostGPUClients bool, hostRootMount string, nodeName string) error {
+	klog.Info("Applying the selected MIG config to the node")
+	cmd := exec.Command(c.migParted, "-d", "apply", "-f", c.migConfigFile, "-c", selectedMIGConfig)
 	if err := cmd.Run(); err != nil {
 		return err
 	}
@@ -539,7 +506,7 @@ func applyMigConfig(migConfigProperties migConfig, selectedMIGConfig string, cur
 func restartingGPUClients(currentLabels map[string]string, withShutdownHostGPUClients bool, defaultGPUClientsNamespace string, hostRootMount string, hostGPUClientServices []string, nodeName string) error {
 
 	if withShutdownHostGPUClients {
-		fmt.Println("Restarting all GPU clients previously shutdown on the host by restarting their systemd services")
+		klog.Info("Restarting all GPU clients previously shutdown on the host by restarting their systemd services")
 		noRestartHostSystemdServicesOnExit = true
 		err := hostStartSystemdServices(hostRootMount, hostGPUClientServices)
 		if err != nil {
@@ -548,7 +515,7 @@ func restartingGPUClients(currentLabels map[string]string, withShutdownHostGPUCl
 	}
 
 	// before k8 host_start_systemd_services
-	fmt.Println("Restarting all GPU clients previously shutdown in Kubernetes by reenabling their component-specific nodeSelector labels")
+	klog.Info("Restarting all GPU clients previously shutdown in Kubernetes by reenabling their component-specific nodeSelector labels")
 	noRestartK8sDaemonsetsOnExit = true
 	label := []string{"kubectl label --overwrite node ${NODE_NAME}"}
 	for k, v := range currentLabels {
@@ -562,7 +529,7 @@ func restartingGPUClients(currentLabels map[string]string, withShutdownHostGPUCl
 		return err
 	}
 
-	fmt.Println("Restarting validator pod to re-run all validations")
+	klog.Info("Restarting validator pod to re-run all validations")
 	run := exec.Command("kubectl", "delete", "pod", "--field-selector",
 		fmt.Sprintf("spec.nodeName=%s", nodeName),
 		"-n", defaultGPUClientsNamespace,
