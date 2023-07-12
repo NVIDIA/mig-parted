@@ -133,6 +133,10 @@ maybe_remove_hooks_symlink
 maybe_remove_config_symlink
 
 %changelog
+* Wed Jul 12 2023 NVIDIA CORPORATION <cudatools@nvidia.com> 0.5.3-1
+- Update to latest CUDA image 12.2.0
+- Update example config for Hopper with H100 NVL and H800 NVL
+
 * Tue Mar 28 2023 NVIDIA CORPORATION <cudatools@nvidia.com> 0.5.2-1
 - Update to latest CUDA image 12.1.0
 - Update k8s-mig-manager to support CDI
