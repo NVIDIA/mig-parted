@@ -43,12 +43,12 @@ chmod a+rx ${CONFIG_DIR}
 chmod a+rx ${OVERRIDE_DIR}
 chmod a+rx ${PROFILED_DIR}
 
-${DOCKER} run \
+${DOCKER} run --rm \
 	-v ${BINARY_DIR}:/dest \
 	golang:1.20.1 \
 	sh -c "
-	go install github.com/NVIDIA/mig-parted/cmd@latest
-	mv /go/bin/cmd /dest/nvidia-mig-parted
+	go install $MIG_PARTED_GO_GET_PATH@latest
+	mv /go/bin/nvidia-mig-parted /dest/nvidia-mig-parted
 	"
 
 cp ${SERVICE_NAME}       ${SYSTEMD_DIR}
