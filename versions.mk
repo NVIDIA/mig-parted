@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION ?= 0.5.2
+VERSION ?= 0.5.4
 
 vVERSION := v$(VERSION:v%=%)
 
-CUDA_VERSION := 12.1.0
+CUDA_VERSION := 12.2.0
 GOLANG_VERSION := 1.20.1
 
-NVIDIA_CTK_VERSION := f6983969ad5d67b84adfda8eee5b43083790ff22
+NVIDIA_CTK_VERSION := v1.13.4
