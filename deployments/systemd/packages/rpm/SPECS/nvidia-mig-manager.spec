@@ -133,6 +133,9 @@ maybe_remove_hooks_symlink
 maybe_remove_config_symlink
 
 %changelog
+* Thu Oct 18 2023 NVIDIA CORPORATION <cudatools@nvidia.com> 0.5.5-1
+- Update to latest CUDA base image 12.2.2
+
 * Thu Sep 7 2023 NVIDIA CORPORATION <cudatools@nvidia.com> 0.5.4-1
 - Update MIG config for Hopper with device ID of H100 80GB HBM3 SKU
 

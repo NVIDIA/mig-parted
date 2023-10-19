@@ -1,3 +1,9 @@
+nvidia-mig-manager (0.5.5-1) UNRELEASED; urgency=medium
+
+  * Update to latest CUDA base image 12.2.2
+
+ -- NVIDIA CORPORATION <cudatools@nvidia.com>  Thu, 18 Oct 2023 02:16:57 +0200
+
 nvidia-mig-manager (0.5.4-1) UNRELEASED; urgency=medium
 
   * Update MIG config for Hopper with device ID of H100 80GB HBM3 SKU
