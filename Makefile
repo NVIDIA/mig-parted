@@ -27,11 +27,8 @@ BUILDIMAGE ?= $(IMAGE_NAME)-build:$(BUILDIMAGE_TAG)
 EXAMPLES := $(patsubst ./examples/%/,%,$(sort $(dir $(wildcard ./examples/*/))))
 EXAMPLE_TARGETS := $(patsubst %,example-%,$(EXAMPLES))
 
-# The automatic detection of commands does not work in this case, were subcommands exist as
-# folders under the cmd folder.
-# CMDS := $(patsubst ./cmd/%/,%,$(sort $(dir $(wildcard ./cmd/*/))))
-CMDS := nvidia-mig-parted
-CMD_TARGETS := $(patsubst %,cmd-%,$(CMDS))
+CMDS := $(patsubst ./cmd/%/,%,$(sort $(dir $(wildcard ./cmd/*/))))
+CMD_TARGETS := $(patsubst %,cmd-%, $(CMDS))
 
 CHECK_TARGETS := assert-fmt vet lint ineffassign misspell
 MAKE_TARGETS := binaries build check fmt lint-internal test examples cmds coverage generate $(CHECK_TARGETS)
