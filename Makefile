@@ -133,8 +133,8 @@ $(DOCKER_TARGETS): docker-%: .build-image
 	$(DOCKER) run \
 		--rm \
 		-e GOCACHE=/tmp/.cache \
-		-v $(PWD):$(PWD) \
-		-w $(PWD) \
+		-v $(PWD):/work \
+		-w /work \
 		--user $$(id -u):$$(id -g) \
 		$(BUILDIMAGE) \
 			make $(*)
@@ -146,8 +146,8 @@ PHONY: .shell
 		--rm \
 		-ti \
 		-e GOCACHE=/tmp/.cache \
-		-v $(PWD):$(PWD) \
-		-w $(PWD) \
+		-v $(PWD):/work \
+		-w /work \
 		--user $$(id -u):$$(id -g) \
 		$(BUILDIMAGE)
 
