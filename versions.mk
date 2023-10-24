@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION ?= 0.5.5
+MODULE := github.com/NVIDIA/mig-parted
+VERSION ?= v0.5.5
 
 vVERSION := v$(VERSION:v%=%)
 
@@ -20,3 +21,5 @@ CUDA_VERSION := 12.2.2
 GOLANG_VERSION := 1.20.1
 
 NVIDIA_CTK_VERSION := v1.13.4
+
+GIT_COMMIT ?= $(shell git describe --match="" --dirty --long --always --abbrev=40 2> /dev/null || echo "")

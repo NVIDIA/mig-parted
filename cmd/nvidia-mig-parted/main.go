@@ -25,6 +25,7 @@ import (
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/export"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/restore"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/util"
+	"github.com/NVIDIA/mig-parted/internal/info"
 	log "github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 )
@@ -43,7 +44,7 @@ func main() {
 	c.UseShortOptionHandling = true
 	c.EnableBashCompletion = true
 	c.Usage = "Manage MIG partitions across the full set of NVIDIA GPUs on a node"
-	c.Version = "0.5.5"
+	c.Version = info.GetVersionString()
 
 	// Setup the flags for this command
 	c.Flags = []cli.Flag{
