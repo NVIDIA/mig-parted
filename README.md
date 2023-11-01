@@ -151,12 +151,13 @@ To build from source, please follow one of the methods below.
 
 #### Use `docker` with `go install`:
 ```
-${DOCKER} run \
+docker run \
+    --rm \
     -v $(pwd):/dest \
-    golang:1.16.4 \
+    golang:1.20.1 \
     sh -c "
-    go install github.com/NVIDIA/mig-parted/cmd@latest
-    mv /go/bin/cmd /dest/nvidia-mig-parted
+    go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted@latest
+    mv /go/bin/nvidia-mig-parted /dest/nvidia-mig-parted
     "
 ```
 
