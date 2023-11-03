@@ -25,6 +25,8 @@ build-dev-image:
 
 .requires-build-image:
   image: "${BUILDIMAGE}"
+  needs:
+    - build-dev-image
 
 .go-check:
   extends:
@@ -93,6 +95,8 @@ unit-tests:
     - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
   script:
     - make -f deployments/gpu-operator/Makefile build-${DIST}
+  needs:
+    - trigger-pipeline
 
 image-ubi8:
   extends:
