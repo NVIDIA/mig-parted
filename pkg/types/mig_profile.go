@@ -17,7 +17,7 @@
 package types
 
 import (
-	nvdev "gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvlib/device"
+	nvdev "github.com/NVIDIA/go-nvlib/pkg/nvlib/device"
 )
 
 const (

@@ -24,7 +24,7 @@ import (
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/types"
 
-	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
+	"github.com/NVIDIA/go-nvlib/pkg/nvpci"
 )
 
 func GetGPUDeviceIDs() ([]types.DeviceID, error) {

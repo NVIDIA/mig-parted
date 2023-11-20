@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
+	"github.com/NVIDIA/go-nvlib/pkg/nvpci"
 )
 
 type mockPciMigModeManager struct {
