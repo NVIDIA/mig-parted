@@ -22,8 +22,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
-	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci/mmio"
+	"github.com/NVIDIA/go-nvlib/pkg/nvpci"
+	"github.com/NVIDIA/go-nvlib/pkg/nvpci/mmio"
 )
 
 const (
