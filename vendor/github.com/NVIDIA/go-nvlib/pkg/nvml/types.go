@@ -30,6 +30,7 @@ type Interface interface {
 	ErrorString(r Return) string
 	EventSetCreate() (EventSet, Return)
 	Init() Return
+	Lookup(string) error
 	Shutdown() Return
 	SystemGetCudaDriverVersion() (int, Return)
 	SystemGetDriverVersion() (string, Return)
@@ -58,8 +59,11 @@ type Device interface {
 	GetMigMode() (int, int, Return)
 	GetMinorNumber() (int, Return)
 	GetName() (string, Return)
+	GetNvLinkRemotePciInfo(int) (PciInfo, Return)
+	GetNvLinkState(int) (EnableState, Return)
 	GetPciInfo() (PciInfo, Return)
 	GetSupportedEventTypes() (uint64, Return)
+	GetTopologyCommonAncestor(Device) (GpuTopologyLevel, Return)
 	GetUUID() (string, Return)
 	IsMigDeviceHandle() (bool, Return)
 	RegisterEvents(uint64, EventSet) Return
@@ -144,3 +148,9 @@ type DeviceArchitecture nvml.DeviceArchitecture
 
 // BrandType represents the brand of a GPU device
 type BrandType nvml.BrandType
+
+// GpuTopologyLevel represents level relationships within a system between two GPUs
+type GpuTopologyLevel nvml.GpuTopologyLevel
+
+// EnableState represents a generic enable/disable enum
+type EnableState nvml.EnableState

@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/pciids"
+	"github.com/NVIDIA/go-nvlib/pkg/pciids"
 )
 
 const (
@@ -39,6 +39,10 @@ const (
 	PCI3dControllerClass uint32 = 0x030200
 	// PCINvSwitchClass represents the PCI class for NVSwitches
 	PCINvSwitchClass uint32 = 0x068000
+	// UnknownDeviceString is the device name to set for devices not found in the PCI database
+	UnknownDeviceString = "UNKNOWN_DEVICE"
+	// UnknownClassString is the class name to set for devices not found in the PCI database
+	UnknownClassString = "UNKNOWN_CLASS"
 )
 
 // Interface allows us to get a list of all NVIDIA PCI devices
@@ -64,7 +68,9 @@ type ResourceInterface interface {
 }
 
 type nvpci struct {
+	logger         logger
 	pciDevicesRoot string
+	pcidbPath      string
 }
 
 var _ Interface = (*nvpci)(nil)
@@ -124,14 +130,43 @@ func (d *NvidiaPCIDevice) Reset() error {
 }
 
 // New interface that allows us to get a list of all NVIDIA PCI devices
-func New() Interface {
-	return NewFrom(PCIDevicesRoot)
+func New(opts ...Option) Interface {
+	n := &nvpci{}
+	for _, opt := range opts {
+		opt(n)
+	}
+	if n.logger == nil {
+		n.logger = &simpleLogger{}
+	}
+	if n.pciDevicesRoot == "" {
+		n.pciDevicesRoot = PCIDevicesRoot
+	}
+	return n
 }
 
-// NewFrom interface allows us to get a list of all NVIDIA PCI devices at a specific root directory
-func NewFrom(root string) Interface {
-	return &nvpci{
-		pciDevicesRoot: root,
+// Option defines a function for passing options to the New() call
+type Option func(*nvpci)
+
+// WithLogger provides an Option to set the logger for the library
+func WithLogger(logger logger) Option {
+	return func(n *nvpci) {
+		n.logger = logger
+	}
+}
+
+// WithPCIDevicesRoot provides an Option to set the root path
+// for PCI devices on the system.
+func WithPCIDevicesRoot(root string) Option {
+	return func(n *nvpci) {
+		n.pciDevicesRoot = root
+	}
+}
+
+// WithPCIDatabasePath provides an Option to set the path
+// to the pciids database file.
+func WithPCIDatabasePath(path string) Option {
+	return func(n *nvpci) {
+		n.pcidbPath = path
 	}
 }
 
@@ -282,6 +317,17 @@ func (p *nvpci) GetGPUByPciBusID(address string) (*NvidiaPCIDevice, error) {
 
 	pciDB := pciids.NewDB()
 
+	deviceName, err := pciDB.GetDeviceName(uint16(vendorID), uint16(deviceID))
+	if err != nil {
+		p.logger.Warningf("unable to get device name: %v\n", err)
+		deviceName = UnknownDeviceString
+	}
+	className, err := pciDB.GetClassName(uint32(classID))
+	if err != nil {
+		p.logger.Warningf("unable to get class name for device: %v\n", err)
+		className = UnknownClassString
+	}
+
 	nvdevice := &NvidiaPCIDevice{
 		Path:       devicePath,
 		Address:    address,
@@ -294,8 +340,8 @@ func (p *nvpci) GetGPUByPciBusID(address string) (*NvidiaPCIDevice, error) {
 		Config:     config,
 		Resources:  resources,
 		IsVF:       isVF,
-		DeviceName: pciDB.GetDeviceName(uint16(vendorID), uint16(deviceID)),
-		ClassName:  pciDB.GetClassName(uint32(classID)),
+		DeviceName: deviceName,
+		ClassName:  className,
 	}
 
 	return nvdevice, nil
