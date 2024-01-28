@@ -24,11 +24,6 @@ variables:
 
 stages:
   - trigger
-  - image
-  - lint
-  - go-checks
-  - go-build
-  - unit-tests
   - package-build
   - image-build
   - test
