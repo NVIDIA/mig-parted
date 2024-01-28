@@ -48,8 +48,7 @@ func (ms *MigConfigSpec) MatchesDeviceFilter(deviceID types.DeviceID) bool {
 
 // MatchesAllDevices checks a 'MigConfigSpec' to see if it matches on 'all' devices.
 func (ms *MigConfigSpec) MatchesAllDevices() bool {
-	switch devices := ms.Devices.(type) {
-	case string:
+	if devices, ok := ms.Devices.(string); ok {
 		return devices == "all"
 	}
 	return false
@@ -57,8 +56,7 @@ func (ms *MigConfigSpec) MatchesAllDevices() bool {
 
 // MatchesDevices checks a 'MigConfigSpec' to see if it matches on a device at the specified 'index'.
 func (ms *MigConfigSpec) MatchesDevices(index int) bool {
-	switch devices := ms.Devices.(type) {
-	case []int:
+	if devices, ok := ms.Devices.([]int); ok {
 		for _, d := range devices {
 			if index == d {
 				return true

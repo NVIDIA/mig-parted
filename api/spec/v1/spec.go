@@ -57,8 +57,7 @@ func (s *Spec) UnmarshalJSON(b []byte) error {
 
 	result := Spec{}
 	for k, v := range spec {
-		switch k {
-		case "version":
+		if k == "version" {
 			var version string
 			err := json.Unmarshal(v, &version)
 			if err != nil {
