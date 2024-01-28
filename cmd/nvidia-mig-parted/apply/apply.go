@@ -184,7 +184,7 @@ func (c *Context) ApplyMigConfig() error {
 func applyWrapper(c *cli.Context, f *Flags) error {
 	err := CheckFlags(f)
 	if err != nil {
-		cli.ShowSubcommandHelp(c)
+		_ = cli.ShowSubcommandHelp(c)
 		return err
 	}
 

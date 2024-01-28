@@ -82,7 +82,7 @@ func CheckFlags(f *Flags) error {
 func checkpointWrapper(c *cli.Context, f *Flags) error {
 	err := CheckFlags(f)
 	if err != nil {
-		cli.ShowSubcommandHelp(c)
+		_ = cli.ShowSubcommandHelp(c)
 		return err
 	}
 

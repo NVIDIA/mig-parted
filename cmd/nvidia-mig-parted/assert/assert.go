@@ -104,7 +104,7 @@ func BuildCommand() *cli.Command {
 func assertWrapper(c *cli.Context, f *Flags) error {
 	err := CheckFlags(f)
 	if err != nil {
-		cli.ShowSubcommandHelp(c)
+		_ = cli.ShowSubcommandHelp(c)
 		return err
 	}
 
