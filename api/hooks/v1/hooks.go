@@ -77,7 +77,7 @@ func (h *HookSpec) Run(envs EnvsMap, output bool) error {
 }
 
 // Combine merges to EnvMaps together
-// Overlapping enviroment variables from e2 take precendence over those in e.
+// Overlapping environment variables from e2 take precedence over those in e.
 func (e EnvsMap) Combine(e2 EnvsMap) EnvsMap {
 	combined := make(EnvsMap)
 	for k, v := range e {

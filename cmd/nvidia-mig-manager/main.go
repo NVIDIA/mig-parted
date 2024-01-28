@@ -275,7 +275,7 @@ func start(c *cli.Context) error {
 			log.Errorf("Error: %s", err)
 			continue
 		}
-		log.Infof("Successfuly updated to MIG config: %s", value)
+		log.Infof("Successfully updated to MIG config: %s", value)
 	}
 }
 

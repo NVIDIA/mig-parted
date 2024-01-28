@@ -28,7 +28,7 @@ func TestMarshallUnmarshall(t *testing.T) {
 	spec := Spec{
 		Version: "v1",
 		MigConfigs: map[string]MigConfigSpecSlice{
-			"valid-format-non-existant-devices": []MigConfigSpec{
+			"valid-format-non-existent-devices": []MigConfigSpec{
 				{
 					Devices:    "all",
 					MigEnabled: true,
