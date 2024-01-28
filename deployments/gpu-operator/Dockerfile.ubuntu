@@ -12,18 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ARG CUDA_VERSION=12.2.0
 ARG BASE_DIST=ubuntu20.04
-ARG CUDA_VERSION
-ARG GOLANG_VERSION=x.x.x
-
-# NOTE: In cases where the libc version is a concern, we would have to use an
-# image based on the target OS to build the golang executables here -- especially
-# if cgo code is included.
-FROM golang:${GOLANG_VERSION} AS build
+FROM nvidia/cuda:${CUDA_VERSION}-base-${BASE_DIST} as build
 
 SHELL ["/bin/bash", "-c"]
 
-ARG TARGETARCH
+RUN apt-get update && \
+    apt-get install -y wget make git gcc curl \
+    && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG GOLANG_VERSION=1.20.4
+RUN set -eux; \
+    \
+    arch="$(uname -m)"; \
+    case "${arch##*-}" in \
+        x86_64 | amd64) ARCH='amd64' ;; \
+        ppc64el | ppc64le) ARCH='ppc64le' ;; \
+        aarch64) ARCH='arm64' ;; \
+        *) echo "unsupported architecture" ; exit 1 ;; \
+    esac; \
+    wget -nv -O - https://storage.googleapis.com/golang/go${GOLANG_VERSION}.linux-${ARCH}.tar.gz \
+    | tar -C /usr/local -xz
+
+ENV GOPATH /go
+ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
+
 WORKDIR /build
 COPY . .
 
@@ -34,7 +49,8 @@ RUN make PREFIX=/artifacts cmds
 
 RUN cp ./deployments/gpu-operator/reconfigure-mig.sh /artifacts/reconfigure-mig.sh
 
-RUN OS_ARCH=${TARGETARCH/x86_64/amd64} && OS_ARCH=${OS_ARCH/aarch64/arm64} && curl -o /artifacts/kubectl -L "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${OS_ARCH}/kubectl";
+ARG TARGETARCH
+RUN OS_ARCH=${TARGETARCH/x86_64/amd64} && OS_ARCH=${OS_ARCH/aarch64/arm64} && curl -o /artifacts/kubectl -L "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${OS_ARCH}/kubectl"
 RUN chmod a+x /artifacts/kubectl
 
 # Install the nvidia-ctk binary as a go executable

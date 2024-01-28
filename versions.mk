@@ -18,8 +18,11 @@ VERSION ?= v0.5.5
 vVERSION := v$(VERSION:v%=%)
 
 CUDA_VERSION := 12.2.2
-GOLANG_VERSION := 1.20.1
+GOLANG_VERSION := 1.20.4
 
-NVIDIA_CTK_VERSION := v1.13.4
+BUILDIMAGE_TAG ?= devel-go$(GOLANG_VERSION)
+BUILDIMAGE ?=  ghcr.io/nvidia/k8s-test-infra:$(BUILDIMAGE_TAG)
 
 GIT_COMMIT ?= $(shell git describe --match="" --dirty --long --always --abbrev=40 2> /dev/null || echo "")
+
+NVIDIA_CTK_VERSION := v1.13.4
