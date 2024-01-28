@@ -150,7 +150,7 @@ func nvmlResetAllGPUs() (string, error) {
 		return "No GPUs to reset...", nil
 	}
 
-	cmd := exec.Command("nvidia-smi", "-r", "-i", strings.Join(pciBusIDs, ","))
+	cmd := exec.Command("nvidia-smi", "-r", "-i", strings.Join(pciBusIDs, ",")) //nolint:gosec
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
