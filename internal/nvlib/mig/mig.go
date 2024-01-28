@@ -42,11 +42,11 @@ func NewMock(nvml nvml.Interface) Interface {
 	return Interface{nvml}
 }
 
-func (I Interface) Device(d nvml.Device) Device {
+func (i Interface) Device(d nvml.Device) Device {
 	return Device{d}
 }
 
-func (I Interface) GpuInstance(gi nvml.GpuInstance) GpuInstance {
+func (i Interface) GpuInstance(gi nvml.GpuInstance) GpuInstance {
 	return GpuInstance{gi}
 }
 
