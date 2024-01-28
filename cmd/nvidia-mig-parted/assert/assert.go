@@ -234,7 +234,8 @@ func WalkSelectedMigConfigForEachGPU(migConfig v1.MigConfigSpecSlice, f func(*v1
 
 			log.Debugf("  GPU %v: %v", i, deviceID)
 
-			err = f(&mc, i, deviceID)
+			migConfigSpec := mc
+			err = f(&migConfigSpec, i, deviceID)
 			if err != nil {
 				return err
 			}

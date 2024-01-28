@@ -216,7 +216,8 @@ func (m *migStateManager) RestoreConfig(state *types.MigState) error {
 				return fmt.Errorf("error getting GPU instance profile info for '%v': %v", giState.ProfileID, ret)
 			}
 
-			gi, ret := device.CreateGpuInstanceWithPlacement(&giProfileInfo, &giState.Placement)
+			placement := giState.Placement
+			gi, ret := device.CreateGpuInstanceWithPlacement(&giProfileInfo, &placement)
 			if ret.Value() != nvml.SUCCESS {
 				return fmt.Errorf("error creating GPU instance for '%v': %v", giState.ProfileID, ret)
 			}
