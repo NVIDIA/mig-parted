@@ -19,8 +19,9 @@ package config
 import (
 	"testing"
 
-	"github.com/NVIDIA/mig-parted/pkg/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/NVIDIA/mig-parted/pkg/types"
 )
 
 func TestValidConfiguration(t *testing.T) {

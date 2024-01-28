@@ -19,6 +19,9 @@ package main
 import (
 	"os"
 
+	log "github.com/sirupsen/logrus"
+	cli "github.com/urfave/cli/v2"
+
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/apply"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/assert"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/checkpoint"
@@ -26,8 +29,6 @@ import (
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/restore"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/util"
 	"github.com/NVIDIA/mig-parted/internal/info"
-	log "github.com/sirupsen/logrus"
-	cli "github.com/urfave/cli/v2"
 )
 
 // Flags holds variables that represent the set of top level flags that can be passed to the mig-parted CLI.

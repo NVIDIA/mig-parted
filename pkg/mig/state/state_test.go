@@ -20,11 +20,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/mig/config"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
 	"github.com/NVIDIA/mig-parted/pkg/types"
-	"github.com/stretchr/testify/require"
 )
 
 func newMockMigStateManagerOnLunaServer() *migStateManager {

@@ -19,9 +19,10 @@ package v1
 import (
 	"testing"
 
-	"github.com/NVIDIA/mig-parted/pkg/types"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
+
+	"github.com/NVIDIA/mig-parted/pkg/types"
 )
 
 func TestMarshallUnmarshall(t *testing.T) {

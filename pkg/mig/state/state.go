@@ -19,12 +19,13 @@ package state
 import (
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/NVIDIA/mig-parted/internal/nvlib"
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/mig/config"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
 	"github.com/NVIDIA/mig-parted/pkg/types"
-	log "github.com/sirupsen/logrus"
 )
 
 // Manager represents the set of operations for fetching / restoring the full MIG state of all GPUs on a node.

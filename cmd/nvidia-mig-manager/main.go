@@ -23,9 +23,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/NVIDIA/mig-parted/internal/info"
 	log "github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
+
+	"github.com/NVIDIA/mig-parted/internal/info"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"

@@ -22,10 +22,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/NVIDIA/mig-parted/api/spec/v1"
-	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
+
+	v1 "github.com/NVIDIA/mig-parted/api/spec/v1"
+	"github.com/NVIDIA/mig-parted/internal/nvml"
 
 	yaml "gopkg.in/yaml.v2"
 )

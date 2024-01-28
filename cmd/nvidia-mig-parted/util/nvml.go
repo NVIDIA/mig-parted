@@ -22,8 +22,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/NVIDIA/mig-parted/internal/nvml"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/NVIDIA/mig-parted/internal/nvml"
 )
 
 const (

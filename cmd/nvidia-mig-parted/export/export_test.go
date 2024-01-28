@@ -19,8 +19,9 @@ package export
 import (
 	"testing"
 
-	"github.com/NVIDIA/mig-parted/api/spec/v1"
 	"github.com/stretchr/testify/require"
+
+	v1 "github.com/NVIDIA/mig-parted/api/spec/v1"
 )
 
 func TestMergeConfigSpecs(t *testing.T) {

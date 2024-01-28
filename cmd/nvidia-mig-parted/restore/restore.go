@@ -23,13 +23,14 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+	cli "github.com/urfave/cli/v2"
+
 	checkpoint "github.com/NVIDIA/mig-parted/api/checkpoint/v1"
 	hooks "github.com/NVIDIA/mig-parted/api/hooks/v1"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/apply"
 	"github.com/NVIDIA/mig-parted/pkg/mig/state"
 	"github.com/NVIDIA/mig-parted/pkg/types"
-	"github.com/sirupsen/logrus"
-	cli "github.com/urfave/cli/v2"
 )
 
 var log = logrus.New()
