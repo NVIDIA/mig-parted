@@ -22,4 +22,9 @@ linters-settings:
     local-prefixes: github.com/NVIDIA/mig-parted
 
 issues:
-  exclude-rules: []
+  exclude-rules:
+  # We use math/rand instead of crypto/rand for unique names in config tests.
+  - path: pkg/mig/config/config_test.go
+    linters:
+    - gosec
+    text: "G404"
