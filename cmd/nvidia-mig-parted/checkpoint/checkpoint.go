@@ -108,8 +108,12 @@ func checkpointWrapper(c *cli.Context, f *Flags) error {
 		return fmt.Errorf("error marshalling MIG state to json: %v", err)
 	}
 
-	err = os.WriteFile(f.CheckpointFile, []byte(j), 0666)
+	checkpointFile, err := os.Create(f.CheckpointFile)
 	if err != nil {
+		return fmt.Errorf("error creating checkpoint file: %w", err)
+	}
+	defer checkpointFile.Close()
+	if _, err := checkpointFile.Write(j); err != nil {
 		return fmt.Errorf("error writing checkpoint file: %v", err)
 	}
 
