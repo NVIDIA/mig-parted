@@ -20,8 +20,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/stretchr/testify/require"
+
+	"github.com/NVIDIA/mig-parted/internal/nvml"
 )
 
 type Return = nvml.Return

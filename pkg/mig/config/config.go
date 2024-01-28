@@ -20,10 +20,11 @@ import (
 	"fmt"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/NVIDIA/mig-parted/internal/nvlib"
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/types"
-	log "github.com/sirupsen/logrus"
 )
 
 type Manager interface {

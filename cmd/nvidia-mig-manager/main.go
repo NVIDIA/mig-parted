@@ -23,9 +23,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/NVIDIA/mig-parted/internal/info"
 	log "github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
+
+	"github.com/NVIDIA/mig-parted/internal/info"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -275,7 +276,7 @@ func start(c *cli.Context) error {
 			log.Errorf("Error: %s", err)
 			continue
 		}
-		log.Infof("Successfuly updated to MIG config: %s", value)
+		log.Infof("Successfully updated to MIG config: %s", value)
 	}
 }
 

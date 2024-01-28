@@ -66,7 +66,7 @@ func (h HooksMap) Run(name string, envs EnvsMap, output bool) error {
 // It injects the environment variables associated with the provided EnvMap,
 // and optionally prints the output for each hook to stdout and stderr.
 func (h *HookSpec) Run(envs EnvsMap, output bool) error {
-	cmd := exec.Command(h.Command, h.Args...)
+	cmd := exec.Command(h.Command, h.Args...) //nolint:gosec
 	cmd.Env = h.Envs.Combine(envs).Format()
 	cmd.Dir = h.Workdir
 	if output {
@@ -77,7 +77,7 @@ func (h *HookSpec) Run(envs EnvsMap, output bool) error {
 }
 
 // Combine merges to EnvMaps together
-// Overlapping enviroment variables from e2 take precendence over those in e.
+// Overlapping environment variables from e2 take precedence over those in e.
 func (e EnvsMap) Combine(e2 EnvsMap) EnvsMap {
 	combined := make(EnvsMap)
 	for k, v := range e {

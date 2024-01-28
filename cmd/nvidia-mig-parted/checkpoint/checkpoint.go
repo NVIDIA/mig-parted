@@ -22,12 +22,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+	cli "github.com/urfave/cli/v2"
+
 	checkpoint "github.com/NVIDIA/mig-parted/api/checkpoint/v1"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/util"
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/mig/state"
-	"github.com/sirupsen/logrus"
-	cli "github.com/urfave/cli/v2"
 )
 
 var log = logrus.New()
@@ -81,7 +82,7 @@ func CheckFlags(f *Flags) error {
 func checkpointWrapper(c *cli.Context, f *Flags) error {
 	err := CheckFlags(f)
 	if err != nil {
-		cli.ShowSubcommandHelp(c)
+		_ = cli.ShowSubcommandHelp(c)
 		return err
 	}
 
@@ -107,8 +108,12 @@ func checkpointWrapper(c *cli.Context, f *Flags) error {
 		return fmt.Errorf("error marshalling MIG state to json: %v", err)
 	}
 
-	err = os.WriteFile(f.CheckpointFile, []byte(j), 0666)
+	checkpointFile, err := os.Create(f.CheckpointFile)
 	if err != nil {
+		return fmt.Errorf("error creating checkpoint file: %w", err)
+	}
+	defer checkpointFile.Close()
+	if _, err := checkpointFile.Write(j); err != nil {
 		return fmt.Errorf("error writing checkpoint file: %v", err)
 	}
 

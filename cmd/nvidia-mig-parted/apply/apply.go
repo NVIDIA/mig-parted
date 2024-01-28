@@ -21,11 +21,12 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/sirupsen/logrus"
+	cli "github.com/urfave/cli/v2"
+
 	hooks "github.com/NVIDIA/mig-parted/api/hooks/v1"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/assert"
 	"github.com/NVIDIA/mig-parted/internal/nvml"
-	"github.com/sirupsen/logrus"
-	cli "github.com/urfave/cli/v2"
 
 	"sigs.k8s.io/yaml"
 )
@@ -183,7 +184,7 @@ func (c *Context) ApplyMigConfig() error {
 func applyWrapper(c *cli.Context, f *Flags) error {
 	err := CheckFlags(f)
 	if err != nil {
-		cli.ShowSubcommandHelp(c)
+		_ = cli.ShowSubcommandHelp(c)
 		return err
 	}
 

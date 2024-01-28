@@ -22,10 +22,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/NVIDIA/mig-parted/api/spec/v1"
-	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
+
+	v1 "github.com/NVIDIA/mig-parted/api/spec/v1"
+	"github.com/NVIDIA/mig-parted/internal/nvml"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -91,7 +92,7 @@ func BuildCommand() *cli.Command {
 func exportWrapper(c *cli.Context, f *Flags) error {
 	err := CheckFlags(f)
 	if err != nil {
-		cli.ShowSubcommandHelp(c)
+		_ = cli.ShowSubcommandHelp(c)
 		return err
 	}
 
@@ -131,13 +132,17 @@ func WriteOutput(w io.Writer, spec *v1.Spec, f *Flags) error {
 		if err != nil {
 			return fmt.Errorf("error unmarshaling MIG config to YAML: %v", err)
 		}
-		w.Write(output)
+		if _, err := w.Write(output); err != nil {
+			return fmt.Errorf("error writing YAML output: %w", err)
+		}
 	case JSONFormat:
 		output, err := json.MarshalIndent(spec, "", "  ")
 		if err != nil {
 			return fmt.Errorf("error unmarshaling MIG config to JSON: %v", err)
 		}
-		w.Write(output)
+		if _, err := w.Write(output); err != nil {
+			return fmt.Errorf("error writing JSON output: %w", err)
+		}
 	}
 	return nil
 }

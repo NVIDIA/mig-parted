@@ -19,8 +19,9 @@ package mode
 import (
 	"fmt"
 
-	"github.com/NVIDIA/mig-parted/internal/nvml"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/NVIDIA/mig-parted/internal/nvml"
 )
 
 type nvmlMigModeManager struct {

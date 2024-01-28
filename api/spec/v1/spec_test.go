@@ -19,16 +19,17 @@ package v1
 import (
 	"testing"
 
-	"github.com/NVIDIA/mig-parted/pkg/types"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
+
+	"github.com/NVIDIA/mig-parted/pkg/types"
 )
 
 func TestMarshallUnmarshall(t *testing.T) {
 	spec := Spec{
 		Version: "v1",
 		MigConfigs: map[string]MigConfigSpecSlice{
-			"valid-format-non-existant-devices": []MigConfigSpec{
+			"valid-format-non-existent-devices": []MigConfigSpec{
 				{
 					Devices:    "all",
 					MigEnabled: true,

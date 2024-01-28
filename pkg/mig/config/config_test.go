@@ -20,12 +20,12 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
-	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/NVIDIA/mig-parted/internal/nvlib"
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/types"
-	"github.com/stretchr/testify/require"
 )
 
 func NewMockLunaServerMigConfigManager() Manager {
@@ -142,7 +142,6 @@ func TestIteratePermutationsUntilSuccess(t *testing.T) {
 		return perms
 	}
 
-	rand.Seed(time.Now().UnixNano())
 	mcg := NewA100_SXM4_40GB_MigConfigGroup()
 
 	type testCase struct {

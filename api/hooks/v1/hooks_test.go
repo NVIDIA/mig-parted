@@ -49,7 +49,7 @@ func captureOutput(f func() error) (string, error) {
 	go func() {
 		var buf bytes.Buffer
 		wg.Done()
-		io.Copy(&buf, reader)
+		_, _ = io.Copy(&buf, reader)
 		out <- buf.String()
 	}()
 

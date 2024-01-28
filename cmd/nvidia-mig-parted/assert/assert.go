@@ -22,12 +22,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+	cli "github.com/urfave/cli/v2"
+
 	v1 "github.com/NVIDIA/mig-parted/api/spec/v1"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/util"
 	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/types"
-	"github.com/sirupsen/logrus"
-	cli "github.com/urfave/cli/v2"
 
 	"sigs.k8s.io/yaml"
 )
@@ -103,7 +104,7 @@ func BuildCommand() *cli.Command {
 func assertWrapper(c *cli.Context, f *Flags) error {
 	err := CheckFlags(f)
 	if err != nil {
-		cli.ShowSubcommandHelp(c)
+		_ = cli.ShowSubcommandHelp(c)
 		return err
 	}
 
@@ -233,7 +234,8 @@ func WalkSelectedMigConfigForEachGPU(migConfig v1.MigConfigSpecSlice, f func(*v1
 
 			log.Debugf("  GPU %v: %v", i, deviceID)
 
-			err = f(&mc, i, deviceID)
+			migConfigSpec := mc
+			err = f(&migConfigSpec, i, deviceID)
 			if err != nil {
 				return err
 			}
