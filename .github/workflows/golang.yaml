@@ -26,6 +26,9 @@ on:
 
 jobs:
   check:
+    # TODO: Disable golangci-lint until the repo has been onboarded.
+    # See https://github.com/NVIDIA/mig-parted/issues/34
+    if: false
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
