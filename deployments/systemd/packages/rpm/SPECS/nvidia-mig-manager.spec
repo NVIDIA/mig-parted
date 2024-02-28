@@ -133,6 +133,14 @@ maybe_remove_hooks_symlink
 maybe_remove_config_symlink
 
 %changelog
+*  Wed Feb 28 2024 NVIDIA CORPORATION <cudatools@nvidia.com> 0.6.0-1
+- Update to latest CUDA base image 12.3.2
+- Migrate to using github.com/NVIDIA/go-nvlib
+- Bump Golang version to 1.20.5
+- Bump nvidia-ctk version used by k8s-mig-manager to 1.14.6
+- Update vendored go dependencies
+- Minor code improvements and refactoring
+
 * Thu Oct 18 2023 NVIDIA CORPORATION <cudatools@nvidia.com> 0.5.5-1
 - Update to latest CUDA base image 12.2.2
 
