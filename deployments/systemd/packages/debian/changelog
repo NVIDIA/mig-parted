@@ -1,3 +1,14 @@
+nvidia-mig-manager (0.6.0-1) UNRELEASED; urgency=medium
+
+  * Update to latest CUDA base image 12.3.2
+  * Migrate to using github.com/NVIDIA/go-nvlib
+  * Bump Golang version to 1.20.5
+  * Bump nvidia-ctk version used by k8s-mig-manager to 1.14.6
+  * Update vendored go dependencies
+  * Minor code improvements and refactoring
+
+ -- NVIDIA CORPORATION <cudatools@nvidia.com>  Wed, 28 Feb 2024 21:57:59 +0200
+
 nvidia-mig-manager (0.5.5-1) UNRELEASED; urgency=medium
 
   * Update to latest CUDA base image 12.2.2

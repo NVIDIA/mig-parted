@@ -13,11 +13,11 @@
 # limitations under the License.
 
 MODULE := github.com/NVIDIA/mig-parted
-VERSION ?= v0.5.5
+VERSION ?= v0.6.0
 
 vVERSION := v$(VERSION:v%=%)
 
-CUDA_VERSION := 12.3.1
+CUDA_VERSION := 12.3.2
 GOLANG_VERSION := 1.20.5
 
 BUILDIMAGE_TAG ?= devel-go$(GOLANG_VERSION)
