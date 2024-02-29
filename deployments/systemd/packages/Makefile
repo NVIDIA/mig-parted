@@ -30,7 +30,7 @@ PACKAGE_VERSION := $(VERSION:v%=%)
 
 ##### Public rules #####
 
-VALID_TARGETS = tarball ubuntu18.04 ubuntu20.04 ubi8
+VALID_TARGETS = tarball ubuntu20.04 ubi8
 
 all: $(VALID_TARGETS)
 .PHONY: all $(VALID_TARGETS)
@@ -43,20 +43,6 @@ tarball:
 		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
 		--tag $(IMAGE):$(vVERSION)-tarball \
 		--file Dockerfile.tarball \
-		$(BUILD_DIR)
-	$(DOCKER) run \
-		-v $$(pwd)/dist/$(@):/dist \
-		$(IMAGE):$(vVERSION)-$(@)
-
-ubuntu18.04:
-	$(DOCKER) build --pull \
-		--build-arg PACKAGE_NAME=$(NAME) \
-		--build-arg PACKAGE_VERSION=$(PACKAGE_VERSION) \
-		--build-arg PACKAGE_REVISION=$(REVISION) \
-		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:${CUDA_VERSION}-base-ubuntu18.04 \
-		--tag $(IMAGE):$(vVERSION)-ubuntu18.04 \
-		--file Dockerfile.ubuntu \
 		$(BUILD_DIR)
 	$(DOCKER) run \
 		-v $$(pwd)/dist/$(@):/dist \
