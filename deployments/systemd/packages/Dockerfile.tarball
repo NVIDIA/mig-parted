@@ -13,28 +13,71 @@
 # limitations under the License.
 
 # build go binary
+ARG BASE_IMAGE=undefined
 ARG GOLANG_VERSION=undefined
-FROM golang:${GOLANG_VERSION} AS go-build
+FROM ${BASE_IMAGE} as go-build
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        wget \
+        ca-certificates \
+        git \
+        build-essential \
+        dh-make \
+        fakeroot \
+        devscripts \
+        lsb-release && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG GOLANG_VERSION=0.0.0
+RUN set -eux; \
+    \
+    arch="$(uname -m)"; \
+    case "${arch##*-}" in \
+        x86_64 | amd64) ARCH='amd64' ;; \
+        ppc64el | ppc64le) ARCH='ppc64le' ;; \
+        aarch64 | arm64) ARCH='arm64' ;; \
+        *) echo "unsupported architecture" ; exit 1 ;; \
+    esac; \
+    wget -nv -O - https://storage.googleapis.com/golang/go${GOLANG_VERSION}.linux-${ARCH}.tar.gz \
+    | tar -C /usr/local -xz
+
+ENV GOPATH /go
+ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
+
+WORKDIR /build
+COPY . .
+
+RUN mkdir /artifacts
+ARG VERSION="N/A"
+ARG GIT_COMMIT="unknown"
+RUN make PREFIX=/artifacts cmds
+
+# build package
+FROM ${BASE_IMAGE}
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y devscripts debhelper
 
 # envs for packaging
+ENV DEBFULLNAME "NVIDIA CORPORATION"
+ENV DEBEMAIL "cudatools@nvidia.com"
 ARG PACKAGE_NAME=undefined
 ARG PACKAGE_VERSION=undefined
 ARG PACKAGE_REVISION=undefined
 ENV PACKAGE_NAME ${PACKAGE_NAME}
 ENV PACKAGE_VERSION ${PACKAGE_VERSION}
 ENV PACKAGE_REVISION ${PACKAGE_REVISION}
+ENV PACKAGE_VERSION_STRING "${PACKAGE_VERSION}-${PACKAGE_REVISION}"
+ENV SECTION ""
+
 
 # destination to put tarball files
-ENV DESTDIR=/${PACKAGE_NAME}-${PACKAGE_VERSION}-${PACKAGE_REVISION}
-
-# working directory
-WORKDIR /build
-COPY . .
+WORKDIR /${PACKAGE_NAME}-${PACKAGE_VERSION_STRING}
+ENV DESTDIR=/${PACKAGE_NAME}-${PACKAGE_VERSION_STRING}
 
 # collect tarball files
-RUN mkdir -p ${DESTDIR}
-RUN go build -o ${DESTDIR}/nvidia-mig-parted ./cmd/nvidia-mig-parted
-COPY ./LICENSE ${DESTDIR}
+COPY ./LICENSE .
+COPY --from=go-build /artifacts/nvidia-mig-parted .
 COPY ./deployments/systemd/packages/tarball/install.sh ${DESTDIR}
 COPY ./deployments/systemd/config-default.yaml ${DESTDIR}
 COPY ./deployments/systemd/hooks.sh ${DESTDIR}
@@ -47,7 +90,7 @@ COPY ./deployments/systemd/service.sh ${DESTDIR}
 COPY ./deployments/systemd/uninstall.sh ${DESTDIR}
 COPY ./deployments/systemd/utils.sh ${DESTDIR}
 
-# output directory for final tarball
+# output directory
 RUN mkdir -p /dist
 
 # build command

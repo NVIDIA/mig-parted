@@ -16,9 +16,10 @@ NAME = nvidia-mig-manager
 REVISION ?= 1
 
 DOCKER ?= docker
-BUILD_DIR ?= ../../..
+DIST_DIR ?= $(CURDIR)/dist
 
-include $(BUILD_DIR)/versions.mk
+##### Global variables #####
+include $(CURDIR)/versions.mk
 
 ifeq ($(IMAGE),)
 REGISTRY ?= nvcr.io/nvidia
@@ -28,51 +29,37 @@ endif
 # strip 'v' from version string
 PACKAGE_VERSION := $(VERSION:v%=%)
 
+deb: BASE_IMAGE = ubuntu:18.04
+deb: ARTIFACTS_DIR = $(DIST_DIR)/deb
+deb: DOCKERFILE = $(CURDIR)/deployments/systemd/packages/Dockerfile.deb
+
+rpm: BASE_IMAGE = centos:7
+rpm: ARTIFACTS_DIR = $(DIST_DIR)/rpm
+rpm: DOCKERFILE = $(CURDIR)/deployments/systemd/packages/Dockerfile.rpm
+
+tarball: BASE_IMAGE = ubuntu:18.04
+tarball: ARTIFACTS_DIR = $(DIST_DIR)/tarball
+tarball: DOCKERFILE = $(CURDIR)/deployments/systemd/packages/Dockerfile.tarball
+
 ##### Public rules #####
 
-VALID_TARGETS = tarball ubuntu20.04 ubi8
+VALID_TARGETS = tarball deb rpm
 
 all: $(VALID_TARGETS)
 .PHONY: all $(VALID_TARGETS)
 
-tarball:
+$(VALID_TARGETS): %:
 	$(DOCKER) build --pull \
+		--build-arg BASE_IMAGE=$(BASE_IMAGE) \
+		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
 		--build-arg PACKAGE_NAME=$(NAME) \
 		--build-arg PACKAGE_VERSION=$(PACKAGE_VERSION) \
 		--build-arg PACKAGE_REVISION=$(REVISION) \
-		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--tag $(IMAGE):$(vVERSION)-tarball \
-		--file Dockerfile.tarball \
-		$(BUILD_DIR)
+		--tag $(IMAGE):$(VERSION)-$(*) \
+		--file $(DOCKERFILE) \
+		$(CURDIR)
 	$(DOCKER) run \
-		-v $$(pwd)/dist/$(@):/dist \
-		$(IMAGE):$(vVERSION)-$(@)
-
-ubuntu20.04:
-	$(DOCKER) build --pull \
-		--build-arg PACKAGE_NAME=$(NAME) \
-		--build-arg PACKAGE_VERSION=$(PACKAGE_VERSION) \
-		--build-arg PACKAGE_REVISION=$(REVISION) \
-		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:${CUDA_VERSION}-base-ubuntu20.04 \
-		--tag $(IMAGE):$(vVERSION)-ubuntu20.04 \
-		--file Dockerfile.ubuntu \
-		$(BUILD_DIR)
-	$(DOCKER) run \
-		-v $$(pwd)/dist/$(@):/dist \
-		$(IMAGE):$(vVERSION)-$(@)
-
-ubi8:
-	$(DOCKER) build --pull \
-		--build-arg PACKAGE_NAME=$(NAME) \
-		--build-arg PACKAGE_VERSION=$(PACKAGE_VERSION) \
-		--build-arg PACKAGE_REVISION=$(REVISION) \
-		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-		--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:${CUDA_VERSION}-base-ubi8 \
-		--tag $(IMAGE):$(vVERSION)-ubi8 \
-		--file Dockerfile.ubi8 \
-		$(BUILD_DIR)
-	$(DOCKER) run \
-		-v $$(pwd)/dist/$(@):/dist \
-		$(IMAGE):$(vVERSION)-$(@)
-
+		-v $(ARTIFACTS_DIR):/dist \
+		$(IMAGE):$(VERSION)-$(*)
