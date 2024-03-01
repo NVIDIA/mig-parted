@@ -1,0 +1,107 @@
+# NVIDIA MIG Manager Changelog
+
+## v0.6.0
+- Update to latest CUDA base image 12.3.2
+- Migrate to using github.com/NVIDIA/go-nvlib
+- Bump Golang version to 1.20.5
+- Bump nvidia-ctk version used by k8s-mig-manager to 1.14.6
+- Update vendored go dependencies
+- Minor code improvements and refactoring
+
+## v0.5.5
+- Update to latest CUDA base image 12.2.2
+
+## v0.5.4
+- Update MIG config for Hopper with device ID of H100 80GB HBM3 SKU
+
+## v0.5.3
+- Update to latest CUDA image 12.2.0
+- Update example config for Hopper with H100 NVL and H800 NVL
+
+## v0.5.2
+- Update to latest CUDA image 12.1.0
+- Update k8s-mig-manager to support CDI
+- Add two new example configs for the newly supported profiles on A100
+- Update MIG profile code to rely on go-nvlib
+- Update vendored go-nvlib to latest
+- Update NVML wrapper to include MIG profiles from NVML v12.0
+
+## v0.5.1
+- Update to latest CUDA image 12.0.1
+- Add newer MIG profiles supported with NVML 12.0 to default config.yaml files
+- Add profiles with media extensions for A30-24GB to default config.yaml files
+- Add H100 and H800 profiles to default config.yaml files
+- Add A800 profiles to default config.yaml files
+- Update all calls to enumerate GPUs to use NVML or PCI as appropriate
+- Bump vendored go-nvml to v12.0
+- Bump Golang version to 1.20.1
+
+## v0.5.0
+- Bump CUDA base image to 11.7.1
+- Remove CUDA compat libs from mig-manager in favor of libs installed by the Driver
+- Use symlink for config.yaml instead of static config file
+- Add k8s-mig-manager-example for Hopper
+- Update k8s-mig-manager-example with standalone RBAC objects
+- Explicitly delete pods launched by operator validator before reconfig
+- Allow missing GPUClients file in k8s-mig-manager
+- Add hooks-minimal.yaml that gets linked if on Hopper or above
+- Use symlink for hooks.yaml instead of static config file
+- Update install script to use go 1.16.4
+- Update hooks.sh to split out start/stop of k8s services from k8s pods
+- Explicitly clear all MIG configurations before disabling MIG mode
+
+## v0.4.3
+- Update calculation for GB in MIG profile name
+- Make the systemd-mig-manager a dependency of systemd-resolved.service
+
+## v0.4.2
+- Update CUDA image to 11.7.0
+- Add extra assert in k8s-mig-manager to double check mig-mode change applied
+- Update mig-manager image to use NGC DL license
+
+## v0.4.1
+- Keep NVML alive across all mig-parted commands (except GPU reset)
+- Remove unnecessary services from hooks.sh
+
+## v0.4.0
+- Update nvidia-mig-parted.sh to include MIG_PARTED_CHECKPOINT_FILE
+- Add checkpoint / restore commands to mig-parted CLI
+- Update golang version to 1.16.4
+- Support instantiation of *_PROFILE_6_SLICE GIs and CIs
+- Update cyrus-sasl-lib to address CVE-2022-24407
+- Add support for MIG profiles with +me as an attribute extension
+- Support Compute Instances in mig-parted config such that CI != GI
+- Update go-nvml to v0.11.6
+- Change semantics of 'all' to mean 'all-mig-capable' in mig-parted config
+
+## v0.3.0
+- k8s-mig-manager: Add support for multi-arch images
+- k8s-mig-manager: Handle eviction of NVSM pod when applying MIG changes
+
+## v0.2.0
+- nvidia-mig-parted:   Support passing newer GI and CI profile enums on older drivers
+- k8s-mig-manager:     Rename nvcr.io/nvidia to nvcr.io/nvidia/cloud-native
+- k8s-mig-manager:     Add support for pre-installed drivers
+- systemd-mig-manager: Update logic to remove 'containerd' containers in utils.sh
+- systemd-mig-manager: Update logic to shutdown only active systemd services in list
+- ci-infrastructure:   Rework build and CI to align with other projects
+- ci-infrastructure:   Use pulse instead of contamer for scans
+
+## v0.1.3
+- Add default configs for the PG506-96GB card
+- Remove CombinedMigManager and add wrappers for Mode/Config Managers
+- Add a function to check the minimum NVML version required
+- Add SystemGetNVMLVersion() to the NVML interface
+- Fix small bug in assert logic for non MIG-capable GPUs
+
+## v0.1.2
+- Do not start nvidia-mig-manager.service when installing the .deb
+- Restore lost assert_gpu_reset_available() function
+- Add nvidia-dcgm.service to driver_services array
+- Split dcgm, and dcgm-exporter in k8s-mig-manager
+
+## v0.1.1
+- Update packaged config.yaml to include more supported devices
+
+## v0.1.0
+- Initial release of rpm package for v0.1.0
