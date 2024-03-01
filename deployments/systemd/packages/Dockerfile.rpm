@@ -15,11 +15,40 @@
 # build go binary
 ARG BASE_IMAGE=undefined
 ARG GOLANG_VERSION=undefined
-FROM golang:${GOLANG_VERSION} AS go-build
+FROM ${BASE_IMAGE} as go-build
+
+RUN yum install -y \
+        ca-certificates \
+        gcc \
+        wget \
+        git \
+        make \
+        rpm-build && \
+    rm -rf /var/cache/yum/*
+
+ARG GOLANG_VERSION=0.0.0
+RUN set -eux; \
+    \
+    arch="$(uname -m)"; \
+    case "${arch##*-}" in \
+        x86_64 | amd64) ARCH='amd64' ;; \
+        ppc64el | ppc64le) ARCH='ppc64le' ;; \
+        aarch64 | arm64) ARCH='arm64' ;; \
+        *) echo "unsupported architecture"; exit 1 ;; \
+    esac; \
+    wget -nv -O - https://storage.googleapis.com/golang/go${GOLANG_VERSION}.linux-${ARCH}.tar.gz \
+    | tar -C /usr/local -xz
+
+ENV GOPATH /go
+ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
 WORKDIR /build
 COPY . .
-RUN go build -o /artifacts/nvidia-mig-parted ./cmd/nvidia-mig-parted
+
+RUN mkdir /artifacts
+ARG VERSION="N/A"
+ARG GIT_COMMIT="unknown"
+RUN make PREFIX=/artifacts cmds
 
 # build package
 FROM ${BASE_IMAGE}
@@ -32,10 +61,10 @@ ARG PACKAGE_REVISION=undefined
 ENV PACKAGE_NAME ${PACKAGE_NAME}
 ENV PACKAGE_VERSION ${PACKAGE_VERSION}
 ENV PACKAGE_REVISION ${PACKAGE_REVISION}
+ENV PACKAGE_VERSION_STRING "${PACKAGE_VERSION}-${PACKAGE_REVISION}"
 
 # working directory
-ENV PWD=/tmp/${PACKAGE_NAME}-${PACKAGE_VERSION}
-WORKDIR ${PWD}
+WORKDIR /tmp/${PACKAGE_NAME}-${PACKAGE_VERSION_STRING}
 
 # specs
 RUN mkdir -p ./SPECS
@@ -59,5 +88,7 @@ CMD arch=$(uname -m) && \
              -D "_topdir ${PWD}" \
              -D "version ${PACKAGE_VERSION}" \
              -D "revision ${PACKAGE_REVISION}" \
+             -D "git_commit ${GIT_COMMIT}" \
+             -D "release_date $(date +'%a %b %d %Y')" \
              SPECS/${PACKAGE_NAME}.spec && \
     mv RPMS/$arch/*.rpm /dist
