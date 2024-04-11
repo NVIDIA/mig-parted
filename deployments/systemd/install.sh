@@ -45,7 +45,7 @@ chmod a+rx ${PROFILED_DIR}
 
 ${DOCKER} run --rm \
 	-v ${BINARY_DIR}:/dest \
-	golang:1.20.1 \
+	golang:1.22.2 \
 	sh -c "
 	go install $MIG_PARTED_GO_GET_PATH@latest
 	mv /go/bin/nvidia-mig-parted /dest/nvidia-mig-parted
