@@ -36,12 +36,7 @@ func newMockMigStateManagerOnLunaServer() *migStateManager {
 }
 
 func TestFetchRestore(t *testing.T) {
-	manager := newMockMigStateManagerOnLunaServer()
-
-	numGPUs, ret := manager.nvml.DeviceGetCount()
-	require.NotNil(t, ret, "Unexpected nil return from DeviceGetCount")
-	require.Equal(t, ret, nvml.SUCCESS, "Unexpected return value from DeviceGetCount")
-
+	types.SetMockNVdevlib()
 	mcg := config.NewA100_SXM4_40GB_MigConfigGroup()
 
 	type testCase struct {
@@ -73,8 +68,17 @@ func TestFetchRestore(t *testing.T) {
 		return testCases
 	}()
 
-	for _, tc := range testCases {
+	for i := range testCases {
+		tc := testCases[i] // to allow us to run parallelly
 		t.Run(tc.description, func(t *testing.T) {
+			t.Parallel()
+
+			manager := newMockMigStateManagerOnLunaServer()
+
+			numGPUs, ret := manager.nvml.DeviceGetCount()
+			require.NotNil(t, ret, "Unexpected nil return from DeviceGetCount")
+			require.Equal(t, ret, nvml.SUCCESS, "Unexpected return value from DeviceGetCount")
+
 			for i := 0; i < numGPUs; i++ {
 				err := manager.mode.SetMigMode(i, tc.mode)
 				require.Nil(t, err)

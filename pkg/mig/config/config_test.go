@@ -44,13 +44,7 @@ func EnableMigMode(manager Manager, gpu int) (nvml.Return, nvml.Return) {
 }
 
 func TestGetSetMigConfig(t *testing.T) {
-	nvmlLib := dgxa100.New()
-	manager := NewMockLunaServerMigConfigManager()
-
-	numGPUs, ret := nvmlLib.DeviceGetCount()
-	require.NotNil(t, ret, "Unexpected nil return from DeviceGetCount")
-	require.Equal(t, ret, nvml.SUCCESS, "Unexpected return value from DeviceGetCount")
-
+	types.SetMockNVdevlib()
 	mcg := NewA100_SXM4_40GB_MigConfigGroup()
 
 	type testCase struct {
@@ -69,8 +63,18 @@ func TestGetSetMigConfig(t *testing.T) {
 		return testCases
 	}()
 
-	for _, tc := range testCases {
+	for i := range testCases {
+		tc := testCases[i] // to allow us to run parallelly
 		t.Run(tc.description, func(t *testing.T) {
+			t.Parallel()
+
+			nvmlLib := dgxa100.New()
+			manager := NewMockLunaServerMigConfigManager()
+
+			numGPUs, ret := nvmlLib.DeviceGetCount()
+			require.NotNil(t, ret, "Unexpected nil return from DeviceGetCount")
+			require.Equal(t, ret, nvml.SUCCESS, "Unexpected return value from DeviceGetCount")
+
 			for i := 0; i < numGPUs; i++ {
 				r1, r2 := EnableMigMode(manager, i)
 				require.Equal(t, nvml.SUCCESS, r1)
@@ -88,6 +92,7 @@ func TestGetSetMigConfig(t *testing.T) {
 }
 
 func TestClearMigConfig(t *testing.T) {
+	types.SetMockNVdevlib()
 	mcg := NewA100_SXM4_40GB_MigConfigGroup()
 
 	type testCase struct {
@@ -106,8 +111,11 @@ func TestClearMigConfig(t *testing.T) {
 		return testCases
 	}()
 
-	for _, tc := range testCases {
+	for i := range testCases {
+		tc := testCases[i] // to allow us to run parallelly
 		t.Run(tc.description, func(t *testing.T) {
+			t.Parallel()
+
 			manager := NewMockLunaServerMigConfigManager()
 
 			r1, r2 := EnableMigMode(manager, 0)
@@ -173,8 +181,11 @@ func TestIteratePermutationsUntilSuccess(t *testing.T) {
 		return testCases
 	}()
 
-	for _, tc := range testCases {
+	for i := range testCases {
+		tc := testCases[i] // to allow us to run parallelly
 		t.Run(tc.description, func(t *testing.T) {
+			t.Parallel()
+
 			iteration := 0
 			err := iteratePermutationsUntilSuccess(tc.config, func(perm []*types.MigProfile) error {
 				iteration++
