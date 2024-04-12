@@ -50,9 +50,9 @@ TEST_TARGETS := $(patsubst %,test-%, $(DISTRIBUTIONS))
 .PHONY: $(DISTRIBUTIONS) $(PUSH_TARGETS) $(BUILD_TARGETS) $(TEST_TARGETS)
 
 ifneq ($(BUILD_MULTI_ARCH_IMAGES),true)
-include $(CURDIR)/deployments/gpu-operator/native-only.mk
+include $(CURDIR)/deployments/container/native-only.mk
 else
-include $(CURDIR)/deployments/gpu-operator/multi-arch.mk
+include $(CURDIR)/deployments/container/multi-arch.mk
 endif
 
 # For the default push target we also push a short tag equal to the version.
@@ -70,7 +70,7 @@ push-%: DIST = $(*)
 push-short: DIST = $(DEFAULT_PUSH_TARGET)
 
 build-%: DIST = $(*)
-build-%: DOCKERFILE = $(CURDIR)/deployments/gpu-operator/Dockerfile.$(DOCKERFILE_SUFFIX)
+build-%: DOCKERFILE = $(CURDIR)/deployments/container/Dockerfile.$(DOCKERFILE_SUFFIX)
 
 # Use a generic build target to build the relevant images
 $(BUILD_TARGETS): build-%: $(ARTIFACTS_ROOT)

@@ -110,7 +110,7 @@ PHONY: .shell
 		$(BUILDIMAGE)
 
 # Deployment targets are forwarded to the Makefile in the following directory
-DEPLOYMENT_DIR = deployments/gpu-operator
+DEPLOYMENT_DIR = deployments/container
 
 DEPLOYMENT_TARGETS = ubuntu20.04 ubi8
 BUILD_DEPLOYMENT_TARGETS := $(patsubst %, build-%, $(DEPLOYMENT_TARGETS))

@@ -47,7 +47,7 @@ ARG VERSION="N/A"
 ARG GIT_COMMIT="unknown"
 RUN make PREFIX=/artifacts cmds
 
-RUN cp ./deployments/gpu-operator/reconfigure-mig.sh /artifacts/reconfigure-mig.sh
+RUN cp ./deployments/container/reconfigure-mig.sh /artifacts/reconfigure-mig.sh
 
 ARG TARGETARCH
 RUN OS_ARCH=${TARGETARCH/x86_64/amd64} && OS_ARCH=${OS_ARCH/aarch64/arm64} && curl -o /artifacts/kubectl -L "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${OS_ARCH}/kubectl"
