@@ -22,7 +22,8 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	nvdev "github.com/NVIDIA/go-nvlib/pkg/nvlib/device"
-	"github.com/NVIDIA/go-nvlib/pkg/nvml"
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	"github.com/NVIDIA/go-nvml/pkg/nvml/mock"
 )
 
 var nvmllib nvml.Interface
@@ -85,7 +86,7 @@ func nvdevParseMigProfile(profile string) (nvdev.MigProfile, error) {
 }
 
 func SetMockNVdevlib() {
-	mockDevice := &nvml.DeviceMock{
+	mockDevice := &mock.Device{
 		GetNameFunc: func() (string, nvml.Return) {
 			return "MockDevice", nvml.SUCCESS
 		},
@@ -125,7 +126,7 @@ func SetMockNVdevlib() {
 		},
 	}
 
-	nvmllib = &nvml.InterfaceMock{
+	nvmllib = &mock.Interface{
 		InitFunc: func() nvml.Return {
 			return nvml.SUCCESS
 		},

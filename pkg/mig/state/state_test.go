@@ -22,14 +22,16 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/NVIDIA/mig-parted/internal/nvml"
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	"github.com/NVIDIA/go-nvml/pkg/nvml/mock/dgxa100"
+
 	"github.com/NVIDIA/mig-parted/pkg/mig/config"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
 	"github.com/NVIDIA/mig-parted/pkg/types"
 )
 
 func newMockMigStateManagerOnLunaServer() *migStateManager {
-	nvml := nvml.NewMockNVMLOnLunaServer()
+	nvml := dgxa100.New()
 	return NewMockMigStateManager(nvml).(*migStateManager)
 }
 
@@ -38,7 +40,7 @@ func TestFetchRestore(t *testing.T) {
 
 	numGPUs, ret := manager.nvml.DeviceGetCount()
 	require.NotNil(t, ret, "Unexpected nil return from DeviceGetCount")
-	require.Equal(t, ret.Value(), nvml.SUCCESS, "Unexpected return value from DeviceGetCount")
+	require.Equal(t, ret, nvml.SUCCESS, "Unexpected return value from DeviceGetCount")
 
 	mcg := config.NewA100_SXM4_40GB_MigConfigGroup()
 

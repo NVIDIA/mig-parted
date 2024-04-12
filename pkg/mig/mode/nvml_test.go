@@ -22,11 +22,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/NVIDIA/mig-parted/internal/nvml"
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	"github.com/NVIDIA/go-nvml/pkg/nvml/mock/dgxa100"
 )
 
 type Return = nvml.Return
-type MockReturn = nvml.MockReturn
 
 type mockNvmlA100Device struct {
 	nvml.Device
@@ -37,10 +37,10 @@ type mockNvmlA100Device struct {
 }
 
 func NewMockNvmlLunaServer() *nvmlMigModeManager {
-	mls := &nvml.MockLunaServer{}
+	mls := dgxa100.New()
 	for i := 0; i < 8; i++ {
 		mls.Devices[i] = &mockNvmlA100Device{
-			Device:         nvml.NewMockA100Device(i),
+			Device:         dgxa100.NewDevice(i),
 			migCapable:     true,
 			driverBusy:     false,
 			currentMigMode: nvml.DEVICE_MIG_DISABLE,
@@ -52,22 +52,22 @@ func NewMockNvmlLunaServer() *nvmlMigModeManager {
 
 func (d *mockNvmlA100Device) SetMigMode(mode int) (Return, Return) {
 	if !d.migCapable {
-		return MockReturn(nvml.ERROR_NOT_SUPPORTED), MockReturn(nvml.ERROR_NOT_SUPPORTED)
+		return nvml.ERROR_NOT_SUPPORTED, nvml.ERROR_NOT_SUPPORTED
 	}
 
 	d.pendingMigMode = mode
 	if !d.driverBusy {
 		d.currentMigMode = mode
-		return MockReturn(nvml.ERROR_IN_USE), MockReturn(nvml.SUCCESS)
+		return nvml.ERROR_IN_USE, nvml.SUCCESS
 	}
-	return MockReturn(nvml.SUCCESS), MockReturn(nvml.SUCCESS)
+	return nvml.SUCCESS, nvml.SUCCESS
 }
 
 func (d *mockNvmlA100Device) GetMigMode() (int, int, Return) {
 	if !d.migCapable {
-		return -1, -1, MockReturn(nvml.ERROR_NOT_SUPPORTED)
+		return -1, -1, nvml.ERROR_NOT_SUPPORTED
 	}
-	return d.currentMigMode, d.pendingMigMode, MockReturn(nvml.SUCCESS)
+	return d.currentMigMode, d.pendingMigMode, nvml.SUCCESS
 }
 
 func TestNvmlIsMigCapable(t *testing.T) {
@@ -75,7 +75,7 @@ func TestNvmlIsMigCapable(t *testing.T) {
 
 	numGPUs, ret := manager.nvml.DeviceGetCount()
 	require.NotNil(t, ret, "Unexpected nil return from DeviceGetCount")
-	require.Equal(t, ret.Value(), nvml.SUCCESS, "Unexpected return value from DeviceGetCount")
+	require.Equal(t, ret, nvml.SUCCESS, "Unexpected return value from DeviceGetCount")
 
 	for i := 0; i < numGPUs; i++ {
 		t.Run(fmt.Sprintf("GPU %v", i), func(t *testing.T) {
@@ -83,7 +83,7 @@ func TestNvmlIsMigCapable(t *testing.T) {
 			require.Nil(t, err, "Unexpected failure from IsMigCapable")
 			require.True(t, capable)
 
-			server := manager.nvml.(*nvml.MockLunaServer)
+			server := manager.nvml.(*dgxa100.Server)
 			device := server.Devices[i].(*mockNvmlA100Device)
 			device.migCapable = false
 
@@ -99,7 +99,7 @@ func TestNvmlEnableDisableMig(t *testing.T) {
 
 	numGPUs, ret := manager.nvml.DeviceGetCount()
 	require.NotNil(t, ret, "Unexpected nil return from DeviceGetCount")
-	require.Equal(t, ret.Value(), nvml.SUCCESS, "Unexpected return value from DeviceGetCount")
+	require.Equal(t, ret, nvml.SUCCESS, "Unexpected return value from DeviceGetCount")
 
 	for i := 0; i < numGPUs; i++ {
 		t.Run(fmt.Sprintf("GPU %v", i), func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestNvmlEnableDisableMig(t *testing.T) {
 			require.Nil(t, err, "Unexpected failure from GetMigMode")
 			require.Equal(t, Disabled, mode)
 
-			server := manager.nvml.(*nvml.MockLunaServer)
+			server := manager.nvml.(*dgxa100.Server)
 			device := server.Devices[i].(*mockNvmlA100Device)
 			device.driverBusy = true
 

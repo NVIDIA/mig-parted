@@ -5,9 +5,8 @@ go 1.21
 toolchain go1.22.2
 
 require (
-	github.com/NVIDIA/go-nvlib v0.2.0
-	github.com/NVIDIA/go-nvml v0.12.0-3
-	github.com/google/uuid v1.6.0
+	github.com/NVIDIA/go-nvlib v0.3.0
+	github.com/NVIDIA/go-nvml v0.12.0-5
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.1
@@ -31,6 +30,7 @@ require (
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/imdario/mergo v0.3.6 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
