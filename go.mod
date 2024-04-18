@@ -8,7 +8,7 @@ require (
 	github.com/NVIDIA/go-nvlib v0.2.0
 	github.com/NVIDIA/go-nvml v0.12.0-3
 	github.com/google/uuid v1.6.0
-	github.com/sirupsen/logrus v1.7.0
+	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.1
 	gopkg.in/yaml.v2 v2.4.0
