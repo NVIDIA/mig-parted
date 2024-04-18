@@ -12,16 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG CUDA_VERSION=12.2.0
-ARG BASE_DIST=ubi8
-FROM nvidia/cuda:${CUDA_VERSION}-base-${BASE_DIST} as build
+FROM nvidia/cuda:12.3.2-base-ubuntu20.04 as build
 
 SHELL ["/bin/bash", "-c"]
 
-RUN yum install -y \
-    wget make git gcc \
-     && \
-    rm -rf /var/cache/yum/*
+RUN apt-get update && \
+    apt-get install -y wget make git gcc curl \
+    && \
+    rm -rf /var/lib/apt/lists/*
 
 ARG GOLANG_VERSION=1.20.5
 RUN set -eux; \
@@ -47,7 +45,7 @@ ARG VERSION="N/A"
 ARG GIT_COMMIT="unknown"
 RUN make PREFIX=/artifacts cmds
 
-RUN cp ./deployments/gpu-operator/reconfigure-mig.sh /artifacts/reconfigure-mig.sh
+RUN cp ./deployments/container/reconfigure-mig.sh /artifacts/reconfigure-mig.sh
 
 ARG TARGETARCH
 RUN OS_ARCH=${TARGETARCH/x86_64/amd64} && OS_ARCH=${OS_ARCH/aarch64/arm64} && curl -o /artifacts/kubectl -L "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${OS_ARCH}/kubectl"
@@ -60,10 +58,10 @@ RUN go install -ldflags "-extldflags=-Wl,-z,lazy -s -w" \
     github.com/NVIDIA/nvidia-container-toolkit/cmd/nvidia-ctk@${NVIDIA_CTK_VERSION} \
     && cp ${GOPATH}/bin/nvidia-ctk /artifacts/nvidia-ctk
 
-FROM nvidia/cuda:${CUDA_VERSION}-base-${BASE_DIST}
+FROM nvidia/cuda:12.3.2-base-ubuntu20.04
 
 # Remove CUDA libs(compat etc) in favor of libs installed by the NVIDIA driver
-RUN dnf remove -y cuda-*
+RUN apt-get --purge -y autoremove cuda-*
 
 RUN mkdir /licenses && mv /NGC-DL-CONTAINER-LICENSE /licenses/NGC-DL-CONTAINER-LICENSE
 COPY --from=build /artifacts/nvidia-mig-parted  /usr/bin/nvidia-mig-parted
@@ -88,8 +86,8 @@ LABEL description="See summary"
 # Install / upgrade packages here that are required to resolve CVEs
 ARG CVE_UPDATES
 RUN if [ -n "${CVE_UPDATES}" ]; then \
-        yum update -y ${CVE_UPDATES} && \
-        rm -rf /var/cache/yum/*; \
+        apt-get update && apt-get upgrade -y ${CVE_UPDATES} && \
+        rm -rf /var/lib/apt/lists/*; \
     fi
 
 ENTRYPOINT ["nvidia-mig-manager"]

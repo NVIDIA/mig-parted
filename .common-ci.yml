@@ -200,7 +200,7 @@ scan-ubi8-arm64:
 
     # Since OUT_IMAGE_NAME and OUT_IMAGE_VERSION are set, this will push the CI image to the
     # Target
-    - make -f deployments/gpu-operator/Makefile push-${DIST}
+    - make -f deployments/container/Makefile push-${DIST}
 
 # Define a staging release step that pushes an image to an internal "staging" repository
 # This is triggered for all pipelines (i.e. not only tags) to test the pipeline steps
