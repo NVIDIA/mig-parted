@@ -21,7 +21,7 @@ RUN apt-get update && \
     && \
     rm -rf /var/lib/apt/lists/*
 
-ARG GOLANG_VERSION=1.20.5
+ARG GOLANG_VERSION=1.22.2
 RUN set -eux; \
     \
     arch="$(uname -m)"; \
