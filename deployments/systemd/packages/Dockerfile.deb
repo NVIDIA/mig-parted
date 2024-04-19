@@ -15,11 +15,43 @@
 # build go binary
 ARG BASE_IMAGE=undefined
 ARG GOLANG_VERSION=undefined
-FROM golang:${GOLANG_VERSION} AS go-build
+FROM ${BASE_IMAGE} as go-build
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        wget \
+        ca-certificates \
+        git \
+        build-essential \
+        dh-make \
+        fakeroot \
+        devscripts \
+        lsb-release && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG GOLANG_VERSION=0.0.0
+RUN set -eux; \
+    \
+    arch="$(uname -m)"; \
+    case "${arch##*-}" in \
+        x86_64 | amd64) ARCH='amd64' ;; \
+        ppc64el | ppc64le) ARCH='ppc64le' ;; \
+        aarch64 | arm64) ARCH='arm64' ;; \
+        *) echo "unsupported architecture" ; exit 1 ;; \
+    esac; \
+    wget -nv -O - https://storage.googleapis.com/golang/go${GOLANG_VERSION}.linux-${ARCH}.tar.gz \
+    | tar -C /usr/local -xz
+
+ENV GOPATH /go
+ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
 WORKDIR /build
 COPY . .
-RUN go build -o /artifacts/nvidia-mig-parted ./cmd/nvidia-mig-parted
+
+RUN mkdir /artifacts
+ARG VERSION="N/A"
+ARG GIT_COMMIT="unknown"
+RUN make PREFIX=/artifacts cmds
 
 # build package
 FROM ${BASE_IMAGE}
@@ -27,17 +59,19 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y devscripts debhelper
 
 # envs for packaging
+ENV DEBFULLNAME "NVIDIA CORPORATION"
+ENV DEBEMAIL "cudatools@nvidia.com"
 ARG PACKAGE_NAME=undefined
 ARG PACKAGE_VERSION=undefined
 ARG PACKAGE_REVISION=undefined
 ENV PACKAGE_NAME ${PACKAGE_NAME}
 ENV PACKAGE_VERSION ${PACKAGE_VERSION}
 ENV PACKAGE_REVISION ${PACKAGE_REVISION}
+ENV PACKAGE_VERSION_STRING "${PACKAGE_VERSION}-${PACKAGE_REVISION}"
 ENV SECTION ""
 
 # working directory
-ENV PWD=/tmp/${PACKAGE_NAME}-${PACKAGE_VERSION}
-WORKDIR ${PWD}
+WORKDIR /tmp/${PACKAGE_NAME}-${PACKAGE_VERSION_STRING}
 
 # sources
 COPY ./LICENSE .
@@ -49,8 +83,11 @@ COPY ./deployments/systemd/packages/debian/Makefile .
 # output directory
 RUN mkdir -p /dist
 
-# Check that the latest changelog entry matches the current version info
-RUN if [ "${PACKAGE_VERSION}-${PACKAGE_REVISION}" != "$(dpkg-parsechangelog --show-field=Version)" ]; then exit 1; fi
+RUN dch --create --package="${PACKAGE_NAME}" \
+        --newversion "${PACKAGE_VERSION_STRING##v}" \
+            "See https://github.com/NVIDIA/mig-parted/-/blob/${GIT_COMMIT}/CHANGELOG.md for the changelog" && \
+    dch -r "" && \
+    if [ "${PACKAGE_VERSION_STRING##v}" != "$(dpkg-parsechangelog --show-field=Version)" ]; then exit 1; fi
 
 # build command
 CMD export DISTRIB=$(lsb_release -c -s) && \
