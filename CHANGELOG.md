@@ -1,5 +1,10 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.7.0
+- Update to latest CUDA base image 12.4.1
+- Bump Golang version to 1.22.2
+- Update vendored go dependencies
+
 ## v0.6.0
 - Update to latest CUDA base image 12.3.2
 - Migrate to using github.com/NVIDIA/go-nvlib
