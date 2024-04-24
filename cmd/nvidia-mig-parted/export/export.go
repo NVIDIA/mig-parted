@@ -25,8 +25,9 @@ import (
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
+
 	v1 "github.com/NVIDIA/mig-parted/api/spec/v1"
-	"github.com/NVIDIA/mig-parted/internal/nvml"
 
 	yaml "gopkg.in/yaml.v2"
 )

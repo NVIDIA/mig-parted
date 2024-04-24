@@ -17,8 +17,9 @@
 package nvlib
 
 import (
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
+
 	"github.com/NVIDIA/mig-parted/internal/nvlib/mig"
-	"github.com/NVIDIA/mig-parted/internal/nvml"
 )
 
 type Interface struct {

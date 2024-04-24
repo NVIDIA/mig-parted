@@ -22,8 +22,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
+
 	"github.com/NVIDIA/mig-parted/internal/nvlib"
-	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/types"
 )
 
@@ -42,7 +43,7 @@ var _ Manager = (*nvmlMigConfigManager)(nil)
 
 func tryNvmlShutdown(nvmlLib nvml.Interface) {
 	ret := nvmlLib.Shutdown()
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		log.Warnf("Error shutting down NVML: %v", ret)
 	}
 }
@@ -57,18 +58,18 @@ func NewMockNvmlMigConfigManager(nvml nvml.Interface) Manager {
 
 func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
 	ret := m.nvml.Init()
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		return nil, fmt.Errorf("error initializing NVML: %v", ret)
 	}
 	defer tryNvmlShutdown(m.nvml)
 
 	device, ret := m.nvml.DeviceGetHandleByIndex(gpu)
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		return nil, fmt.Errorf("error getting device handle: %v", ret)
 	}
 
 	deviceMemory, ret := device.GetMemoryInfo()
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		return nil, fmt.Errorf("error getting device memory: %v", ret)
 	}
 
@@ -101,18 +102,18 @@ func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
 
 func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) error {
 	ret := m.nvml.Init()
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		return fmt.Errorf("error initializing NVML: %v", ret)
 	}
 	defer tryNvmlShutdown(m.nvml)
 
 	device, ret := m.nvml.DeviceGetHandleByIndex(gpu)
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		return fmt.Errorf("error getting device handle: %v", ret)
 	}
 
 	deviceMemory, ret := device.GetMemoryInfo()
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		return fmt.Errorf("error getting device memory: %v", ret)
 	}
 
@@ -150,7 +151,7 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 		var gi nvml.GpuInstance = nil
 		for _, mp := range mps {
 			giProfileInfo, ret := device.GetGpuInstanceProfileInfo(mp.GIProfileID)
-			if ret.Value() != nvml.SUCCESS {
+			if ret != nvml.SUCCESS {
 				return fmt.Errorf("error getting GPU instance profile info for '%v': %v", mp, ret)
 			}
 			reuseGI := (gi != nil) && (lastGIProfileID == mp.GIProfileID)
@@ -159,13 +160,13 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 			for {
 				if !reuseGI {
 					gi, ret = device.CreateGpuInstance(&giProfileInfo)
-					if ret.Value() != nvml.SUCCESS {
+					if ret != nvml.SUCCESS {
 						return fmt.Errorf("error creating GPU instance for '%v': %v", mp, ret)
 					}
 				}
 
 				ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(mp.CIProfileID, mp.CIEngProfileID)
-				if ret.Value() != nvml.SUCCESS {
+				if ret != nvml.SUCCESS {
 					if reuseGI {
 						reuseGI = false
 						continue
@@ -174,7 +175,7 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 				}
 
 				_, ret = gi.CreateComputeInstance(&ciProfileInfo)
-				if ret.Value() != nvml.SUCCESS {
+				if ret != nvml.SUCCESS {
 					if reuseGI {
 						reuseGI = false
 						continue
@@ -213,13 +214,13 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 
 func (m *nvmlMigConfigManager) ClearMigConfig(gpu int) error {
 	ret := m.nvml.Init()
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		return fmt.Errorf("error initializing NVML: %v", ret)
 	}
 	defer tryNvmlShutdown(m.nvml)
 
 	device, ret := m.nvml.DeviceGetHandleByIndex(gpu)
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		return fmt.Errorf("error getting device handle: %v", ret)
 	}
 
@@ -231,7 +232,7 @@ func (m *nvmlMigConfigManager) ClearMigConfig(gpu int) error {
 	err = m.nvlib.Mig.Device(device).WalkGpuInstances(func(gi nvml.GpuInstance, giProfileID int, giProfileInfo nvml.GpuInstanceProfileInfo) error {
 		err := m.nvlib.Mig.GpuInstance(gi).WalkComputeInstances(func(ci nvml.ComputeInstance, ciProfileID int, ciEngProfileID int, ciProfileInfo nvml.ComputeInstanceProfileInfo) error {
 			ret := ci.Destroy()
-			if ret.Value() != nvml.SUCCESS {
+			if ret != nvml.SUCCESS {
 				return fmt.Errorf("error destroying Compute instance for profile '(%v, %v)': %v", ciProfileID, ciEngProfileID, ret)
 			}
 			return nil
@@ -241,7 +242,7 @@ func (m *nvmlMigConfigManager) ClearMigConfig(gpu int) error {
 		}
 
 		ret := gi.Destroy()
-		if ret.Value() != nvml.SUCCESS {
+		if ret != nvml.SUCCESS {
 			return fmt.Errorf("error destroying GPU instance for profile '%v': %v", giProfileID, ret)
 		}
 		return nil

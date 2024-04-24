@@ -24,9 +24,10 @@ import (
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
+
 	hooks "github.com/NVIDIA/mig-parted/api/hooks/v1"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/assert"
-	"github.com/NVIDIA/mig-parted/internal/nvml"
 
 	"sigs.k8s.io/yaml"
 )

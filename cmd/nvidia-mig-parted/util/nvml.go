@@ -24,7 +24,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/NVIDIA/mig-parted/internal/nvml"
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
 const (
@@ -49,18 +49,18 @@ func IsNVMLVersionSupported() (bool, error) {
 	nvmlLib := nvml.New()
 
 	ret := nvmlLib.Init()
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		return false, fmt.Errorf("error initializing NVML: %v", ret)
 	}
 	defer func() {
 		ret := nvmlLib.Shutdown()
-		if ret.Value() != nvml.SUCCESS {
+		if ret != nvml.SUCCESS {
 			log.Warnf("error shutting down NVML: %v", ret)
 		}
 	}()
 
 	sversion, ret := nvmlLib.SystemGetNVMLVersion()
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		return false, fmt.Errorf("error getting getting version: %v", ret)
 	}
 
@@ -86,7 +86,7 @@ func NvmlInit(nvmlLib nvml.Interface) error {
 		nvmlLib = nvml.New()
 	}
 	ret := nvmlLib.Init()
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		return ret
 	}
 	return nil
@@ -97,7 +97,7 @@ func TryNvmlShutdown(nvmlLib nvml.Interface) {
 		nvmlLib = nvml.New()
 	}
 	ret := nvmlLib.Shutdown()
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		log.Warnf("error shutting down NVML: %v", ret)
 	}
 }

@@ -19,7 +19,7 @@ package mig
 import (
 	"fmt"
 
-	"github.com/NVIDIA/mig-parted/internal/nvml"
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
 type Interface struct {
@@ -52,10 +52,10 @@ func (i Interface) GpuInstance(gi nvml.GpuInstance) GpuInstance {
 
 func (device Device) AssertMigEnabled() error {
 	mode, _, ret := device.GetMigMode()
-	if ret.Value() == nvml.ERROR_NOT_SUPPORTED {
+	if ret == nvml.ERROR_NOT_SUPPORTED {
 		return fmt.Errorf("MIG not supported")
 	}
-	if ret.Value() != nvml.SUCCESS {
+	if ret != nvml.SUCCESS {
 		return fmt.Errorf("error getting MIG mode: %v", ret)
 	}
 	if mode != nvml.DEVICE_MIG_ENABLE {
@@ -67,18 +67,18 @@ func (device Device) AssertMigEnabled() error {
 func (device Device) WalkGpuInstances(f func(nvml.GpuInstance, int, nvml.GpuInstanceProfileInfo) error) error {
 	for i := 0; i < nvml.GPU_INSTANCE_PROFILE_COUNT; i++ {
 		giProfileInfo, ret := device.GetGpuInstanceProfileInfo(i)
-		if ret.Value() == nvml.ERROR_NOT_SUPPORTED {
+		if ret == nvml.ERROR_NOT_SUPPORTED {
 			continue
 		}
-		if ret.Value() == nvml.ERROR_INVALID_ARGUMENT {
+		if ret == nvml.ERROR_INVALID_ARGUMENT {
 			continue
 		}
-		if ret.Value() != nvml.SUCCESS {
+		if ret != nvml.SUCCESS {
 			return fmt.Errorf("error getting GPU instance profile info for '%v': %v", i, ret)
 		}
 
 		gis, ret := device.GetGpuInstances(&giProfileInfo)
-		if ret.Value() != nvml.SUCCESS {
+		if ret != nvml.SUCCESS {
 			return fmt.Errorf("error getting GPU instances for profile '%v': %v", i, ret)
 		}
 
@@ -96,18 +96,18 @@ func (gi GpuInstance) WalkComputeInstances(f func(ci nvml.ComputeInstance, ciPro
 	for j := 0; j < nvml.COMPUTE_INSTANCE_PROFILE_COUNT; j++ {
 		for k := 0; k < nvml.COMPUTE_INSTANCE_ENGINE_PROFILE_COUNT; k++ {
 			ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(j, k)
-			if ret.Value() == nvml.ERROR_NOT_SUPPORTED {
+			if ret == nvml.ERROR_NOT_SUPPORTED {
 				continue
 			}
-			if ret.Value() == nvml.ERROR_INVALID_ARGUMENT {
+			if ret == nvml.ERROR_INVALID_ARGUMENT {
 				continue
 			}
-			if ret.Value() != nvml.SUCCESS {
+			if ret != nvml.SUCCESS {
 				return fmt.Errorf("error getting Compute instance profile info for '(%v, %v)': %v", j, k, ret)
 			}
 
 			cis, ret := gi.GetComputeInstances(&ciProfileInfo)
-			if ret.Value() != nvml.SUCCESS {
+			if ret != nvml.SUCCESS {
 				return fmt.Errorf("error getting Compute instances for profile '(%v, %v)': %v", j, k, ret)
 			}
 

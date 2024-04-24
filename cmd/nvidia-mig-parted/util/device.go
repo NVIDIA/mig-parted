@@ -21,10 +21,10 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/NVIDIA/mig-parted/internal/nvml"
-	"github.com/NVIDIA/mig-parted/pkg/types"
-
 	"github.com/NVIDIA/go-nvlib/pkg/nvpci"
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
+
+	"github.com/NVIDIA/mig-parted/pkg/types"
 )
 
 func GetGPUDeviceIDs() ([]types.DeviceID, error) {
@@ -87,7 +87,7 @@ func nvmlGetGPUDeviceIDs() ([]types.DeviceID, error) {
 	var ids []types.DeviceID
 	err = pciVisitGPUs(func(gpu *nvpci.NvidiaPCIDevice) error {
 		_, ret := nvmlLib.DeviceGetHandleByPciBusId(gpu.Address)
-		if ret.Value() != nvml.SUCCESS {
+		if ret != nvml.SUCCESS {
 			return nil
 		}
 
@@ -126,7 +126,7 @@ func nvmlGetGPUPciBusIds() ([]string, error) {
 		}
 
 		_, ret := nvmlLib.DeviceGetHandleByPciBusId(gpu.Address)
-		if ret.Value() != nvml.SUCCESS {
+		if ret != nvml.SUCCESS {
 			return nil
 		}
 

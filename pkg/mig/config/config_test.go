@@ -23,31 +23,33 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	"github.com/NVIDIA/go-nvml/pkg/nvml/mock/dgxa100"
+
 	"github.com/NVIDIA/mig-parted/internal/nvlib"
-	"github.com/NVIDIA/mig-parted/internal/nvml"
 	"github.com/NVIDIA/mig-parted/pkg/types"
 )
 
 func NewMockLunaServerMigConfigManager() Manager {
-	nvml := nvml.NewMockNVMLOnLunaServer()
+	nvml := dgxa100.New()
 	nvlib := nvlib.NewMock(nvml)
 	return &nvmlMigConfigManager{nvml, nvlib}
 }
 
 func EnableMigMode(manager Manager, gpu int) (nvml.Return, nvml.Return) {
 	m := manager.(*nvmlMigConfigManager)
-	n := m.nvml.(*nvml.MockLunaServer)
+	n := m.nvml.(*dgxa100.Server)
 	r1, r2 := n.Devices[gpu].SetMigMode(nvml.DEVICE_MIG_ENABLE)
 	return r1, r2
 }
 
 func TestGetSetMigConfig(t *testing.T) {
-	nvmlLib := nvml.NewMockNVMLOnLunaServer()
+	nvmlLib := dgxa100.New()
 	manager := NewMockLunaServerMigConfigManager()
 
 	numGPUs, ret := nvmlLib.DeviceGetCount()
 	require.NotNil(t, ret, "Unexpected nil return from DeviceGetCount")
-	require.Equal(t, ret.Value(), nvml.SUCCESS, "Unexpected return value from DeviceGetCount")
+	require.Equal(t, ret, nvml.SUCCESS, "Unexpected return value from DeviceGetCount")
 
 	mcg := NewA100_SXM4_40GB_MigConfigGroup()
 
@@ -71,8 +73,8 @@ func TestGetSetMigConfig(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			for i := 0; i < numGPUs; i++ {
 				r1, r2 := EnableMigMode(manager, i)
-				require.Equal(t, nvml.SUCCESS, r1.Value())
-				require.Equal(t, nvml.SUCCESS, r2.Value())
+				require.Equal(t, nvml.SUCCESS, r1)
+				require.Equal(t, nvml.SUCCESS, r2)
 
 				err := manager.SetMigConfig(i, tc.config)
 				require.Nil(t, err, "Unexpected failure from SetMigConfig")
@@ -109,8 +111,8 @@ func TestClearMigConfig(t *testing.T) {
 			manager := NewMockLunaServerMigConfigManager()
 
 			r1, r2 := EnableMigMode(manager, 0)
-			require.Equal(t, nvml.SUCCESS, r1.Value())
-			require.Equal(t, nvml.SUCCESS, r2.Value())
+			require.Equal(t, nvml.SUCCESS, r1)
+			require.Equal(t, nvml.SUCCESS, r2)
 
 			err := manager.SetMigConfig(0, tc.config)
 			require.Nil(t, err, "Unexpected failure from SetMigConfig")
