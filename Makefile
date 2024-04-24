@@ -83,7 +83,7 @@ check-vendor: vendor
 
 COVERAGE_FILE := coverage.out
 test: build cmds
-	go test -coverprofile=$(COVERAGE_FILE) $(MODULE)/cmd/... $(MODULE)/internal/... $(MODULE)/api/...
+	go test -v -coverprofile=$(COVERAGE_FILE) $(MODULE)/cmd/... $(MODULE)/internal/... $(MODULE)/api/... $(MODULE)/pkg/...
 
 coverage: test
 	cat $(COVERAGE_FILE) | grep -v "_mock.go" > $(COVERAGE_FILE).no-mocks

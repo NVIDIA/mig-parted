@@ -132,8 +132,10 @@ func TestValidConfiguration(t *testing.T) {
 	types.SetMockNVdevlib()
 	configs := GetKnownMigConfigGroups()
 
-	for _, tc := range testCases {
+	for i := range testCases {
+		tc := testCases[i] // to allow us to run parallelly
 		t.Run(tc.description, func(t *testing.T) {
+			t.Parallel()
 			err := configs[tc.gpu].AssertValidConfiguration(tc.config)
 			if tc.valid {
 				require.Nil(t, err)
