@@ -47,7 +47,7 @@ const (
 	DefaultHostMigManagerStateFile   = "/etc/systemd/system/nvidia-mig-manager.service.d/override.conf"
 	DefaultHostKubeletSystemdService = "kubelet.service"
 	DefaultGPUClientsNamespace       = "default"
-	DefaultDriverRoot                = "/run/nvidia/driver"
+	DefaultNvidiaDriverRoot          = "/run/nvidia/driver"
 	DefaultDriverRootCtrPath         = "/run/nvidia/driver"
 )
 
@@ -210,12 +210,12 @@ func main() {
 			EnvVars:     []string{"DEFAULT_GPU_CLIENTS_NAMESPACE"},
 		},
 		&cli.StringFlag{
-			Name:        "driver-root",
-			Aliases:     []string{"t"},
-			Value:       DefaultDriverRoot,
+			Name:        "nvidia-driver-root",
+			Aliases:     []string{"driver-root", "t"},
+			Value:       DefaultNvidiaDriverRoot,
 			Usage:       "Root path to the NVIDIA driver installation. Only used if --cdi-enabled is set.",
 			Destination: &driverRoot,
-			EnvVars:     []string{"DRIVER_ROOT"},
+			EnvVars:     []string{"NVIDIA_DRIVER_ROOT", "DRIVER_ROOT"},
 		},
 		&cli.StringFlag{
 			Name:        "driver-root-ctr-path",
