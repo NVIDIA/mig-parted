@@ -5,8 +5,8 @@ go 1.21
 toolchain go1.22.2
 
 require (
-	github.com/NVIDIA/go-nvlib v0.3.0
-	github.com/NVIDIA/go-nvml v0.12.0-5
+	github.com/NVIDIA/go-nvlib v0.3.1
+	github.com/NVIDIA/go-nvml v0.12.0-6
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.2
