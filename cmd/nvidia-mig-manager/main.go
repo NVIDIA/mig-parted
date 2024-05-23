@@ -217,7 +217,7 @@ func main() {
 			Value:       DefaultDriverRoot,
 			Usage:       "Root path to the NVIDIA driver installation. Only used if --cdi-enabled is set.",
 			Destination: &driverRoot,
-			EnvVars:     []string{"DRIVER_ROOT"},
+			EnvVars:     []string{"NVIDIA_DRIVER_ROOT", "DRIVER_ROOT"},
 		},
 		&cli.StringFlag{
 			Name:        "driver-root-ctr-path",
