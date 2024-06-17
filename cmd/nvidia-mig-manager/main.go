@@ -68,6 +68,8 @@ var (
 	cdiEnabledFlag    bool
 	driverRoot        string
 	driverRootCtrPath string
+	devRoot           string
+	devRootCtrPath    string
 )
 
 type GPUClients struct {
@@ -231,6 +233,22 @@ func main() {
 			Destination: &cdiEnabledFlag,
 			EnvVars:     []string{"CDI_ENABLED"},
 		},
+		&cli.StringFlag{
+			Name:        "dev-root",
+			Aliases:     []string{"b"},
+			Value:       "",
+			Usage:       "Root path to the NVIDIA device nodes. Only used if --cdi-enabled is set.",
+			Destination: &devRoot,
+			EnvVars:     []string{"NVIDIA_DEV_ROOT"},
+		},
+		&cli.StringFlag{
+			Name:        "dev-root-ctr-path",
+			Aliases:     []string{"j"},
+			Value:       "",
+			Usage:       "Root path to the NVIDIA device nodes mounted in the container. Only used if --cdi-enabled is set.",
+			Destination: &devRootCtrPath,
+			EnvVars:     []string{"DEV_ROOT_CTR_PATH"},
+		},
 	}
 
 	err := c.Run(os.Args)
@@ -320,7 +338,7 @@ func runScript(migConfigValue string) error {
 		"-p", defaultGPUClientsNamespaceFlag,
 	}
 	if cdiEnabledFlag {
-		args = append(args, "-e", "-t", driverRoot, "-a", driverRootCtrPath)
+		args = append(args, "-e", "-t", driverRoot, "-a", driverRootCtrPath, "-b", devRoot, "-j", devRootCtrPath)
 	}
 	if withRebootFlag {
 		args = append(args, "-r")

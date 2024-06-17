@@ -28,13 +28,15 @@ DEFAULT_GPU_CLIENTS_NAMESPACE=""
 CDI_ENABLED="false"
 DRIVER_ROOT=""
 DRIVER_ROOT_CTR_PATH=""
+DEV_ROOT=""
+DEV_ROOT_CTR_PATH=""
 
 export SYSTEMD_LOG_LEVEL="info"
 
 function usage() {
   echo "USAGE:"
   echo "    ${0} -h "
-  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> -t <driver-root> -a <driver-root-ctr-path> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path> -b <dev-root> -j <dev-root-ctr-path>] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
   echo ""
   echo "OPTIONS:"
   echo "    -h                                            Display this help message"
@@ -52,9 +54,11 @@ function usage() {
   echo "    -p <default-gpu-clients-namespace>            Default name of the Kubernetes Namespace in which the GPU client Pods are installed in"
   echo "    -t <driver-root>                              Root path to the NVIDIA driver installation"
   echo "    -a <driver-root-ctr-path>                     Root path to the NVIDIA driver installation mounted in the container"
+  echo "    -b <dev-root>                                 Root path to the NVIDIA device nodes"
+  echo "    -j <dev-root-ctr-path>                        Root path to the NVIDIA device nodes mounted in the container"
 }
 
-while getopts "hrden:f:c:m:i:o:g:k:p:t:a:" opt; do
+while getopts "hrden:f:c:m:i:o:g:k:p:t:a:b:j:" opt; do
   case ${opt} in
     h ) # process option h
       usage; exit 0
@@ -101,7 +105,13 @@ while getopts "hrden:f:c:m:i:o:g:k:p:t:a:" opt; do
     a ) # process option a
       DRIVER_ROOT_CTR_PATH=${OPTARG}
       ;;
-    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path>] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+    b ) # process option b
+      DEV_ROOT=${OPTARG}
+      ;;
+    j ) # process option j
+      DEV_ROOT_CTR_PATH=${OPTARG}
+      ;;
+    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path> -b <dev-root> -j <dev-root-ctr-path>] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
       ;;
   esac
 done
@@ -130,6 +140,12 @@ if [ "${CDI_ENABLED}" = "true" ]; then
 	if [ "${DRIVER_ROOT_CTR_PATH}" = "" ]; then
 	echo "Error: missing -a <driver-root-ctr-path> flag"
 	usage; exit 1
+	fi
+	if [ "${DEV_ROOT}" == "" ]; then
+	DEV_ROOT="${DRIVER_ROOT}"
+	fi
+	if [ "${DEV_ROOT_CTR_PATH}" == "" ]; then
+	DEV_ROOT_CTR_PATH="${DRIVER_ROOT_CTR_PATH}"
 	fi
 fi
 
@@ -525,14 +541,18 @@ if [ "${?}" != "0" ]; then
 fi
 
 if [ "${CDI_ENABLED}" = "true" ]; then
-	echo "Running nvidia-smi"
-	chroot ${DRIVER_ROOT_CTR_PATH} nvidia-smi >/dev/null
-	if [ "${?}" != "0" ]; then
-		exit_failed
+	if [ "${DRIVER_ROOT_CTR_PATH}" = "/host" ]; then
+		echo "Running nvidia-smi"
+		chroot ${DRIVER_ROOT_CTR_PATH} nvidia-smi >/dev/null
+		if [ "${?}" != "0" ]; then
+			exit_failed
+		fi
 	fi
 
 	echo "Creating NVIDIA control device nodes"
-	nvidia-ctk system create-device-nodes --control-devices --driver-root=${DRIVER_ROOT_CTR_PATH}
+	nvidia-ctk system create-device-nodes \
+		--control-devices \
+		--dev-root=${DEV_ROOT_CTR_PATH}
 	if [ "${?}" != "0" ]; then
 		exit_failed
 	fi
@@ -540,12 +560,17 @@ if [ "${CDI_ENABLED}" = "true" ]; then
 	echo "Creating management CDI spec"
 	nvidia-ctk cdi generate --mode=management \
 		--driver-root=${DRIVER_ROOT_CTR_PATH} \
+		--dev-root=${DEV_ROOT_CTR_PATH} \
 		--vendor="management.nvidia.com" \
 		--class="gpu" \
 		--nvidia-ctk-path="/usr/local/nvidia/toolkit/nvidia-ctk" | \
 			nvidia-ctk cdi transform root \
 				--from=$DRIVER_ROOT_CTR_PATH \
 				--to=$DRIVER_ROOT \
+				--input="-" | \
+			nvidia-ctk cdi transform root \
+				--from=$DEV_ROOT_CTR_PATH \
+				--to=$DEV_ROOT \
 				--input="-" \
 				--output="/var/run/cdi/management.nvidia.com-gpu.yaml"
 	if [ "${?}" != "0" ]; then
