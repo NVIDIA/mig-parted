@@ -349,6 +349,77 @@ EOF
 	return 0
 }
 
+function get_driver_library_path() {
+	local search_paths=("/usr/lib64"
+                      "/usr/lib/x86_64-linux-gnu"
+                      "/usr/lib/aarch64-linux-gnu"
+                      "/lib64"
+                      "/lib/x86_64-linux-gnu"
+                      "/lib/aarch64-linux-gnu"
+                      )
+	for search_path in "${search_paths[@]}"
+	do
+		path=$(find "/host/${DRIVER_ROOT}${search_path}" -name "libnvidia-ml.so.1" 2>/dev/null | head -n 1)
+		if [ ! -z $path ]; then
+			echo "$path"
+			return
+		fi
+	done
+}
+
+function get_nvidia_smi_path() {
+	local search_paths=("/usr/bin"
+                      "/usr/sbin"
+                      "/bin"
+                      "/sbin"
+                      )
+	for search_path in "${search_paths[@]}"
+	do
+		path=$(find "/host/${DRIVER_ROOT}${search_path}" -name "nvidia-smi" 2>/dev/null | head -n 1)
+		if [ ! -z $path ]; then
+			echo "$path"
+			return
+		fi
+	done
+}
+
+function run_nvidia_smi() {
+	if [ "${DRIVER_ROOT_CTR_PATH}" = "${DEV_ROOT_CTR_PATH}" ]; then
+		chroot ${DRIVER_ROOT_CTR_PATH} nvidia-smi >/dev/null
+		if [ "${?}" != "0" ]; then
+			return 1
+		fi
+		return 0
+	fi
+
+	# Currently, driverRoot != devRoot only when devRoot='/'.
+	# Since both devRoot and driverRoot are relative to hostRoot, the below
+	# code will execute nvidia-smi in the host's environment. This will create
+	# the device nodes at /host/dev
+	library_path=$(get_driver_library_path)
+	if [ -z $library_path ]; then
+		echo "failed to discover the path to libnvidia-ml.so.1"
+		return 1
+	fi
+	# Strip the leading '/host' so that the path is relative to the host rootFS
+	library_path=${library_path#"/host"}
+
+	nvidia_smi_path=$(get_nvidia_smi_path)
+	if [ -z $nvidia_smi_path ]; then
+		echo "failed to discover the path to nvidia-smi"
+		return 1
+	fi
+	# Strip the leading '/host' so that the path is relative to the host rootFS
+	nvidia_smi_path=${nvidia_smi_path#"/host"}
+
+	LD_PRELOAD=$library_path chroot /host $nvidia_smi_path >/dev/null 2>&1
+	if [ "${?}" != "0" ]; then
+		return 1
+	fi
+
+	return 0
+}
+
 echo "Getting current value of the 'nvidia.com/gpu.deploy.device-plugin' node label"
 PLUGIN_DEPLOYED=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.device-plugin}')
 if [ "${?}" != "0" ]; then
@@ -541,12 +612,11 @@ if [ "${?}" != "0" ]; then
 fi
 
 if [ "${CDI_ENABLED}" = "true" ]; then
-	if [ "${DRIVER_ROOT_CTR_PATH}" = "/host" ]; then
-		echo "Running nvidia-smi"
-		chroot ${DRIVER_ROOT_CTR_PATH} nvidia-smi >/dev/null
-		if [ "${?}" != "0" ]; then
+	echo "Running nvidia-smi"
+	run_nvidia_smi
+	if [ "${?}" != "0" ]; then
+			echo "Failed to run nvidia-smi"
 			exit_failed
-		fi
 	fi
 
 	echo "Creating NVIDIA control device nodes"
