@@ -23,7 +23,7 @@ spec:
       serviceAccountName: nvidia-mig-manager-service-account
       containers:
       - name: nvidia-mig-manager
-        image: nvcr.io/nvidia/cloud-native/k8s-mig-manager:v0.7.0-ubi8
+        image: nvcr.io/nvidia/cloud-native/k8s-mig-manager:v0.8.0-rc.1-ubi8
         imagePullPolicy: IfNotPresent
         env:
         - name: NODE_NAME
