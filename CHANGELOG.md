@@ -1,5 +1,16 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.8.0-rc.1
+- Update to latest CUDA base image 12.5.0
+- Bump Golang version to 1.22.4
+- Bump go-nvml to 0.12.0-5
+- Bump go-nvlib to 0.3.0
+- Update to incorporate go-nvml updates to expose interface types
+- Align nvidia driver root envvar names with other components
+- Add support for H100 NVL 94GB
+- Add dev-root option to mig-manager container
+- Bump nvidia-ctk version to v0.16.0-rc.1
+
 ## v0.7.0
 - Update to latest CUDA base image 12.4.1
 - Bump Golang version to 1.22.2
