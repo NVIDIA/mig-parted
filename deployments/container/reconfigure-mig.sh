@@ -30,13 +30,15 @@ DRIVER_ROOT=""
 DRIVER_ROOT_CTR_PATH=""
 DEV_ROOT=""
 DEV_ROOT_CTR_PATH=""
+DRIVER_LIBRARY_PATH=""
+NVIDIA_SMI_PATH=""
 
 export SYSTEMD_LOG_LEVEL="info"
 
 function usage() {
   echo "USAGE:"
   echo "    ${0} -h "
-  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path> -b <dev-root> -j <dev-root-ctr-path>] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path> -b <dev-root> -j <dev-root-ctr-path> -l <driver-library-path> -q <nvidia-smi-path> ] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
   echo ""
   echo "OPTIONS:"
   echo "    -h                                            Display this help message"
@@ -56,9 +58,11 @@ function usage() {
   echo "    -a <driver-root-ctr-path>                     Root path to the NVIDIA driver installation mounted in the container"
   echo "    -b <dev-root>                                 Root path to the NVIDIA device nodes"
   echo "    -j <dev-root-ctr-path>                        Root path to the NVIDIA device nodes mounted in the container"
+  echo "    -l <driver-library-path>                      Path to libnvidia-ml.so.1 in the container"
+  echo "    -q <nvidia-smi-path>                          Path to nvidia-smi in the container"
 }
 
-while getopts "hrden:f:c:m:i:o:g:k:p:t:a:b:j:" opt; do
+while getopts "hrden:f:c:m:i:o:g:k:p:t:a:b:j:l:q:" opt; do
   case ${opt} in
     h ) # process option h
       usage; exit 0
@@ -111,7 +115,13 @@ while getopts "hrden:f:c:m:i:o:g:k:p:t:a:b:j:" opt; do
     j ) # process option j
       DEV_ROOT_CTR_PATH=${OPTARG}
       ;;
-    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path> -b <dev-root> -j <dev-root-ctr-path>] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+    l ) # process option l
+      DRIVER_LIBRARY_PATH=${OPTARG}
+      ;;
+    q ) # process option q
+      NVIDIA_SMI_PATH=${OPTARG}
+      ;;
+    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path> -b <dev-root> -j <dev-root-ctr-path> -l <driver-library-path> -q <nvidia-smi-path> ] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
       ;;
   esac
 done
@@ -146,6 +156,16 @@ if [ "${CDI_ENABLED}" = "true" ]; then
 	fi
 	if [ "${DEV_ROOT_CTR_PATH}" == "" ]; then
 	DEV_ROOT_CTR_PATH="${DRIVER_ROOT_CTR_PATH}"
+	fi
+	if [ "${DRIVER_ROOT_CTR_PATH}" != "${DEV_ROOT_CTR_PATH}" ]; then
+		if [ "${DRIVER_LIBRARY_PATH}" = "" ]; then
+			echo "Error: missing -l <driver-library-path> flag"
+			usage; exit 1
+		fi
+		if [ "${NVIDIA_SMI_PATH}" = "" ]; then
+			echo "Error: missing -q <nvidia-smi-path> flag"
+			usage; exit 1
+		fi
 	fi
 fi
 
@@ -349,40 +369,6 @@ EOF
 	return 0
 }
 
-function get_driver_library_path() {
-	local search_paths=("/usr/lib64"
-                      "/usr/lib/x86_64-linux-gnu"
-                      "/usr/lib/aarch64-linux-gnu"
-                      "/lib64"
-                      "/lib/x86_64-linux-gnu"
-                      "/lib/aarch64-linux-gnu"
-                      )
-	for search_path in "${search_paths[@]}"
-	do
-		path=$(find "/host/${DRIVER_ROOT}${search_path}" -name "libnvidia-ml.so.1" 2>/dev/null | head -n 1)
-		if [ ! -z $path ]; then
-			echo "$path"
-			return
-		fi
-	done
-}
-
-function get_nvidia_smi_path() {
-	local search_paths=("/usr/bin"
-                      "/usr/sbin"
-                      "/bin"
-                      "/sbin"
-                      )
-	for search_path in "${search_paths[@]}"
-	do
-		path=$(find "/host/${DRIVER_ROOT}${search_path}" -name "nvidia-smi" 2>/dev/null | head -n 1)
-		if [ ! -z $path ]; then
-			echo "$path"
-			return
-		fi
-	done
-}
-
 function run_nvidia_smi() {
 	if [ "${DRIVER_ROOT_CTR_PATH}" = "${DEV_ROOT_CTR_PATH}" ]; then
 		chroot ${DRIVER_ROOT_CTR_PATH} nvidia-smi >/dev/null
@@ -392,27 +378,7 @@ function run_nvidia_smi() {
 		return 0
 	fi
 
-	# Currently, driverRoot != devRoot only when devRoot='/'.
-	# Since both devRoot and driverRoot are relative to hostRoot, the below
-	# code will execute nvidia-smi in the host's environment. This will create
-	# the device nodes at /host/dev
-	library_path=$(get_driver_library_path)
-	if [ -z $library_path ]; then
-		echo "failed to discover the path to libnvidia-ml.so.1"
-		return 1
-	fi
-	# Strip the leading '/host' so that the path is relative to the host rootFS
-	library_path=${library_path#"/host"}
-
-	nvidia_smi_path=$(get_nvidia_smi_path)
-	if [ -z $nvidia_smi_path ]; then
-		echo "failed to discover the path to nvidia-smi"
-		return 1
-	fi
-	# Strip the leading '/host' so that the path is relative to the host rootFS
-	nvidia_smi_path=${nvidia_smi_path#"/host"}
-
-	LD_PRELOAD=$library_path chroot /host $nvidia_smi_path >/dev/null 2>&1
+	LD_PRELOAD=$DRIVER_LIBRARY_PATH chroot $HOST_ROOT_MOUNT $NVIDIA_SMI_PATH >/dev/null 2>&1
 	if [ "${?}" != "0" ]; then
 		return 1
 	fi
