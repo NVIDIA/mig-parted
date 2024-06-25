@@ -17,7 +17,7 @@ VERSION ?= v0.7.0
 
 vVERSION := v$(VERSION:v%=%)
 
-GOLANG_VERSION := 1.22.2
+GOLANG_VERSION := 1.22.4
 
 BUILDIMAGE_TAG ?= devel-go$(GOLANG_VERSION)
 BUILDIMAGE ?=  ghcr.io/nvidia/k8s-test-infra:$(BUILDIMAGE_TAG)
