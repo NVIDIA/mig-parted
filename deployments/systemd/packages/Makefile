@@ -29,6 +29,10 @@ endif
 # strip 'v' from version string
 PACKAGE_VERSION := $(VERSION:v%=%)
 
+# replace '-' with '~' in the version string
+# e.g. 'x.y.z-rc.1' gets represented as 'x.y.z~rc.1'
+PACKAGE_VERSION := $(subst -,~,$(PACKAGE_VERSION))
+
 deb: BASE_IMAGE = ubuntu:18.04
 deb: ARTIFACTS_DIR = $(DIST_DIR)/deb
 deb: DOCKERFILE = $(CURDIR)/deployments/systemd/packages/Dockerfile.deb
