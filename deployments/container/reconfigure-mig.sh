@@ -32,13 +32,14 @@ DEV_ROOT=""
 DEV_ROOT_CTR_PATH=""
 DRIVER_LIBRARY_PATH=""
 NVIDIA_SMI_PATH=""
+NVIDIA_CDI_HOOK_PATH=""
 
 export SYSTEMD_LOG_LEVEL="info"
 
 function usage() {
   echo "USAGE:"
   echo "    ${0} -h "
-  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path> -b <dev-root> -j <dev-root-ctr-path> -l <driver-library-path> -q <nvidia-smi-path> ] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path> -b <dev-root> -j <dev-root-ctr-path> -l <driver-library-path> -q <nvidia-smi-path> -s <nvidia-cdi-hook-path> ] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
   echo ""
   echo "OPTIONS:"
   echo "    -h                                            Display this help message"
@@ -60,9 +61,10 @@ function usage() {
   echo "    -j <dev-root-ctr-path>                        Root path to the NVIDIA device nodes mounted in the container"
   echo "    -l <driver-library-path>                      Path to libnvidia-ml.so.1 in the container"
   echo "    -q <nvidia-smi-path>                          Path to nvidia-smi in the container"
+  echo "    -s <nvidia-cdi-hook-path>                     Path to nvidia-cdi-hook on the host"
 }
 
-while getopts "hrden:f:c:m:i:o:g:k:p:t:a:b:j:l:q:" opt; do
+while getopts "hrden:f:c:m:i:o:g:k:p:t:a:b:j:l:q:s:" opt; do
   case ${opt} in
     h ) # process option h
       usage; exit 0
@@ -121,7 +123,10 @@ while getopts "hrden:f:c:m:i:o:g:k:p:t:a:b:j:l:q:" opt; do
     q ) # process option q
       NVIDIA_SMI_PATH=${OPTARG}
       ;;
-    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path> -b <dev-root> -j <dev-root-ctr-path> -l <driver-library-path> -q <nvidia-smi-path> ] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+    s ) # process option s
+      NVIDIA_CDI_HOOK_PATH=${OPTARG}
+      ;;
+    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path> -b <dev-root> -j <dev-root-ctr-path> -l <driver-library-path> -q <nvidia-smi-path> -s <nvidia-cdi-hook-path> ] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
       ;;
   esac
 done
@@ -166,6 +171,10 @@ if [ "${CDI_ENABLED}" = "true" ]; then
 			echo "Error: missing -q <nvidia-smi-path> flag"
 			usage; exit 1
 		fi
+	fi
+	if [ "${NVIDIA_CDI_HOOK_PATH}" = "" ]; then
+		echo "Error: missing -s <nvidia-cdi-hook-path> flag"
+		usage; exit 1
 	fi
 fi
 
@@ -599,7 +608,7 @@ if [ "${CDI_ENABLED}" = "true" ]; then
 		--dev-root=${DEV_ROOT_CTR_PATH} \
 		--vendor="management.nvidia.com" \
 		--class="gpu" \
-		--nvidia-ctk-path="/usr/local/nvidia/toolkit/nvidia-ctk" | \
+		--nvidia-cdi-hook-path=${NVIDIA_CDI_HOOK_PATH} | \
 			nvidia-ctk cdi transform root \
 				--from=$DRIVER_ROOT_CTR_PATH \
 				--to=$DRIVER_ROOT \
