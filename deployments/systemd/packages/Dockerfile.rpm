@@ -17,6 +17,10 @@ ARG BASE_IMAGE=undefined
 ARG GOLANG_VERSION=undefined
 FROM ${BASE_IMAGE} as go-build
 
+RUN sed -i -e "s|mirrorlist=|#mirrorlist=|g" \
+            -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" \
+                /etc/yum.repos.d/CentOS-*
+
 RUN yum install -y \
         ca-certificates \
         gcc \
@@ -52,6 +56,11 @@ RUN make PREFIX=/artifacts cmds
 
 # build package
 FROM ${BASE_IMAGE}
+
+RUN sed -i -e "s|mirrorlist=|#mirrorlist=|g" \
+            -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" \
+                /etc/yum.repos.d/CentOS-*
+
 RUN yum install -y rpm-build
 
 # envs for packaging

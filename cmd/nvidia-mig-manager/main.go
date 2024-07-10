@@ -50,6 +50,7 @@ const (
 	DefaultGPUClientsNamespace       = "default"
 	DefaultNvidiaDriverRoot          = "/run/nvidia/driver"
 	DefaultDriverRootCtrPath         = "/run/nvidia/driver"
+	DefaultNvidiaCDIHookPath         = "/usr/local/nvidia/toolkit/nvidia-cdi-hook"
 )
 
 var (
@@ -71,6 +72,7 @@ var (
 	driverRootCtrPath string
 	devRoot           string
 	devRootCtrPath    string
+	nvidiaCDIHookPath string
 )
 
 type GPUClients struct {
@@ -250,6 +252,13 @@ func main() {
 			Destination: &devRootCtrPath,
 			EnvVars:     []string{"DEV_ROOT_CTR_PATH"},
 		},
+		&cli.StringFlag{
+			Name:        "nvidia-cdi-hook-path",
+			Value:       DefaultNvidiaCDIHookPath,
+			Usage:       "Path to nvidia-cdi-hook binary on the host.",
+			Destination: &nvidiaCDIHookPath,
+			EnvVars:     []string{"NVIDIA_CDI_HOOK_PATH"},
+		},
 	}
 
 	err := c.Run(os.Args)
@@ -380,7 +389,7 @@ func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath st
 		"-p", defaultGPUClientsNamespaceFlag,
 	}
 	if cdiEnabledFlag {
-		args = append(args, "-e", "-t", driverRoot, "-a", driverRootCtrPath, "-b", devRoot, "-j", devRootCtrPath, "-l", driverLibraryPath, "-q", nvidiaSMIPath)
+		args = append(args, "-e", "-t", driverRoot, "-a", driverRootCtrPath, "-b", devRoot, "-j", devRootCtrPath, "-l", driverLibraryPath, "-q", nvidiaSMIPath, "-s", nvidiaCDIHookPath)
 	}
 	if withRebootFlag {
 		args = append(args, "-r")
