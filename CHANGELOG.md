@@ -3,6 +3,7 @@
 ## v0.8.0-rc.2
 - Add --nvidia-cdi-hook flag to mig-manager
 - Bump nvidia-ctk version to v0.16.0-rc.2
+- Bump Golang version to 1.22.5
 
 ## v0.8.0-rc.1
 - Update to latest CUDA base image 12.5.0
