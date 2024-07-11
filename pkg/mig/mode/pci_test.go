@@ -36,7 +36,7 @@ func NewMockPciA100Device() (*mockPciMigModeManager, error) {
 		return nil, fmt.Errorf("error creating Mock A100 PCI device: %v", err)
 	}
 
-	err = nvpci.AddMockA100("0000:80:05.1", 0)
+	err = nvpci.AddMockA100("0000:80:05.1", 0, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error adding Mock A100 device to MockNvpci: %v", err)
 	}
