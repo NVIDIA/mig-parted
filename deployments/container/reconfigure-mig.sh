@@ -28,13 +28,18 @@ DEFAULT_GPU_CLIENTS_NAMESPACE=""
 CDI_ENABLED="false"
 DRIVER_ROOT=""
 DRIVER_ROOT_CTR_PATH=""
+DEV_ROOT=""
+DEV_ROOT_CTR_PATH=""
+DRIVER_LIBRARY_PATH=""
+NVIDIA_SMI_PATH=""
+NVIDIA_CDI_HOOK_PATH=""
 
 export SYSTEMD_LOG_LEVEL="info"
 
 function usage() {
   echo "USAGE:"
   echo "    ${0} -h "
-  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> -t <driver-root> -a <driver-root-ctr-path> [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+  echo "    ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path> -b <dev-root> -j <dev-root-ctr-path> -l <driver-library-path> -q <nvidia-smi-path> -s <nvidia-cdi-hook-path> ] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
   echo ""
   echo "OPTIONS:"
   echo "    -h                                            Display this help message"
@@ -52,9 +57,14 @@ function usage() {
   echo "    -p <default-gpu-clients-namespace>            Default name of the Kubernetes Namespace in which the GPU client Pods are installed in"
   echo "    -t <driver-root>                              Root path to the NVIDIA driver installation"
   echo "    -a <driver-root-ctr-path>                     Root path to the NVIDIA driver installation mounted in the container"
+  echo "    -b <dev-root>                                 Root path to the NVIDIA device nodes"
+  echo "    -j <dev-root-ctr-path>                        Root path to the NVIDIA device nodes mounted in the container"
+  echo "    -l <driver-library-path>                      Path to libnvidia-ml.so.1 in the container"
+  echo "    -q <nvidia-smi-path>                          Path to nvidia-smi in the container"
+  echo "    -s <nvidia-cdi-hook-path>                     Path to nvidia-cdi-hook on the host"
 }
 
-while getopts "hrden:f:c:m:i:o:g:k:p:t:a:" opt; do
+while getopts "hrden:f:c:m:i:o:g:k:p:t:a:b:j:l:q:s:" opt; do
   case ${opt} in
     h ) # process option h
       usage; exit 0
@@ -101,7 +111,22 @@ while getopts "hrden:f:c:m:i:o:g:k:p:t:a:" opt; do
     a ) # process option a
       DRIVER_ROOT_CTR_PATH=${OPTARG}
       ;;
-    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path>] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
+    b ) # process option b
+      DEV_ROOT=${OPTARG}
+      ;;
+    j ) # process option j
+      DEV_ROOT_CTR_PATH=${OPTARG}
+      ;;
+    l ) # process option l
+      DRIVER_LIBRARY_PATH=${OPTARG}
+      ;;
+    q ) # process option q
+      NVIDIA_SMI_PATH=${OPTARG}
+      ;;
+    s ) # process option s
+      NVIDIA_CDI_HOOK_PATH=${OPTARG}
+      ;;
+    \? ) echo "Usage: ${0} -n <node> -f <config-file> -c <selected-config> -p <default-gpu-clients-namespace> [-e -t <driver-root> -a <driver-root-ctr-path> -b <dev-root> -j <dev-root-ctr-path> -l <driver-library-path> -q <nvidia-smi-path> -s <nvidia-cdi-hook-path> ] [ -m <host-root-mount> -i <host-nvidia-dir> -o <host-mig-manager-state-file> -g <host-gpu-client-services> -k <host-kubelet-service> -r -s ]"
       ;;
   esac
 done
@@ -130,6 +155,26 @@ if [ "${CDI_ENABLED}" = "true" ]; then
 	if [ "${DRIVER_ROOT_CTR_PATH}" = "" ]; then
 	echo "Error: missing -a <driver-root-ctr-path> flag"
 	usage; exit 1
+	fi
+	if [ "${DEV_ROOT}" == "" ]; then
+	DEV_ROOT="${DRIVER_ROOT}"
+	fi
+	if [ "${DEV_ROOT_CTR_PATH}" == "" ]; then
+	DEV_ROOT_CTR_PATH="${DRIVER_ROOT_CTR_PATH}"
+	fi
+	if [ "${DRIVER_ROOT_CTR_PATH}" != "${DEV_ROOT_CTR_PATH}" ]; then
+		if [ "${DRIVER_LIBRARY_PATH}" = "" ]; then
+			echo "Error: missing -l <driver-library-path> flag"
+			usage; exit 1
+		fi
+		if [ "${NVIDIA_SMI_PATH}" = "" ]; then
+			echo "Error: missing -q <nvidia-smi-path> flag"
+			usage; exit 1
+		fi
+	fi
+	if [ "${NVIDIA_CDI_HOOK_PATH}" = "" ]; then
+		echo "Error: missing -s <nvidia-cdi-hook-path> flag"
+		usage; exit 1
 	fi
 fi
 
@@ -333,6 +378,23 @@ EOF
 	return 0
 }
 
+function run_nvidia_smi() {
+	if [ "${DRIVER_ROOT_CTR_PATH}" = "${DEV_ROOT_CTR_PATH}" ]; then
+		chroot ${DRIVER_ROOT_CTR_PATH} nvidia-smi >/dev/null
+		if [ "${?}" != "0" ]; then
+			return 1
+		fi
+		return 0
+	fi
+
+	LD_PRELOAD=$DRIVER_LIBRARY_PATH chroot $HOST_ROOT_MOUNT $NVIDIA_SMI_PATH >/dev/null 2>&1
+	if [ "${?}" != "0" ]; then
+		return 1
+	fi
+
+	return 0
+}
+
 echo "Getting current value of the 'nvidia.com/gpu.deploy.device-plugin' node label"
 PLUGIN_DEPLOYED=$(kubectl get nodes ${NODE_NAME} -o=jsonpath='{$.metadata.labels.nvidia\.com/gpu\.deploy\.device-plugin}')
 if [ "${?}" != "0" ]; then
@@ -526,13 +588,16 @@ fi
 
 if [ "${CDI_ENABLED}" = "true" ]; then
 	echo "Running nvidia-smi"
-	chroot ${DRIVER_ROOT_CTR_PATH} nvidia-smi >/dev/null
+	run_nvidia_smi
 	if [ "${?}" != "0" ]; then
-		exit_failed
+			echo "Failed to run nvidia-smi"
+			exit_failed
 	fi
 
 	echo "Creating NVIDIA control device nodes"
-	nvidia-ctk system create-device-nodes --control-devices --driver-root=${DRIVER_ROOT_CTR_PATH}
+	nvidia-ctk system create-device-nodes \
+		--control-devices \
+		--dev-root=${DEV_ROOT_CTR_PATH}
 	if [ "${?}" != "0" ]; then
 		exit_failed
 	fi
@@ -540,12 +605,17 @@ if [ "${CDI_ENABLED}" = "true" ]; then
 	echo "Creating management CDI spec"
 	nvidia-ctk cdi generate --mode=management \
 		--driver-root=${DRIVER_ROOT_CTR_PATH} \
+		--dev-root=${DEV_ROOT_CTR_PATH} \
 		--vendor="management.nvidia.com" \
 		--class="gpu" \
-		--nvidia-ctk-path="/usr/local/nvidia/toolkit/nvidia-ctk" | \
+		--nvidia-cdi-hook-path=${NVIDIA_CDI_HOOK_PATH} | \
 			nvidia-ctk cdi transform root \
 				--from=$DRIVER_ROOT_CTR_PATH \
 				--to=$DRIVER_ROOT \
+				--input="-" | \
+			nvidia-ctk cdi transform root \
+				--from=$DEV_ROOT_CTR_PATH \
+				--to=$DEV_ROOT \
 				--input="-" \
 				--output="/var/run/cdi/management.nvidia.com-gpu.yaml"
 	if [ "${?}" != "0" ]; then

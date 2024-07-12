@@ -13,15 +13,15 @@
 # limitations under the License.
 
 MODULE := github.com/NVIDIA/mig-parted
-VERSION ?= v0.7.0
+VERSION ?= v0.8.0-rc.2
 
 vVERSION := v$(VERSION:v%=%)
 
-GOLANG_VERSION := 1.22.2
+GOLANG_VERSION := 1.22.5
 
 BUILDIMAGE_TAG ?= devel-go$(GOLANG_VERSION)
 BUILDIMAGE ?=  ghcr.io/nvidia/k8s-test-infra:$(BUILDIMAGE_TAG)
 
 GIT_COMMIT ?= $(shell git describe --match="" --dirty --long --always --abbrev=40 2> /dev/null || echo "")
 
-NVIDIA_CTK_VERSION := v1.14.6
+NVIDIA_CTK_VERSION := v1.16.0-rc.2

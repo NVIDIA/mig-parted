@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -49,6 +50,7 @@ const (
 	DefaultGPUClientsNamespace       = "default"
 	DefaultNvidiaDriverRoot          = "/run/nvidia/driver"
 	DefaultDriverRootCtrPath         = "/run/nvidia/driver"
+	DefaultNvidiaCDIHookPath         = "/usr/local/nvidia/toolkit/nvidia-cdi-hook"
 )
 
 var (
@@ -68,6 +70,9 @@ var (
 	cdiEnabledFlag    bool
 	driverRoot        string
 	driverRootCtrPath string
+	devRoot           string
+	devRootCtrPath    string
+	nvidiaCDIHookPath string
 )
 
 type GPUClients struct {
@@ -231,6 +236,29 @@ func main() {
 			Destination: &cdiEnabledFlag,
 			EnvVars:     []string{"CDI_ENABLED"},
 		},
+		&cli.StringFlag{
+			Name:        "dev-root",
+			Aliases:     []string{"b"},
+			Value:       "",
+			Usage:       "Root path to the NVIDIA device nodes. Only used if --cdi-enabled is set.",
+			Destination: &devRoot,
+			EnvVars:     []string{"NVIDIA_DEV_ROOT"},
+		},
+		&cli.StringFlag{
+			Name:        "dev-root-ctr-path",
+			Aliases:     []string{"j"},
+			Value:       "",
+			Usage:       "Root path to the NVIDIA device nodes mounted in the container. Only used if --cdi-enabled is set.",
+			Destination: &devRootCtrPath,
+			EnvVars:     []string{"DEV_ROOT_CTR_PATH"},
+		},
+		&cli.StringFlag{
+			Name:        "nvidia-cdi-hook-path",
+			Value:       DefaultNvidiaCDIHookPath,
+			Usage:       "Path to nvidia-cdi-hook binary on the host.",
+			Destination: &nvidiaCDIHookPath,
+			EnvVars:     []string{"NVIDIA_CDI_HOOK_PATH"},
+		},
 	}
 
 	err := c.Run(os.Args)
@@ -262,6 +290,11 @@ func start(c *cli.Context) error {
 		return fmt.Errorf("error building kubernetes clientset from config: %s", err)
 	}
 
+	driverLibraryPath, nvidiaSMIPath, err := getPathsForCDI()
+	if err != nil {
+		return fmt.Errorf("failed to get paths required for cdi: %w", err)
+	}
+
 	migConfig := NewSyncableMigConfig()
 
 	stop := ContinuouslySyncMigConfigChanges(clientset, migConfig)
@@ -271,13 +304,49 @@ func start(c *cli.Context) error {
 		log.Infof("Waiting for change to '%s' label", MigConfigLabel)
 		value := migConfig.Get()
 		log.Infof("Updating to MIG config: %s", value)
-		err := runScript(value)
+		err := runScript(value, driverLibraryPath, nvidiaSMIPath)
 		if err != nil {
 			log.Errorf("Error: %s", err)
 			continue
 		}
 		log.Infof("Successfully updated to MIG config: %s", value)
 	}
+}
+
+// getPathsForCDI discovers the paths to libnvidia-ml.so.1 and nvidia-smi
+// when required.
+//
+// After applying a MIG configuration but before generating a CDI spec,
+// it is required to run nvidia-smi to create the nvidia-cap* device nodes.
+// If driverRoot != devRoot, we must discover the paths to libnvidia-ml.so.1 and
+// nvidia-smi in order to run nvidia-smi. We discover the paths here once and
+// pass these as arguments to reconfigure-mig.sh
+//
+// Currently, driverRoot != devRoot only when devRoot='/'. Since mig-manager
+// has rw access to the host rootFS (at hostRootMountFlag), reconfigure-mig.sh
+// will first chroot into the host rootFS before invoking nvidia-smi, so the
+// device nodes get created at '/dev' on the host.
+func getPathsForCDI() (string, string, error) {
+	if !cdiEnabledFlag || (driverRoot == devRoot) {
+		return "", "", nil
+	}
+
+	driverRoot := root(filepath.Join(hostRootMountFlag, driverRoot))
+	driverLibraryPath, err := driverRoot.getDriverLibraryPath()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to locate driver libraries: %w", err)
+	}
+	// Strip the leading '/host' so that the path is relative to the host rootFS
+	driverLibraryPath = filepath.Clean(strings.TrimPrefix(driverLibraryPath, hostRootMountFlag))
+
+	nvidiaSMIPath, err := driverRoot.getNvidiaSMIPath()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to locate nvidia-smi: %w", err)
+	}
+	// Strip the leading '/host' so that the path is relative to the host rootFS
+	nvidiaSMIPath = filepath.Clean(strings.TrimPrefix(nvidiaSMIPath, hostRootMountFlag))
+
+	return driverLibraryPath, nvidiaSMIPath, nil
 }
 
 func parseGPUCLientsFile(file string) (*GPUClients, error) {
@@ -302,7 +371,7 @@ func parseGPUCLientsFile(file string) (*GPUClients, error) {
 	return &clients, nil
 }
 
-func runScript(migConfigValue string) error {
+func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath string) error {
 	gpuClients, err := parseGPUCLientsFile(gpuClientsFileFlag)
 	if err != nil {
 		return fmt.Errorf("error parsing host's GPU clients file: %s", err)
@@ -320,7 +389,7 @@ func runScript(migConfigValue string) error {
 		"-p", defaultGPUClientsNamespaceFlag,
 	}
 	if cdiEnabledFlag {
-		args = append(args, "-e", "-t", driverRoot, "-a", driverRootCtrPath)
+		args = append(args, "-e", "-t", driverRoot, "-a", driverRootCtrPath, "-b", devRoot, "-j", devRootCtrPath, "-l", driverLibraryPath, "-q", nvidiaSMIPath, "-s", nvidiaCDIHookPath)
 	}
 	if withRebootFlag {
 		args = append(args, "-r")
