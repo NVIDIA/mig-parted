@@ -41,7 +41,7 @@ func nvdevNewMigProfile(giProfileID, ciProfileID, ciEngProfileID int, migMemoryS
 		nvmllib = nvml.New()
 	}
 	if nvdevlib == nil {
-		nvdevlib = nvdev.New(nvdev.WithNvml(nvmllib))
+		nvdevlib = nvdev.New(nvmllib)
 	}
 
 	mp, err := nvdevlib.NewMigProfile(giProfileID, ciProfileID, ciEngProfileID, migMemorySizeMB, deviceMemorySizeBytes)
@@ -57,7 +57,7 @@ func nvdevAssertValidMigProfileFormat(profile string) error {
 		nvmllib = nvml.New()
 	}
 	if nvdevlib == nil {
-		nvdevlib = nvdev.New(nvdev.WithNvml(nvmllib))
+		nvdevlib = nvdev.New(nvmllib)
 	}
 
 	return nvdevlib.AssertValidMigProfileFormat(profile)
@@ -68,7 +68,7 @@ func nvdevParseMigProfile(profile string) (nvdev.MigProfile, error) {
 		nvmllib = nvml.New()
 	}
 	if nvdevlib == nil {
-		nvdevlib = nvdev.New(nvdev.WithNvml(nvmllib))
+		nvdevlib = nvdev.New(nvmllib)
 	}
 
 	ret := nvmllib.Init()
@@ -141,8 +141,7 @@ func SetMockNVdevlib() {
 		},
 	}
 
-	nvdevlib = nvdev.New(
-		nvdev.WithNvml(nvmllib),
+	nvdevlib = nvdev.New(nvmllib,
 		nvdev.WithVerifySymbols(false),
 	)
 }
