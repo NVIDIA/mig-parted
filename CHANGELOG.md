@@ -1,5 +1,9 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.8.0
+- Add H200 141GB to the example config file
+- Bump CUDA base image version to 12.5.1
+
 ## v0.8.0-rc.2
 - Add --nvidia-cdi-hook flag to mig-manager
 - Bump nvidia-ctk version to v0.16.0-rc.2
