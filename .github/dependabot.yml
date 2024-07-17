@@ -27,3 +27,16 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+
+  - package-ecosystem: "gomod"
+    target-branch: main
+    directory: "deployments/devel"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+
+  - package-ecosystem: "docker"
+    target-branch: main
+    directory: "/deployments/devel"
+    schedule:
+      interval: "daily"

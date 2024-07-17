@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-MODULE := github.com/NVIDIA/mig-parted
-VERSION ?= v0.8.0
+# This Dockerfile is also used to define the golang version used in this project
+# This allows dependabot to manage this version in addition to other images.
+FROM golang:1.22.5
 
-vVERSION := v$(VERSION:v%=%)
+WORKDIR /work
+COPY * .
 
-GOLANG_VERSION := $(shell ./hack/golang-version.sh)
+RUN make install-tools
 
-BUILDIMAGE_TAG ?= devel-go$(GOLANG_VERSION)
-BUILDIMAGE ?=  k8s-mig-manager:$(BUILDIMAGE_TAG)
+# We need to set the /work directory as a safe directory.
+# This allows git commands to run in the container.
+RUN git config --file=/.gitconfig --add safe.directory /work
 
-GIT_COMMIT ?= $(shell git describe --match="" --dirty --long --always --abbrev=40 2> /dev/null || echo "")
-
-NVIDIA_CTK_VERSION := v1.16.0

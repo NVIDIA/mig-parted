@@ -1,4 +1,8 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
+//go:build tools
+// +build tools
+
+/**
+# Copyright 2024 NVIDIA CORPORATION
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,17 +15,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+**/
 
-MODULE := github.com/NVIDIA/mig-parted
-VERSION ?= v0.8.0
+package main
 
-vVERSION := v$(VERSION:v%=%)
-
-GOLANG_VERSION := $(shell ./hack/golang-version.sh)
-
-BUILDIMAGE_TAG ?= devel-go$(GOLANG_VERSION)
-BUILDIMAGE ?=  k8s-mig-manager:$(BUILDIMAGE_TAG)
-
-GIT_COMMIT ?= $(shell git describe --match="" --dirty --long --always --abbrev=40 2> /dev/null || echo "")
-
-NVIDIA_CTK_VERSION := v1.16.0
+// Define the tooling required to build the device plugin.
+import (
+	_ "github.com/matryer/moq"
+)
