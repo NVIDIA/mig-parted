@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+FROM nvcr.io/nvidia/k8s/container-toolkit:v1.16.0 AS container-toolkit
+
 # This Dockerfile is also used to define the golang version used in this project
 # This allows dependabot to manage this version in addition to other images.
 FROM golang:1.22.5
