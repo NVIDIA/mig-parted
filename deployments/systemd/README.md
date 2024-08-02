@@ -39,10 +39,17 @@ because it runs a container with `go` in it to download and build the latest
 `nvidia-mig-parted` before installing it. We plan to relax this requirement in
 the near future.
 
+**Note:** When the `nvidia-mig-manager.service` is installed, an additional target,
+`nvidia-gpu-reset.target` is also installed. This new target is used to ensure the
+`nvidia-mig-manager.service` is started after the `nvidia-fabricmanager.service` and 
+`nvidia-persistenced.service`. In addition, this target allows applications like dcgm
+and nvsm to be started only after the `nvidia-mig-manager.service` has started.
+
 The following files will be added as part of this installation:
 
 * `/usr/bin/nvidia-mig-parted`
 * `/usr/lib/systemd/system/nvidia-mig-manager.service`
+* `/usr/lib/systemd/system/nvidia-gpu-reset.target`
 * `/etc/systemd/system/nvidia-mig-manager.service.d/override.conf`
 * `/etc/profile.d/nvidia-mig-parted.sh`
 * `/etc/nvidia-mig-manager/utils.sh`

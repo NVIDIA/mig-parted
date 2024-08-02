@@ -19,6 +19,9 @@
 SERVICE_ROOT="nvidia-mig-manager"
 SERVICE_NAME="${SERVICE_ROOT}.service"
 
+GPU_TARGET_ROOT="nvidia-gpu-reset"
+GPU_TARGET_NAME="${GPU_TARGET_ROOT}.target"
+
 MIG_PARTED_NAME="nvidia-mig-parted"
 MIG_PARTED_GO_GET_PATH="github.com/NVIDIA/mig-parted/cmd/${MIG_PARTED_NAME}"
 
@@ -52,6 +55,7 @@ ${DOCKER} run --rm \
 	"
 
 cp ${SERVICE_NAME}       ${SYSTEMD_DIR}
+cp ${GPU_TARGET_NAME}    ${SYSTEMD_DIR}
 cp ${MIG_PARTED_NAME}.sh ${PROFILED_DIR}
 cp override.conf         ${OVERRIDE_DIR}
 cp service.sh            ${CONFIG_DIR}
@@ -62,6 +66,7 @@ cp hooks-minimal.yaml    ${CONFIG_DIR}
 cp config-default.yaml    ${CONFIG_DIR}
 
 chmod a+r ${SYSTEMD_DIR}/${SERVICE_NAME}
+chmod a+r ${SYSTEMD_DIR}/${GPU_TARGET_NAME}
 chmod a+r ${PROFILED_DIR}/${MIG_PARTED_NAME}.sh
 chmod a+r ${OVERRIDE_DIR}/override.conf
 chmod a+r ${CONFIG_DIR}/service.sh

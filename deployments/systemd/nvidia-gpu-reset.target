@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,15 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This new target is used to ensure the nvidia-mig-manager.service is started
+# after the nvidia-fabricmanager.service`and nvidia-persistenced.service.
+# In addition, this target allows applications like dcgm and nvsm
+# to be started only after the nvidia-mig-manager.service has started.
 [Unit]
-Description=Configure MIG on NVIDIA GPUs
-DefaultDependencies=no
-After=nvidia-persistenced.service nvidia-fabricmanager.service
-Before=nvidia-gpu-reset.target
-
-[Service]
-Type=oneshot
-ExecStart=-/bin/bash /etc/nvidia-mig-manager/service.sh
-
-[Install]
-WantedBy=nvidia-gpu-reset.target
+Description=Nvidia GPU Reset Target

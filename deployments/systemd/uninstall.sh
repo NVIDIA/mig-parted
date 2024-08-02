@@ -17,6 +17,9 @@
 SERVICE_ROOT="nvidia-mig-manager"
 SERVICE_NAME="${SERVICE_ROOT}.service"
 
+GPU_TARGET_ROOT="nvidia-gpu-reset"
+GPU_TARGET_NAME="${GPU_TARGET_ROOT}.target"
+
 MIG_PARTED_NAME="nvidia-mig-parted"
 MIG_PARTED_GO_GET_PATH="github.com/NVIDIA/mig-parted/cmd/${MIG_PARTED_NAME}"
 
@@ -36,4 +39,5 @@ rm -rf ${OVERRIDE_DIR}
 
 rm ${BINARY_DIR}/${MIG_PARTED_NAME}
 rm ${SYSTEMD_DIR}/${SERVICE_NAME}
+rm ${SYSTEMD_DIR}/${GPU_TARGET_NAME}
 rm ${PROFILED_DIR}/${MIG_PARTED_NAME}.sh
