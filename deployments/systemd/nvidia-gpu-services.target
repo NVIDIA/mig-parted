@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,4 @@
 # limitations under the License.
 
 [Unit]
-Description=Configure MIG on NVIDIA GPUs
-DefaultDependencies=no
-Wants=nvidia-persistenced.service nvidia-fabricmanager.service
-After=nvidia-persistenced.service nvidia-fabricmanager.service
-Before=nvidia-gpu-services.target
-
-[Service]
-Type=oneshot
-ExecStart=-/bin/bash /etc/nvidia-mig-manager/service.sh
-
-[Install]
-WantedBy=nvidia-gpu-services.target
+Description=Nvidia GPU System Target
