@@ -33,27 +33,41 @@ PACKAGE_VERSION := $(VERSION:v%=%)
 # e.g. 'x.y.z-rc.1' gets represented as 'x.y.z~rc.1'
 PACKAGE_VERSION := $(subst -,~,$(PACKAGE_VERSION))
 
-deb: BASE_IMAGE = ubuntu:18.04
-deb: ARTIFACTS_DIR = $(DIST_DIR)/deb
-deb: DOCKERFILE = $(CURDIR)/deployments/systemd/packages/Dockerfile.deb
+deb-%: BASE_IMAGE = ubuntu:18.04
+deb-%: ARTIFACTS_DIR = $(DIST_DIR)/deb/$(ARCH)
+deb-%: DOCKERFILE = $(CURDIR)/deployments/systemd/packages/Dockerfile.deb
 
-rpm: BASE_IMAGE = centos:7
-rpm: ARTIFACTS_DIR = $(DIST_DIR)/rpm
-rpm: DOCKERFILE = $(CURDIR)/deployments/systemd/packages/Dockerfile.rpm
+rpm-%: BASE_IMAGE = centos:7
+rpm-%: ARTIFACTS_DIR = $(DIST_DIR)/rpm/$(ARCH)
+rpm-%: DOCKERFILE = $(CURDIR)/deployments/systemd/packages/Dockerfile.rpm
 
-tarball: BASE_IMAGE = ubuntu:18.04
-tarball: ARTIFACTS_DIR = $(DIST_DIR)/tarball
-tarball: DOCKERFILE = $(CURDIR)/deployments/systemd/packages/Dockerfile.tarball
+tarball-%: BASE_IMAGE = ubuntu:18.04
+tarball-%: ARTIFACTS_DIR = $(DIST_DIR)/tarball/$(ARCH)
+tarball-%: DOCKERFILE = $(CURDIR)/deployments/systemd/packages/Dockerfile.tarball
 
 ##### Public rules #####
 
-VALID_TARGETS = tarball deb rpm
+TARGETS = tarball deb rpm
+$(TARGETS): %: %-amd64 %-arm64
+
+AMD64_TARGETS = $(patsubst %,%-amd64,$(TARGETS))
+ARM64_TARGETS = $(patsubst %,%-arm64,$(TARGETS))
+
+
+$(AMD64_TARGETS): ARCH = amd64
+$(ARM64_TARGETS): ARCH = arm64
+
+VALID_TARGETS = $(AMD64_TARGETS) $(ARM64_TARGETS)
 
 all: $(VALID_TARGETS)
-.PHONY: all $(VALID_TARGETS)
+.PHONY: all $(VALID_TARGETS) $(TARGETS)
 
 $(VALID_TARGETS): %:
+	@echo "Building for $(TARGET_PLATFORM)"
+	docker pull --platform=linux/$(ARCH) $(BASE_IMAGE)
+	DOCKER_BUILDKIT=1 \
 	$(DOCKER) build --pull \
+		--platform=linux/$(ARCH) \
 		--build-arg BASE_IMAGE=$(BASE_IMAGE) \
 		--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
 		--build-arg VERSION=$(VERSION) \
@@ -65,5 +79,6 @@ $(VALID_TARGETS): %:
 		--file $(DOCKERFILE) \
 		$(CURDIR)
 	$(DOCKER) run \
+		--platform=linux/$(ARCH) \
 		-v $(ARTIFACTS_DIR):/dist \
 		$(IMAGE):$(VERSION)-$(*)
