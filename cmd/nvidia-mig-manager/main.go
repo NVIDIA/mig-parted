@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/fsnotify/fsnotify"
 	log "github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
@@ -66,6 +67,7 @@ var (
 	hostMigManagerStateFileFlag    string
 	hostKubeletSystemdServiceFlag  string
 	defaultGPUClientsNamespaceFlag string
+	configWatchFlag                bool
 
 	cdiEnabledFlag    bool
 	driverRoot        string
@@ -141,6 +143,14 @@ func main() {
 			Usage:       "the path to the MIG parted configuration file",
 			Destination: &configFileFlag,
 			EnvVars:     []string{"CONFIG_FILE"},
+		},
+		&cli.BoolFlag{
+			Name:        "config-watch",
+			Aliases:     []string{"w"},
+			Value:       false,
+			Usage:       "set config file watch and reload",
+			Destination: &configWatchFlag,
+			EnvVars:     []string{"CONFIG_WATCH"},
 		},
 		&cli.StringFlag{
 			Name:        "reconfigure-script",
@@ -300,10 +310,41 @@ func start(c *cli.Context) error {
 	stop := ContinuouslySyncMigConfigChanges(clientset, migConfig)
 	defer close(stop)
 
+	labelChangeSignal := make(chan string)
+	configFileChangeSignal := make(chan struct{})
+	lastReadValue := ""
+	migConfigGet := func(migConfig *SyncableMigConfig, signal chan string) {
+		defer close(labelChangeSignal)
+		for {
+			log.Infof("Waiting for change to '%s' label", MigConfigLabel)
+			value := migConfig.Get()
+			lastReadValue = value
+			log.Infof("Updating to MIG config: %s", value)
+			signal <- value
+		}
+	}
+	go migConfigGet(migConfig, labelChangeSignal)
+	var labelChangeSignalClosed bool = true
+	var configFileChangeSignalClosed bool = false
+	if configWatchFlag {
+		configFileChangeSignalClosed = true
+		go ReloadSignalByWatchConfig(configFileFlag, configFileChangeSignal)
+	}
 	for {
-		log.Infof("Waiting for change to '%s' label", MigConfigLabel)
-		value := migConfig.Get()
-		log.Infof("Updating to MIG config: %s", value)
+		var value string
+		select {
+		case value, labelChangeSignalClosed = <-labelChangeSignal:
+			log.Infof("labelChangeSignalClosed: %v", labelChangeSignalClosed)
+		case _, configFileChangeSignalClosed = <-configFileChangeSignal:
+			log.Infof("configFileChangeSignalClosed: %v", configFileChangeSignalClosed)
+			if lastReadValue == "" {
+				continue
+			}
+			value = lastReadValue
+		}
+		if !labelChangeSignalClosed && !configFileChangeSignalClosed {
+			break
+		}
 		err := runScript(value, driverLibraryPath, nvidiaSMIPath)
 		if err != nil {
 			log.Errorf("Error: %s", err)
@@ -311,6 +352,7 @@ func start(c *cli.Context) error {
 		}
 		log.Infof("Successfully updated to MIG config: %s", value)
 	}
+	return nil
 }
 
 // getPathsForCDI discovers the paths to libnvidia-ml.so.1 and nvidia-smi
@@ -430,4 +472,52 @@ func ContinuouslySyncMigConfigChanges(clientset *kubernetes.Clientset, migConfig
 	stop := make(chan struct{})
 	go controller.Run(stop)
 	return stop
+}
+
+func ReloadSignalByWatchConfig(configFile string, signal chan struct{}) {
+	defer close(signal)
+	oldConfigYaml, err := os.ReadFile(configFile)
+	if err != nil {
+		log.Errorf("read config file %s error %+v", configFile, err)
+		return
+	}
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatalf("Error creating watcher: %v", err)
+		return
+	}
+	defer watcher.Close()
+	err = watcher.Add(configFile)
+	if err != nil {
+		log.Fatalf("Error adding file to watcher: %v", err)
+		return
+	}
+	log.Infof("Watching config file %s", configFile)
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				log.Infof("Watcher closed events")
+				return
+			}
+			if event.Op&fsnotify.Remove == fsnotify.Remove {
+				log.Infof("File removed: %s", event.Name)
+				watcher.Add(event.Name)
+				newConfigYaml, err := os.ReadFile(configFile)
+				if err != nil {
+					log.Errorf("read config file %s error %+v", configFile, err)
+					break
+				}
+				if string(oldConfigYaml) != string(newConfigYaml) {
+					signal <- struct{}{}
+				}
+			}
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				log.Infof("Watcher closed errors")
+				return
+			}
+			log.Printf("Error: %v", err)
+		}
+	}
 }
