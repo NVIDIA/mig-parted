@@ -89,6 +89,6 @@ func main() {
 	// Run the CLI
 	err := c.Run(os.Args)
 	if err != nil {
-		log.Fatalf(util.Capitalize(err.Error()))
+		log.Fatal(util.Capitalize(err.Error()))
 	}
 }
