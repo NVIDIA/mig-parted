@@ -98,6 +98,7 @@ $(DOCKER_TARGETS): docker-%:
 		--rm \
 		-e GOCACHE=/tmp/.cache/go \
 		-e GOMODCACHE=/tmp/.cache/gomod \
+		-e GOLANGCI_LINT_CACHE=/tmp/.cache/golangci-lint \
 		-v $(PWD):/work \
 		-w /work \
 		--user $$(id -u):$$(id -g) \
