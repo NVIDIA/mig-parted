@@ -411,9 +411,11 @@ func ContinuouslySyncMigConfigChanges(clientset *kubernetes.Clientset, migConfig
 		fields.OneTermEqualSelector("metadata.name", nodeNameFlag),
 	)
 
-	_, controller := cache.NewInformer(
-		listWatch, &v1.Node{}, 0,
-		cache.ResourceEventHandlerFuncs{
+	_, controller := cache.NewInformerWithOptions(cache.InformerOptions{
+		ListerWatcher: listWatch,
+		ObjectType:    &v1.Node{},
+		ResyncPeriod:  0,
+		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				migConfig.Set(obj.(*v1.Node).Labels[MigConfigLabel])
 			},
@@ -425,7 +427,7 @@ func ContinuouslySyncMigConfigChanges(clientset *kubernetes.Clientset, migConfig
 				}
 			},
 		},
-	)
+	})
 
 	stop := make(chan struct{})
 	go controller.Run(stop)
