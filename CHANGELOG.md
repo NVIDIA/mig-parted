@@ -1,12 +1,22 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.9.0
+- Bump go-nvlib to 0.6.1
+- Fix the H100 NVL mig profile configuration in the example file
+- Add arm64 packages
+- Add a new nvidia-gpu-services.target to ensure proper startup order
+- Add H800 with PCI ID 232410DE
+- Bump Golang version to 1.23.0
+- Bump nvidia-ctk version to v1.16.1
+- Bump CUDA base image version to 12.6.0
+
 ## v0.8.0
 - Add H200 141GB to the example config file
 - Bump CUDA base image version to 12.5.1
 
 ## v0.8.0-rc.2
 - Add --nvidia-cdi-hook flag to mig-manager
-- Bump nvidia-ctk version to v0.16.0-rc.2
+- Bump nvidia-ctk version to v1.16.0-rc.2
 - Bump Golang version to 1.22.5
 
 ## v0.8.0-rc.1
@@ -18,7 +28,7 @@
 - Align nvidia driver root envvar names with other components
 - Add support for H100 NVL 94GB
 - Add dev-root option to mig-manager container
-- Bump nvidia-ctk version to v0.16.0-rc.1
+- Bump nvidia-ctk version to v1.16.0-rc.1
 
 ## v0.7.0
 - Update to latest CUDA base image 12.4.1
