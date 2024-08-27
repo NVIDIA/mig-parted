@@ -15,9 +15,9 @@
 
 SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-DOCKERFILE_ROOT=${SCRIPTS_DIR}/../deployments/devel
+DEVEL_ROOT=${SCRIPTS_DIR}/../deployments/devel
 
-COMPONENT=container-toolkit
-VERSION=$(grep -E "^FROM .*${COMPONENT}:.*$" ${DOCKERFILE_ROOT}/Dockerfile | sed "s#FROM .*${COMPONENT}:##g" | grep -oE "v?[0-9\.]+" )
+COMPONENT=github.com/NVIDIA/nvidia-container-toolkit
+VERSION=$(grep -E "^\s+${COMPONENT}\s+.*$" ${DEVEL_ROOT}/go.mod | sed "s#.*${COMPONENT}##g" | grep -oE "v?[0-9\.]+" )
 
 echo $VERSION
