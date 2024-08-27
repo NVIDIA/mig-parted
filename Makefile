@@ -92,6 +92,17 @@ coverage: test
 generate:
 	go generate $(MODULE)/...
 
+# Generate an image for containerized builds
+# Note: This image is local only
+.PHONY: .build-image
+.build-image:
+	make -f deployments/devel/Makefile .build-image
+
+ifeq ($(BUILD_DEVEL_IMAGE),yes)
+$(DOCKER_TARGETS): .build-image
+.shell: .build-image
+endif
+
 $(DOCKER_TARGETS): docker-%:
 	@echo "Running 'make $(*)' in container image $(BUILDIMAGE)"
 	$(DOCKER) run \
@@ -122,8 +133,8 @@ PHONY: .shell
 DEPLOYMENT_DIR = deployments/container
 
 DEPLOYMENT_TARGETS = ubuntu20.04 ubi8
-BUILD_DEPLOYMENT_TARGETS := $(patsubst %, build-%, $(DEPLOYMENT_TARGETS))
-PUSH_DEPLOYMENT_TARGETS := $(patsubst %, push-%, $(DEPLOYMENT_TARGETS))
+BUILD_DEPLOYMENT_TARGETS := $(patsubst %,build-%,$(DEPLOYMENT_TARGETS))
+PUSH_DEPLOYMENT_TARGETS := $(patsubst %,push-%,$(DEPLOYMENT_TARGETS))
 .PHONY: $(DEPLOYMENT_TARGETS) $(BUILD_DEPLOYMENT_TARGETS) $(PUSH_DEPLOYMENT_TARGETS)
 
 $(BUILD_DEPLOYMENT_TARGETS): build-%:
