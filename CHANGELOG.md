@@ -1,5 +1,11 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.9.1
+- Add H200 with PCI ID 0x233510DE
+- Fix bug with nvidia-gpu-reset.target setup
+- Bump Golang version to v1.23.1
+- Bump CUDA base image version to 12.6.1
+
 ## v0.9.0
 - Bump go-nvlib to 0.6.1
 - Fix the H100 NVL mig profile configuration in the example file
