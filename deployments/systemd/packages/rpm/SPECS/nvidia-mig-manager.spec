@@ -19,6 +19,7 @@ Source7: hooks.sh
 Source8: hooks-default.yaml
 Source9: hooks-minimal.yaml
 Source10: config-default.yaml
+Source11: nvidia-gpu-reset.target
 
 %description
 The NVIDIA MIG Partition Editor allows administrators to declaratively define a
@@ -38,7 +39,7 @@ cp %{SOURCE0} %{SOURCE1} \
    %{SOURCE4} %{SOURCE5} \
    %{SOURCE6} %{SOURCE7} \
    %{SOURCE8} %{SOURCE9} \
-   %{SOURCE10} \
+   %{SOURCE10} %{SOURCE11} \
     .
 
 %install
@@ -59,6 +60,7 @@ install -m 644 -t %{buildroot}/etc/nvidia-mig-manager %{SOURCE7}
 install -m 644 -t %{buildroot}/etc/nvidia-mig-manager %{SOURCE8}
 install -m 644 -t %{buildroot}/etc/nvidia-mig-manager %{SOURCE9}
 install -m 644 -t %{buildroot}/etc/nvidia-mig-manager %{SOURCE10}
+install -m 644 -t %{buildroot}/usr/lib/systemd/system %{SOURCE11}
 
 %files
 %license LICENSE
@@ -75,6 +77,7 @@ install -m 644 -t %{buildroot}/etc/nvidia-mig-manager %{SOURCE10}
 %dir /etc/systemd/system/nvidia-mig-manager.service.d
 %dir /etc/nvidia-mig-manager/
 %dir /var/lib/nvidia-mig-manager
+/usr/lib/systemd/system/nvidia-gpu-reset.target
 
 %post
 systemctl daemon-reload
