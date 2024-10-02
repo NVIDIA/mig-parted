@@ -24,4 +24,3 @@ RUN make install-tools
 # We need to set the /work directory as a safe directory.
 # This allows git commands to run in the container.
 RUN git config --file=/.gitconfig --add safe.directory /work
-
