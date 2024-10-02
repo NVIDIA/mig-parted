@@ -4,12 +4,12 @@ go 1.22
 toolchain go1.23.0
 
 require (
-	github.com/NVIDIA/nvidia-container-toolkit v1.16.1
+	github.com/NVIDIA/nvidia-container-toolkit v1.16.2
 	github.com/matryer/moq v0.5.0
 )
 
 require (
-	github.com/NVIDIA/go-nvlib v0.6.0 // indirect
+	github.com/NVIDIA/go-nvlib v0.6.1 // indirect
 	github.com/NVIDIA/go-nvml v0.12.4-0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
@@ -22,11 +22,11 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
-	github.com/urfave/cli/v2 v2.27.2 // indirect
+	github.com/urfave/cli/v2 v2.27.4 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	golang.org/x/mod v0.20.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.23.0 // indirect
+	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/tools v0.24.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
