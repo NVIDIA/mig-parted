@@ -132,7 +132,7 @@ PHONY: .shell
 # Deployment targets are forwarded to the Makefile in the following directory
 DEPLOYMENT_DIR = deployments/container
 
-DEPLOYMENT_TARGETS = ubuntu20.04 ubi8
+DEPLOYMENT_TARGETS = ubuntu20.04 ubi9
 BUILD_DEPLOYMENT_TARGETS := $(patsubst %,build-%,$(DEPLOYMENT_TARGETS))
 PUSH_DEPLOYMENT_TARGETS := $(patsubst %,push-%,$(DEPLOYMENT_TARGETS))
 .PHONY: $(DEPLOYMENT_TARGETS) $(BUILD_DEPLOYMENT_TARGETS) $(PUSH_DEPLOYMENT_TARGETS)
