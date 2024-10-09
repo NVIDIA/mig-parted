@@ -33,10 +33,10 @@ include:
   needs:
     - trigger-pipeline
 
-image-ubi8:
+image-ubi9:
   extends:
     - .image-build
-    - .dist-ubi8
+    - .dist-ubi9
 
 image-ubuntu20.04:
   extends:

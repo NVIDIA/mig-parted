@@ -41,7 +41,7 @@ OUT_IMAGE = $(OUT_IMAGE_NAME):$(OUT_IMAGE_TAG)
 
 ##### Public rules #####
 DEFAULT_PUSH_TARGET := ubuntu20.04
-DISTRIBUTIONS := ubuntu20.04 ubi8
+DISTRIBUTIONS := ubuntu20.04 ubi9
 
 BUILD_TARGETS := $(patsubst %,build-%,$(DISTRIBUTIONS))
 PUSH_TARGETS := $(patsubst %,push-%,$(DISTRIBUTIONS))
@@ -89,4 +89,4 @@ $(BUILD_TARGETS): build-%: $(ARTIFACTS_ROOT)
 
 build-ubuntu%: DOCKERFILE_SUFFIX := ubuntu
 
-build-ubi8: DOCKERFILE_SUFFIX := ubi8
+build-ubi9: DOCKERFILE_SUFFIX := ubi9
