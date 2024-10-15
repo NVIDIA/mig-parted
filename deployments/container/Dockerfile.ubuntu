@@ -21,14 +21,14 @@ RUN apt-get update && \
     && \
     rm -rf /var/lib/apt/lists/*
 
-ARG GOLANG_VERSION=1.22.2
+ARG GOLANG_VERSION=1.22.8
 RUN set -eux; \
     \
     arch="$(uname -m)"; \
     case "${arch##*-}" in \
         x86_64 | amd64) ARCH='amd64' ;; \
         ppc64el | ppc64le) ARCH='ppc64le' ;; \
-        aarch64) ARCH='arm64' ;; \
+        aarch64 | arm64) ARCH='arm64' ;; \
         *) echo "unsupported architecture" ; exit 1 ;; \
     esac; \
     wget -nv -O - https://storage.googleapis.com/golang/go${GOLANG_VERSION}.linux-${ARCH}.tar.gz \
