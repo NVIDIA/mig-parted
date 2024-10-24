@@ -1,5 +1,14 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.10.0
+- Add GH200 144G HBM3e with PCI ID x234810DE
+- Bump Golang version to v1.23.2
+- Bump CUDA base image version to 12.6.2
+- Switch to the UBI9 CUDA base image
+- Bump nvidia-ctk version to v1.16.2
+- Bump go-nvlib to 0.7.0
+- Bump vendored go dependencies
+
 ## v0.9.1
 - Add H200 with PCI ID 0x233510DE
 - Fix bug with nvidia-gpu-reset.target setup
