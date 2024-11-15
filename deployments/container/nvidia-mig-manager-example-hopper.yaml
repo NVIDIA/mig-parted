@@ -226,8 +226,8 @@ data:
 
       # H100-80GB, H100-NVL, H800-80GB, H800-NVL
       all-balanced:
-        # H200 141GB
-        - device-filter: ["0x233510DE"]
+        # H200 141GB, H200 NVL
+        - device-filter: ["0x233510DE", "0x233B10DE"]
           devices: all
           mig-enabled: true
           mig-devices:
