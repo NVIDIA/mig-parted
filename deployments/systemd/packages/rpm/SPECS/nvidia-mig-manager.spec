@@ -112,9 +112,6 @@ maybe_add_hooks_symlink
 maybe_add_config_symlink
 
 %preun
-systemctl disable nvidia-mig-manager.service
-systemctl daemon-reload
-
 function maybe_remove_hooks_symlink() {
   local target=$(readlink -f /etc/nvidia-mig-manager/hooks.yaml)
   if [ "${target}" = "/etc/nvidia-mig-manager/hooks-minimal.yaml" ]; then
@@ -132,8 +129,13 @@ function maybe_remove_config_symlink() {
   fi
 }
 
-maybe_remove_hooks_symlink
-maybe_remove_config_symlink
+if [ $1 -eq 0 ]
+then
+  systemctl disable nvidia-mig-manager.service
+  systemctl daemon-reload
+  maybe_remove_hooks_symlink
+  maybe_remove_config_symlink
+fi
 
 %changelog
 # As of 0.6.0-1 we generate the release information automatically
