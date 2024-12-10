@@ -1,5 +1,9 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.11.0
+- Fix rpm spec to maintain the config.yaml and hooks.yaml symlinks during an update
+- Update the .gitignore to skip the dist directory.
+
 ## v0.10.0
 - Add GH200 144G HBM3e with PCI ID x234810DE
 - Bump Golang version to v1.23.2
