@@ -4,8 +4,10 @@ go 1.22.0
 
 toolchain go1.22.5
 
+replace github.com/NVIDIA/go-nvlib => github.com/NVIDIA/go-nvlib v0.7.1-0.20250107124257-ab7bb86cf9d1
+
 require (
-	github.com/NVIDIA/go-nvlib v0.7.0
+	github.com/NVIDIA/go-nvlib v0.0.0-00010101000000-000000000000
 	github.com/NVIDIA/go-nvml v0.12.4-0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
