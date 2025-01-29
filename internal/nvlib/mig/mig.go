@@ -93,8 +93,8 @@ func (device Device) WalkGpuInstances(f func(nvml.GpuInstance, int, nvml.GpuInst
 }
 
 func (gi GpuInstance) WalkComputeInstances(f func(ci nvml.ComputeInstance, ciProfileId int, ciEngProfileId int, ciProfileInfo nvml.ComputeInstanceProfileInfo) error) error {
-	for j := 0; j < nvml.COMPUTE_INSTANCE_PROFILE_COUNT; j++ {
-		for k := 0; k < nvml.COMPUTE_INSTANCE_ENGINE_PROFILE_COUNT; k++ {
+	for j := nvml.COMPUTE_INSTANCE_PROFILE_COUNT - 1; j >= 0; j-- {
+		for k := nvml.COMPUTE_INSTANCE_ENGINE_PROFILE_COUNT - 1; k >= 0; k-- {
 			ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(j, k)
 			if ret == nvml.ERROR_NOT_SUPPORTED {
 				continue
