@@ -6,7 +6,7 @@ toolchain go1.23.2
 
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.17.4
-	github.com/matryer/moq v0.5.0
+	github.com/matryer/moq v0.5.1
 )
 
 require (
