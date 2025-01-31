@@ -1,6 +1,16 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.11.0
+- Add support for the B200 GPU with PCI Device ID 2901
+- Bump golang version to v1.23.5
+- Bump golang/x/net to v0.33.0
+- Bump nvidia-ctk version to v1.17.4
+- Bump CUDA base image version to 12.8.0
+- Bump go-nvml to 0.12.4-1
+- Bump k8s.io/{api,api-machinery,client-go} dependencies to v0.32.1
+- Bump matryer/moq to v0.5.1 
 - Fix rpm spec to maintain the config.yaml and hooks.yaml symlinks during an update
+- Point the QEMU artifacts image to the most recent tag - `tonistiigi/binfmt:master`
 
 ## v0.10.0
 - Add GH200 144G HBM3e with PCI ID x234810DE
