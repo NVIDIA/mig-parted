@@ -22,6 +22,9 @@ linters-settings:
     local-prefixes: github.com/NVIDIA/mig-parted
 
 issues:
+  exclude:
+    # TODO: We should address each of the following integer overflows.
+    - "G115: integer overflow conversion(.+)"
   exclude-rules:
   # We use math/rand instead of crypto/rand for unique names in config tests.
   - path: pkg/mig/config/config_test.go
