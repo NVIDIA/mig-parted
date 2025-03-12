@@ -265,3 +265,11 @@ mig-configs:
     mig-devices: {}
 EOF
 ```
+
+## Known Issues
+
+- `mig-parted` will fail to perform a GPU reset, and therefore toggle the MIG mode on GPUs where a reset is required,
+  if the `nvidia_drm` kernel module is loaded. On systems where the `nvidia_drm` kernel module is loaded, one must
+  unload it before applying a MIG configuration and load it again after the configuration change has been applied.
+  See https://github.com/NVIDIA/mig-parted/issues/181
+  
