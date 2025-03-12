@@ -1,5 +1,13 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.12.0
+- Add support for the HGX GB200 GPU with PCI Device ID 2941
+- Bump golang version to v1.24.1
+- Bump go-nvlib to 0.7.1
+- Bump k8s.io/{api,api-machinery,client-go} dependencies to v0.32.2
+- Bump matryer/moq to v0.5.3
+- Bump github.com/urfave/cli/v2 to 2.27.6
+
 ## v0.11.0
 - Add support for the B200 GPU with PCI Device ID 2901
 - Bump golang version to v1.23.5
