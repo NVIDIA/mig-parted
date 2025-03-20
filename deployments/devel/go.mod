@@ -2,10 +2,8 @@ module devel
 
 go 1.24
 
-toolchain go1.24.1
-
 require (
-	github.com/NVIDIA/nvidia-container-toolkit v1.17.4
+	github.com/NVIDIA/nvidia-container-toolkit v1.17.5
 	github.com/matryer/moq v0.5.3
 )
 
@@ -13,11 +11,13 @@ require (
 	github.com/NVIDIA/go-nvlib v0.6.1 // indirect
 	github.com/NVIDIA/go-nvml v0.12.4-1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
+	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/moby/sys/symlink v0.3.0 // indirect
-	github.com/opencontainers/runtime-spec v1.2.0 // indirect
+	github.com/opencontainers/runc v1.2.5 // indirect
+	github.com/opencontainers/runtime-spec v1.2.1 // indirect
 	github.com/opencontainers/runtime-tools v0.9.1-0.20221107090550-2e043c6bd626 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
@@ -32,6 +32,6 @@ require (
 	golang.org/x/tools v0.30.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
-	tags.cncf.io/container-device-interface v0.8.0 // indirect
+	tags.cncf.io/container-device-interface v0.8.1 // indirect
 	tags.cncf.io/container-device-interface/specs-go v0.8.0 // indirect
 )
