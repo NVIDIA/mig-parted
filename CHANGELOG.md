@@ -1,5 +1,12 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.12.1
+- Add the 4g.90gb MIG profile for the B200 GPU
+- Bump golang/x/net to v0.36.0
+- Bump k8s.io/{api,api-machinery,client-go} dependencies to v0.32.3
+- Bump CUDA base image version to 12.8.1
+- Bump NVIDIA Container Toolkit to v1.17.5
+
 ## v0.12.0
 - Add support for the HGX GB200 GPU with PCI Device ID 2941
 - Bump golang version to v1.24.1
