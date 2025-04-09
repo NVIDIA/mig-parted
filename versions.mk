@@ -19,7 +19,7 @@ vVERSION := v$(VERSION:v%=%)
 
 GOLANG_VERSION := $(shell ./hack/golang-version.sh)
 
-GOLANGCI_LINT_VERSION ?= v1.64.6
+GOLANGCI_LINT_VERSION ?= v2.0.2
 
 BUILDIMAGE_TAG ?= devel-go$(GOLANG_VERSION)
 BUILDIMAGE ?=  k8s-mig-manager:$(BUILDIMAGE_TAG)

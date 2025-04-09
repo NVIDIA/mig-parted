@@ -137,7 +137,7 @@ func assertWrapper(c *cli.Context, f *Flags) error {
 	err = AssertMigMode(&context)
 	if err != nil {
 		log.Debug(util.Capitalize(err.Error()))
-		return fmt.Errorf("Assertion failure: selected configuration not currently applied")
+		return fmt.Errorf("assertion failure: selected configuration not currently applied")
 	}
 
 	if f.ModeOnly {
@@ -149,7 +149,7 @@ func assertWrapper(c *cli.Context, f *Flags) error {
 	err = AssertMigConfig(&context)
 	if err != nil {
 		log.Debug(util.Capitalize(err.Error()))
-		return fmt.Errorf("Assertion failure: selected configuration not currently applied")
+		return fmt.Errorf("assertion failure: selected configuration not currently applied")
 	}
 
 	fmt.Println("Selected MIG configuration currently applied")
@@ -214,7 +214,7 @@ func GetSelectedMigConfig(f *Flags, spec *v1.Spec) (v1.MigConfigSpecSlice, error
 func WalkSelectedMigConfigForEachGPU(migConfig v1.MigConfigSpecSlice, f func(*v1.MigConfigSpec, int, types.DeviceID) error) error {
 	deviceIDs, err := util.GetGPUDeviceIDs()
 	if err != nil {
-		return fmt.Errorf("Error enumerating GPU device IDs: %v", err)
+		return fmt.Errorf("error enumerating GPU device IDs: %v", err)
 	}
 
 	for _, mc := range migConfig {

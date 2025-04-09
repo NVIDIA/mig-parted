@@ -147,7 +147,7 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 			clearAttempts++
 		}
 
-		var lastGIProfileID int = -1
+		var lastGIProfileID = -1
 		var gi nvml.GpuInstance = nil
 		for _, mp := range mps {
 			giProfileInfo, ret := device.GetGpuInstanceProfileInfo(mp.GIProfileID)
