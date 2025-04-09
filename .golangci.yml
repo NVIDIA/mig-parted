@@ -1,33 +1,40 @@
-run:
-  timeout: 10m
-
+version: "2"
 linters:
   enable:
     - contextcheck
-    - errcheck
     - gocritic
+    - gosec
+    - misspell
+    - unconvert
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - gosec
+        path: pkg/mig/config/config_test.go
+        text: G404
+      - path: (.+)\.go$
+        text: 'G115: integer overflow conversion(.+)'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
     - gofmt
     - goimports
-    - gosec
-    - gosimple
-    - govet
-    - ineffassign
-    - misspell
-    - staticcheck
-    - unconvert
-  disable: []
-
-linters-settings:
-  goimports:
-    local-prefixes: github.com/NVIDIA/mig-parted
-
-issues:
-  exclude:
-    # TODO: We should address each of the following integer overflows.
-    - "G115: integer overflow conversion(.+)"
-  exclude-rules:
-  # We use math/rand instead of crypto/rand for unique names in config tests.
-  - path: pkg/mig/config/config_test.go
-    linters:
-    - gosec
-    text: "G404"
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/NVIDIA/mig-parted
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

@@ -136,7 +136,7 @@ func (c *Context) AssertMigMode() error {
 func (c *Context) AssertMigConfig() error {
 	current, err := c.MigStateManager.Fetch()
 	if err != nil {
-		return fmt.Errorf("error fetching MIG state: %v\n", err)
+		return fmt.Errorf("error fetching MIG state: %v", err)
 	}
 	if !reflect.DeepEqual(current, c.MigState) {
 		return fmt.Errorf("checkpoint contents do not match the current MIG state")
