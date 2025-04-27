@@ -3,7 +3,7 @@ module devel
 go 1.24
 
 require (
-	github.com/NVIDIA/nvidia-container-toolkit v1.17.5
+	github.com/NVIDIA/nvidia-container-toolkit v1.17.6
 	github.com/matryer/moq v0.5.3
 )
 
@@ -16,7 +16,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/moby/sys/symlink v0.3.0 // indirect
-	github.com/opencontainers/runc v1.2.5 // indirect
+	github.com/opencontainers/runc v1.2.6 // indirect
 	github.com/opencontainers/runtime-spec v1.2.1 // indirect
 	github.com/opencontainers/runtime-tools v0.9.1-0.20221107090550-2e043c6bd626 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
