@@ -14,6 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+DEPLOYMENT_SYSTEMD_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+HACK_DIR=${DEPLOYMENT_SYSTEMD_DIR}/../../hack
+
+# Extract the golang version from the script.
+. ${HACK_DIR}/golang-version.sh
+
 : ${DOCKER:=docker}
 
 SERVICE_ROOT="nvidia-mig-manager"
@@ -48,7 +54,7 @@ chmod a+rx ${PROFILED_DIR}
 
 ${DOCKER} run --rm \
 	-v ${BINARY_DIR}:/dest \
-	golang:1.22.5 \
+	golang${GOLANG_VERSION:+":${GOLANG_VERSION}"} \
 	sh -c "
 	go install $MIG_PARTED_GO_GET_PATH@latest
 	mv /go/bin/nvidia-mig-parted /dest/nvidia-mig-parted
