@@ -122,3 +122,15 @@ function stop_k8s_pods() {
 	fi
 	return 0
 }
+
+# refresh-cdi triggers the nvidia-cdi-refresh service to regenerate CDI
+# specifications, making updated GPU devices available to container runtimes.
+function refresh-cdi() {
+    # Check if nvidia-cdi-refresh.service exists
+    if systemctl list-unit-files nvidia-cdi-refresh.service --quiet; then
+        echo "Found nvidia-cdi-refresh.service, calling systemctl..." >&2
+        if ! systemctl restart nvidia-cdi-refresh.service; then
+            echo "Error: Failed to start nvidia-cdi-refresh.service" >&2
+        fi
+    fi
+}
