@@ -19,7 +19,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -377,30 +376,31 @@ func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath st
 		return fmt.Errorf("error parsing host's GPU clients file: %s", err)
 	}
 
-	args := []string{
-		"-n", nodeNameFlag,
-		"-f", configFileFlag,
-		"-c", migConfigValue,
-		"-m", hostRootMountFlag,
-		"-i", hostNvidiaDirFlag,
-		"-o", hostMigManagerStateFileFlag,
-		"-g", strings.Join(gpuClients.SystemdServices, ","),
-		"-k", hostKubeletSystemdServiceFlag,
-		"-p", defaultGPUClientsNamespaceFlag,
+	opts := &reconfigureMIGOptions{
+		NodeName:                nodeNameFlag,
+		MIGPartedConfigFile:     configFileFlag,
+		SelectedMIGConfig:       migConfigValue,
+		HostRootMount:           hostRootMountFlag,
+		HostMIGManagerStateFile: hostMigManagerStateFileFlag,
+		HostGPUClientServices:   gpuClients.SystemdServices,
+		HostKubeletService:      hostKubeletSystemdServiceFlag,
+		// TODO(elezar): Add namespace
+		// GPUClientsNamespace: defaultGPUClientsNamespaceFlag
+		MIGStateLabel:              "nvidia.com/mig.config.state",
+		WithReboot:                 withRebootFlag,
+		WithShutdownHostGPUClients: withShutdownHostGPUClientsFlag,
+
+		// TODO(elezar):
+		// DriverLibraryPath: "",
 	}
-	if cdiEnabledFlag {
-		args = append(args, "-e", "-t", driverRoot, "-a", driverRootCtrPath, "-b", devRoot, "-j", devRootCtrPath, "-l", driverLibraryPath, "-q", nvidiaSMIPath, "-s", nvidiaCDIHookPath)
-	}
-	if withRebootFlag {
-		args = append(args, "-r")
-	}
-	if withShutdownHostGPUClientsFlag {
-		args = append(args, "-d")
-	}
-	cmd := exec.Command(reconfigureScriptFlag, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+
+	// TODO(elezar)
+	// if cdiEnabledFlag {
+	// 	args = append(args, "-e", "-t", driverRoot, "-a", driverRootCtrPath, "-b", devRoot, "-j", devRootCtrPath, "-l", driverLibraryPath, "-q", nvidiaSMIPath, "-s", nvidiaCDIHookPath)
+	// }
+
+	// TODO: Construct a k8s clientset
+	return reconfigureMIG(nil, opts)
 }
 
 func ContinuouslySyncMigConfigChanges(clientset *kubernetes.Clientset, migConfig *SyncableMigConfig) chan struct{} {

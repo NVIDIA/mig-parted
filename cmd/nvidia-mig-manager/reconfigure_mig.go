@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -61,15 +63,14 @@ type reconfigureMIGOptions struct {
 	// node.
 	SelectedMIGConfig string
 
+	// MIGStateLabel is the label that is used to indicate the state of the MIG config.
+	MIGStateLabel string
+
 	// DriverLibrayPath is the path to libnvidia-ml.so.1 in the container.
 	DriverLibraryPath string `validate:"required,filepath"`
 
 	// WithReboot reboots the node if changing the MIG mode fails for any reason.
 	WithReboot bool
-
-	// WithShutdownHostGPUClients shutdowns/restarts any required host GPU clients
-	// across a MIG configuration.
-	WithShutdownHostGPUClients bool
 
 	// HostRootMount is the container path where host root directory is mounted.
 	HostRootMount string `validate:"dirpath"`
@@ -77,6 +78,10 @@ type reconfigureMIGOptions struct {
 	// HostMIGManagerStateFile is the path where the systemd mig-manager state
 	// file is located.
 	HostMIGManagerStateFile string `validate:"filepath"`
+
+	// WithShutdownHostGPUClients shutdowns/restarts any required host GPU clients
+	// across a MIG configuration.
+	WithShutdownHostGPUClients bool
 
 	// HostGPUClientServices is a comma separated list of host systemd services to
 	// shutdown/restart across a MIG reconfiguration.
@@ -105,13 +110,13 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 		return err
 	}
 
-	log.Infof("Getting current value of the '%s' node label", vGPUConfigStateLabel)
-	state, err := getNodeLabelValue(clientset, vGPUConfigStateLabel)
+	log.Infof("Getting current value of the '%s' node label", opts.MIGStateLabel)
+	state, err := getNodeLabelValue(clientset, opts.MIGStateLabel)
 	if err != nil {
-		log.Errorf("Unable to get the value of the '%s' label", vGPUConfigStateLabel)
+		log.Errorf("Unable to get the value of the '%s' label", opts.MIGStateLabel)
 		return err
 	}
-	log.Infof("Current value of '%s=%s'", vGPUConfigStateLabel, state)
+	log.Infof("Current value of '%s=%s'", opts.MIGStateLabel, state)
 
 	log.Info("Checking if the selected MIG config is currently applied or not")
 	if err := assertMIGConfig(opts); err == nil {
@@ -144,6 +149,16 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 		migModeChangeRequired = true
 	}
 
+	if err := setNodeLabelValue(clientset, opts.MIGStateLabel, "pending"); err != nil {
+		// TODO: Check whether this error is already constructed in setNodeLabelValue.
+		return fmt.Errorf("unable to set the value of %q to %q: %w", opts.MIGStateLabel, "pending", err)
+	}
+
+	k8sClients, err := stopK8sClients(clientset)
+	if err != nil {
+		return fmt.Errorf("unable to shutdown k8s GPU clients: %w", err)
+	}
+
 	if opts.WithShutdownHostGPUClients {
 		log.Info("Shutting down all GPU clients on the host by stopping their systemd services")
 		if err := hostStopSystemdServices(opts); err != nil {
@@ -160,9 +175,9 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 	log.Info("If the -r option was passed, the node will be automatically rebooted if this is not successful")
 	if err := applyMIGModeOnly(opts); err != nil || assertMIGModeOnly(opts) != nil {
 		if opts.WithReboot {
-			log.Infof("Changing the '%s' node label to '%s'", vGPUConfigStateLabel, configStateRebooting)
-			if err := setNodeLabelValue(clientset, vGPUConfigStateLabel, configStateRebooting); err != nil {
-				log.Errorf("Unable to set the value of '%s' to '%s'", vGPUConfigStateLabel, configStateRebooting)
+			log.Infof("Changing the '%s' node label to '%s'", opts.MIGStateLabel, configStateRebooting)
+			if err := setNodeLabelValue(clientset, opts.MIGStateLabel, configStateRebooting); err != nil {
+				log.Errorf("Unable to set the value of '%s' to '%s'", opts.MIGStateLabel, configStateRebooting)
 				log.Error("Exiting so as not to reboot multiple times unexpectedly")
 				return err
 			}
@@ -175,11 +190,24 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 		return err
 	}
 
+	// TODO(elezar): Trigger regeneration of management CDI spec.
+	// This includes:
+	// * running nvidia-smi
+	// * running nvidia-ctk system create-device-nodes
+	// * running nvidia-ctk cdi-generate (should be done through the nvcdi API)
+
 	if opts.WithShutdownHostGPUClients {
 		log.Info("Restarting all GPU clients previously shutdown on the host by restarting their systemd services")
 		if err := hostStartSystemdServices(opts); err != nil {
 			log.Error("Unable to restart GPU clients on host by restarting their systemd services")
 			return err
+		}
+	}
+
+	// Restart the required k8s clients.
+	for _, client := range k8sClients {
+		if err := client.Restart(clientset); err != nil {
+			return fmt.Errorf("unable to restart client: %w", err)
 		}
 	}
 
@@ -455,4 +483,35 @@ func validateSystemdServiceName(fl validator.FieldLevel) bool {
 	}
 
 	return systemdServicePrefixPattern.MatchString(serviceName)
+}
+
+func getNodeLabelValue(clientset *kubernetes.Clientset, label string) (string, error) {
+	node, err := clientset.CoreV1().Nodes().Get(context.TODO(), nodeNameFlag, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("unable to get node object: %v", err)
+	}
+
+	value, ok := node.Labels[label]
+	if !ok {
+		return "", nil
+	}
+
+	return value, nil
+}
+
+func setNodeLabelValue(clientset *kubernetes.Clientset, label, value string) error {
+	node, err := clientset.CoreV1().Nodes().Get(context.TODO(), nodeNameFlag, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("unable to get node object: %v", err)
+	}
+
+	labels := node.GetLabels()
+	labels[label] = value
+	node.SetLabels(labels)
+	_, err = clientset.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("unable to update node object: %v", err)
+	}
+
+	return nil
 }
