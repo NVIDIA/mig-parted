@@ -376,16 +376,16 @@ func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath st
 		return fmt.Errorf("error parsing host's GPU clients file: %s", err)
 	}
 
+	// TODO: Use functional options.
 	opts := &reconfigureMIGOptions{
-		NodeName:                nodeNameFlag,
-		MIGPartedConfigFile:     configFileFlag,
-		SelectedMIGConfig:       migConfigValue,
-		HostRootMount:           hostRootMountFlag,
-		HostMIGManagerStateFile: hostMigManagerStateFileFlag,
-		HostGPUClientServices:   gpuClients.SystemdServices,
-		HostKubeletService:      hostKubeletSystemdServiceFlag,
-		// TODO(elezar): Add namespace
-		// GPUClientsNamespace: defaultGPUClientsNamespaceFlag
+		NodeName:                   nodeNameFlag,
+		MIGPartedConfigFile:        configFileFlag,
+		SelectedMIGConfig:          migConfigValue,
+		HostRootMount:              hostRootMountFlag,
+		HostMIGManagerStateFile:    hostMigManagerStateFileFlag,
+		HostGPUClientServices:      gpuClients.SystemdServices,
+		HostKubeletService:         hostKubeletSystemdServiceFlag,
+		GPUClientsNamespace:        defaultGPUClientsNamespaceFlag,
 		MIGStateLabel:              "nvidia.com/mig.config.state",
 		WithReboot:                 withRebootFlag,
 		WithShutdownHostGPUClients: withShutdownHostGPUClientsFlag,

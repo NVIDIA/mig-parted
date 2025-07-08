@@ -90,6 +90,9 @@ type reconfigureMIGOptions struct {
 	// HostKubeletService is the name of the host's 'kubelet' systemd service
 	// which may need to be shutdown/restarted across a MIG mode reconfiguration.
 	HostKubeletService string `validate:"systemd_service_name"`
+
+	// GPUClientsNamespace represents the namespace of the k8s GPU clients.
+	GPUClientsNamespace string
 }
 
 // reconfigureMIG configures MIG (Multi-Instance GPU) settings on a Kubernetes
@@ -154,8 +157,8 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 		return fmt.Errorf("unable to set the value of %q to %q: %w", opts.MIGStateLabel, "pending", err)
 	}
 
-	k8sClients, err := stopK8sClients(clientset)
-	if err != nil {
+	k8sClients := getK8sClients(opts)
+	if err := k8sClients.Stop(clientset); err != nil {
 		return fmt.Errorf("unable to shutdown k8s GPU clients: %w", err)
 	}
 
@@ -205,10 +208,8 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 	}
 
 	// Restart the required k8s clients.
-	for _, client := range k8sClients {
-		if err := client.Restart(clientset); err != nil {
-			return fmt.Errorf("unable to restart client: %w", err)
-		}
+	if err := k8sClients.Restart(clientset); err != nil {
+		return fmt.Errorf("unable to restart k8s clients: %w", err)
 	}
 
 	return nil
