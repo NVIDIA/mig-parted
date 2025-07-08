@@ -93,17 +93,9 @@ type reconfigureMIGOptions struct {
 // reboots when necessary. The function ensures that MIG configurations are
 // applied safely with proper service lifecycle management.
 func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions) error {
-	validate := validator.New(validator.WithRequiredStructEnabled())
-
 	log.Info("Validating reconfigure MIG options")
-	err := validate.RegisterValidation("systemd_service_name", validateSystemdServiceName)
-	if err != nil {
-		log.Error("Unable to register systemd service name validator")
-		return err
-	}
-	err = validate.Struct(opts)
-	if err != nil {
-		log.Error("Unable to validate the reconfigure MIG options")
+	if err := validate(opts); err != nil {
+		log.Errorf("%v", err)
 		return err
 	}
 
@@ -407,6 +399,20 @@ func rebootHost(hostRootMount string) error {
 	}
 
 	os.Exit(0)
+	return nil
+}
+
+func validate(opts *reconfigureMIGOptions) error {
+	validate := validator.New(validator.WithRequiredStructEnabled())
+
+	err := validate.RegisterValidation("systemd_service_name", validateSystemdServiceName)
+	if err != nil {
+		return fmt.Errorf("unable to register systemd service name validator: %w", err)
+	}
+	err = validate.Struct(opts)
+	if err != nil {
+		return fmt.Errorf("unable to validate the reconfigure MIG options: %w", err)
+	}
 	return nil
 }
 
