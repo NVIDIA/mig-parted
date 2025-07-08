@@ -98,6 +98,10 @@ type reconfigureMIGOptions struct {
 	DriverRootCtrPath string
 	DevRoot           string
 	DevRootCtrPath    string
+
+	CDIEnabled        bool
+	NVIDIASMIPath     string
+	NVIDIACDIHookPath string
 }
 
 // reconfigureMIG configures MIG (Multi-Instance GPU) settings on a Kubernetes
@@ -198,12 +202,23 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 		return err
 	}
 
-	// TODO(elezar): Trigger regeneration of management CDI spec.
-	// This includes:
-	// * running nvidia-smi
-	// * running nvidia-ctk system create-device-nodes
-	if err := regenerateCDISpec(opts); err != nil {
-		return err
+	if opts.CDIEnabled {
+		// Run nvidia-smi to ensure that the kernel modules are loaded and the
+		// basic device nodes are available.
+		if err := runNvidiaSMI(opts); err != nil {
+			return err
+		}
+
+		// Create additional control devices that are not created by nvidia-smi
+		// e.g. /dev/nvidia-uvm and /dev/nvidia-uvm-tools
+		if err := createControlDeviceNodes(opts); err != nil {
+			return err
+		}
+
+		// Ensure that we regenerate a CDI spec for management containers.
+		if err := regenerateManagementCDISpec(opts); err != nil {
+			return err
+		}
 	}
 
 	if opts.WithShutdownHostGPUClients {

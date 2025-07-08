@@ -25,13 +25,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func regenerateCDISpec(opts *reconfigureMIGOptions) error {
+func regenerateManagementCDISpec(opts *reconfigureMIGOptions) error {
 	log.Info("Generating CDI spec for management containers")
 	cdilib, err := nvcdi.New(
 		nvcdi.WithMode(nvcdi.ModeManagement),
 		nvcdi.WithDriverRoot(opts.DriverRootCtrPath),
 		nvcdi.WithDevRoot(opts.DevRootCtrPath),
-		nvcdi.WithNVIDIACDIHookPath(nvidiaCDIHookPath),
+		nvcdi.WithNVIDIACDIHookPath(opts.NVIDIACDIHookPath),
 		nvcdi.WithVendor("management.nvidia.com"),
 		nvcdi.WithClass("gpu"),
 	)
