@@ -93,6 +93,11 @@ type reconfigureMIGOptions struct {
 
 	// GPUClientsNamespace represents the namespace of the k8s GPU clients.
 	GPUClientsNamespace string
+
+	DriverRoot        string
+	DriverRootCtrPath string
+	DevRoot           string
+	DevRootCtrPath    string
 }
 
 // reconfigureMIG configures MIG (Multi-Instance GPU) settings on a Kubernetes
@@ -197,7 +202,9 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 	// This includes:
 	// * running nvidia-smi
 	// * running nvidia-ctk system create-device-nodes
-	// * running nvidia-ctk cdi-generate (should be done through the nvcdi API)
+	if err := regenerateCDISpec(opts); err != nil {
+		return err
+	}
 
 	if opts.WithShutdownHostGPUClients {
 		log.Info("Restarting all GPU clients previously shutdown on the host by restarting their systemd services")

@@ -392,6 +392,11 @@ func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath st
 
 		// TODO(elezar):
 		// DriverLibraryPath: "",
+
+		DriverRoot:        driverRoot,
+		DriverRootCtrPath: driverRootCtrPath,
+		DevRoot:           devRoot,
+		DevRootCtrPath:    devRootCtrPath,
 	}
 
 	// TODO(elezar)
