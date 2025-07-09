@@ -157,7 +157,7 @@ func (m *migManager) reconfigureMIG(opts *reconfigureMIGOptions) error {
 		return fmt.Errorf("unable to set the value of %q to %q: %w", opts.ConfigStateLabel, "pending", err)
 	}
 
-	k8sClients := m.getK8sClients(opts)
+	k8sClients := m.getK8sClients()
 	if err := k8sClients.Stop(); err != nil {
 		return fmt.Errorf("unable to shutdown k8s GPU clients: %w", err)
 	}

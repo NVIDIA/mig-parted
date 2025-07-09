@@ -9,89 +9,78 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-type k8sClients []k8sClient
-
+// A k8sClient represents a client that can be stoped or restarted.
 type k8sClient interface {
 	Stop() error
 	Restart() error
 }
 
+// k8sClients represents a set of clients that can be stopped or restarted
+// together.
+type k8sClients []k8sClient
+
+var _ k8sClient = (k8sClient)(nil)
+
+// a withNoStopClient wraps the specified client so that the Stop function is a no-op.
 type withNoStopClient struct {
 	k8sClient
 }
 
+// a withNoRestartClient wraps the specified client so that the Restart function is a no-op.
 type withNoRestartClient struct {
 	k8sClient
 }
 
+// A pod represents a kubernetes pod with a specified app= label.
 type pod struct {
 	app string
 	// manager stores a reference to the mig manager managing these clients.
 	manager *migManager
 }
 
-// An operand is a GPU client that is controlled by a deploy label.
+// An operand is an operand of the GPU Operator that is represented by a pod
+// and constolled by a deploy label.
 type operand struct {
-	pod
+	*pod
 	deployLabel string
 	lastValue   string
 }
 
-func (m *migManager) getK8sClients(opts *reconfigureMIGOptions) k8sClients {
+// getK8sClients returns the k8sClients managed by the specified mig manager.
+// TODO: This should be configurable so that it can be used as-is from the vgpu-device-manager
+// where k8s-clients are not considered.
+func (m *migManager) getK8sClients() k8sClients {
 	k8sGPUClients := k8sClients{
-		&operand{
-			pod: pod{
-				app:     "nvidia-device-plugin-daemonset",
-				manager: m,
-			},
-			deployLabel: "nvidia.com/gpu.deploy.device-plugin",
-		},
-		&operand{
-			pod: pod{
-				app:     "gpu-feature-discovery",
-				manager: m,
-			},
-			deployLabel: "nvidia.com/gpu.deploy.gpu-feature-discovery",
-		},
-		&operand{
-			pod: pod{
-				app:     "nvidia-dcgm-exporter",
-				manager: m,
-			},
-			deployLabel: "nvidia.com/gpu.deploy.dcgm-exporter",
-		},
-		&operand{
-			pod: pod{
-				app:     "nvidia-dcgm",
-				manager: m,
-			},
-			deployLabel: "nvidia.com/gpu.deploy.dcgm",
-		},
-		&operand{
-			// TODO: Why don't we wait for the following pd deletion.
-			pod: pod{
-				app:     "",
-				manager: m,
-			},
-			deployLabel: "nvidia.com/gpu.deploy.nvsm",
-		},
-		withNoRestart(&pod{
-			app:     "nvidia-cuda-validator",
-			manager: m,
-		}),
-		withNoRestart(&pod{
-			app:     "nvidia-device-plugin-validator",
-			manager: m,
-		}),
-		withNoStop(&pod{
-			app:     "nvidia-operator-validator",
-			manager: m,
-		}),
+		m.newOperand("nvidia-device-plugin-daemonset", "nvidia.com/gpu.deploy.device-plugin"),
+		m.newOperand("gpu-feature-discovery", "nvidia.com/gpu.deploy.gpu-feature-discovery"),
+		m.newOperand("nvidia-dcgm-exporter", "nvidia.com/gpu.deploy.dcgm-exporter"),
+		m.newOperand("nvidia-dcgm", "nvidia.com/gpu.deploy.dcgm"),
+		// TODO: Why don't we wait for the following pod deletion.
+		m.newOperand("", "nvidia.com/gpu.deploy.nvsm"),
+		withNoRestart(m.newPod("nvidia-cuda-validator")),
+		withNoRestart(m.newPod("nvidia-device-plugin-validator")),
+		withNoStop(m.newPod("nvidia-operator-validator")),
 	}
 
 	return k8sGPUClients
 }
 
+func (m *migManager) newOperand(app string, deployLabel string) *operand {
+	return &operand{
+		pod:         m.newPod(app),
+		deployLabel: deployLabel,
+	}
+}
+
+func (m *migManager) newPod(app string) *pod {
+	return &pod{
+		manager: m,
+		app:     app,
+	}
+}
+
+// Restart restarts each of a set of k8s clients.
+// The first error encountered is returned and not further clients are restarted.
 func (o k8sClients) Restart() error {
 	for _, c := range o {
 		if c == nil {
@@ -104,6 +93,8 @@ func (o k8sClients) Restart() error {
 	return nil
 }
 
+// Stop stops each of a set of k8s clients.
+// The first error encountered is returned and not further clients are stopped.
 func (o k8sClients) Stop() error {
 	for _, c := range o {
 		if c == nil {
@@ -116,10 +107,12 @@ func (o k8sClients) Stop() error {
 	return nil
 }
 
+// withNoRestart wraps the specified client so that restarts are disabled.
 func withNoRestart(k k8sClient) k8sClient {
 	return &withNoRestartClient{k}
 }
 
+// withNoStop wraps the specified client so that stopss are disabled.
 func withNoStop(k k8sClient) k8sClient {
 	return &withNoStopClient{k}
 }
@@ -132,26 +125,17 @@ func (o *withNoStopClient) Stop() error {
 	return nil
 }
 
+// Restart the specified pod.
 func (o *pod) Restart() error {
-	// TODO: We need to add this namespace to the options.
-	err := o.manager.clientset.CoreV1().Pods(o.manager.Namespace).DeleteCollection(
-		context.TODO(),
-		metav1.DeleteOptions{},
-		metav1.ListOptions{
-			FieldSelector: fmt.Sprintf("spec.nodeName=%s", o.manager.NodeName),
-			LabelSelector: fmt.Sprintf("app=%s", o.app),
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("unable to delete pods for app %s: %w", o.app, err)
-	}
-	return nil
+	return o.delete()
 }
 
+// Stop the specified pod.
 func (o *pod) Stop() error {
-	if o.app == "" {
-		return nil
-	}
+	return o.delete()
+}
+
+func (o *pod) delete() error {
 	err := o.manager.clientset.CoreV1().Pods(o.manager.Namespace).DeleteCollection(
 		context.TODO(),
 		metav1.DeleteOptions{},
@@ -167,9 +151,6 @@ func (o *pod) Stop() error {
 }
 
 func (o *pod) waitForDeletion() error {
-	if o.app == "" {
-		return nil
-	}
 	timeout := 5 * time.Minute
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -207,8 +188,11 @@ func (o *pod) waitForDeletion() error {
 	}
 }
 
+// Restart the specified operand by setting its deployLabel to 'true'
+// If the deploy label is already set to false, this is assumed to be controlled
+// by an external entity and no changes are made.
 func (o *operand) Restart() error {
-	if o.deployLabel == "" || o.lastValue == "false" {
+	if o.lastValue == "false" {
 		return nil
 	}
 	err := o.manager.setNodeLabelValue(o.deployLabel, "true")
@@ -218,20 +202,23 @@ func (o *operand) Restart() error {
 	return nil
 }
 
+// Stop the specified operand by setting its deploy label to 'paused-for-mig-change'.
+// If the deploy label is already set to false, this is assumed to be controlled
+// by an external entity and no changes are made.
 func (o *operand) Stop() error {
 	value, err := o.manager.getNodeLabelValue(o.deployLabel)
 	if err != nil {
 		return fmt.Errorf("unable to get the value of the %q label: %w", o.deployLabel, err)
 	}
 	o.lastValue = value
-	// Only set 'paused-*' if the current value is not 'false'.
-	// It should only be 'false' if some external entity has forced it to
-	// this value, at which point we want to honor it's existing value and
-	// not change it.
 	if value != "false" {
 		if err := o.manager.setNodeLabelValue(o.deployLabel, "paused-for-mig-change"); err != nil {
 			return err
 		}
+	}
+	// TODO: For the nvidia.com/gpu.deploy.nvsm label we have no associated app name.
+	if o.app == "" {
+		return nil
 	}
 	return o.waitForDeletion()
 }
