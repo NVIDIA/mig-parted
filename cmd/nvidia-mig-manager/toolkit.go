@@ -32,11 +32,11 @@ func createControlDeviceNodes(opts *reconfigureMIGOptions) error {
 
 func runNvidiaSMI(opts *reconfigureMIGOptions) error {
 	if opts.DriverRootCtrPath == opts.DevRootCtrPath {
-		cmd := exec.Command("chroot", opts.NVIDIASMIPath)
+		cmd := exec.Command("chroot", opts.NVIDIASMIPath) //nolint:gosec
 		return runCommandWithOutput(cmd)
 	}
 
-	cmd := exec.Command("chroot", opts.HostRootMount, opts.NVIDIASMIPath)
+	cmd := exec.Command("chroot", opts.HostRootMount, opts.NVIDIASMIPath) //nolint:gosec
 	cmd.Env = append(cmd.Env, ldPreloadEnvVar+"="+opts.DriverLibraryPath)
 	return runCommandWithOutput(cmd)
 }
