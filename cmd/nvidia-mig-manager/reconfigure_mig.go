@@ -63,8 +63,8 @@ type reconfigureMIGOptions struct {
 	// node.
 	SelectedMIGConfig string
 
-	// MIGStateLabel is the label that is used to indicate the state of the MIG config.
-	MIGStateLabel string
+	// ConfigStateLabel is the label that is used to indicate the state of the config being applied.
+	ConfigStateLabel string
 
 	// DriverLibrayPath is the path to libnvidia-ml.so.1 in the container.
 	DriverLibraryPath string `validate:"required,filepath"`
@@ -122,13 +122,13 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 		return err
 	}
 
-	log.Infof("Getting current value of the '%s' node label", opts.MIGStateLabel)
-	state, err := getNodeLabelValue(clientset, opts.MIGStateLabel)
+	log.Infof("Getting current value of the '%s' node label", opts.ConfigStateLabel)
+	state, err := getNodeLabelValue(clientset, opts.ConfigStateLabel)
 	if err != nil {
-		log.Errorf("Unable to get the value of the '%s' label", opts.MIGStateLabel)
+		log.Errorf("Unable to get the value of the '%s' label", opts.ConfigStateLabel)
 		return err
 	}
-	log.Infof("Current value of '%s=%s'", opts.MIGStateLabel, state)
+	log.Infof("Current value of '%s=%s'", opts.ConfigStateLabel, state)
 
 	log.Info("Checking if the selected MIG config is currently applied or not")
 	if err := assertMIGConfig(opts); err == nil {
@@ -161,9 +161,9 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 		migModeChangeRequired = true
 	}
 
-	if err := setNodeLabelValue(clientset, opts.MIGStateLabel, "pending"); err != nil {
+	if err := setNodeLabelValue(clientset, opts.ConfigStateLabel, "pending"); err != nil {
 		// TODO: Check whether this error is already constructed in setNodeLabelValue.
-		return fmt.Errorf("unable to set the value of %q to %q: %w", opts.MIGStateLabel, "pending", err)
+		return fmt.Errorf("unable to set the value of %q to %q: %w", opts.ConfigStateLabel, "pending", err)
 	}
 
 	k8sClients := getK8sClients(opts)
@@ -187,9 +187,9 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 	log.Info("If the -r option was passed, the node will be automatically rebooted if this is not successful")
 	if err := applyMIGModeOnly(opts); err != nil || assertMIGModeOnly(opts) != nil {
 		if opts.WithReboot {
-			log.Infof("Changing the '%s' node label to '%s'", opts.MIGStateLabel, configStateRebooting)
-			if err := setNodeLabelValue(clientset, opts.MIGStateLabel, configStateRebooting); err != nil {
-				log.Errorf("Unable to set the value of '%s' to '%s'", opts.MIGStateLabel, configStateRebooting)
+			log.Infof("Changing the '%s' node label to '%s'", opts.ConfigStateLabel, configStateRebooting)
+			if err := setNodeLabelValue(clientset, opts.ConfigStateLabel, configStateRebooting); err != nil {
+				log.Errorf("Unable to set the value of '%s' to '%s'", opts.ConfigStateLabel, configStateRebooting)
 				log.Error("Exiting so as not to reboot multiple times unexpectedly")
 				return err
 			}

@@ -386,12 +386,12 @@ func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath st
 		HostGPUClientServices:      gpuClients.SystemdServices,
 		HostKubeletService:         hostKubeletSystemdServiceFlag,
 		GPUClientsNamespace:        defaultGPUClientsNamespaceFlag,
-		MIGStateLabel:              "nvidia.com/mig.config.state",
+		ConfigStateLabel:           "nvidia.com/mig.config.state",
 		WithReboot:                 withRebootFlag,
 		WithShutdownHostGPUClients: withShutdownHostGPUClientsFlag,
 
 		// TODO(elezar):
-		// DriverLibraryPath: "",
+		DriverLibraryPath: driverLibraryPath,
 
 		DriverRoot:        driverRoot,
 		DriverRootCtrPath: driverRootCtrPath,
