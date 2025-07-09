@@ -7,14 +7,13 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 )
 
 type k8sClients []k8sClient
 
 type k8sClient interface {
-	Stop(*kubernetes.Clientset) error
-	Restart(*kubernetes.Clientset) error
+	Stop() error
+	Restart() error
 }
 
 type withNoStopClient struct {
@@ -26,9 +25,9 @@ type withNoRestartClient struct {
 }
 
 type pod struct {
-	namespace string
-	nodename  string
-	app       string
+	app string
+	// manager stores a reference to the mig manager managing these clients.
+	manager *migManager
 }
 
 // An operand is a GPU client that is controlled by a deploy label.
@@ -38,87 +37,79 @@ type operand struct {
 	lastValue   string
 }
 
-func getK8sClients(opts *reconfigureMIGOptions) k8sClients {
+func (m *migManager) getK8sClients(opts *reconfigureMIGOptions) k8sClients {
 	k8sGPUClients := k8sClients{
 		&operand{
 			pod: pod{
-				namespace: opts.GPUClientsNamespace,
-				nodename:  opts.NodeName,
-				app:       "nvidia-device-plugin-daemonset",
+				app:     "nvidia-device-plugin-daemonset",
+				manager: m,
 			},
 			deployLabel: "nvidia.com/gpu.deploy.device-plugin",
 		},
 		&operand{
 			pod: pod{
-				namespace: opts.GPUClientsNamespace,
-				nodename:  opts.NodeName,
-				app:       "gpu-feature-discovery",
+				app:     "gpu-feature-discovery",
+				manager: m,
 			},
 			deployLabel: "nvidia.com/gpu.deploy.gpu-feature-discovery",
 		},
 		&operand{
 			pod: pod{
-				namespace: opts.GPUClientsNamespace,
-				nodename:  opts.NodeName,
-				app:       "nvidia-dcgm-exporter",
+				app:     "nvidia-dcgm-exporter",
+				manager: m,
 			},
 			deployLabel: "nvidia.com/gpu.deploy.dcgm-exporter",
 		},
 		&operand{
 			pod: pod{
-				namespace: opts.GPUClientsNamespace,
-				nodename:  opts.NodeName,
-				app:       "nvidia-dcgm",
+				app:     "nvidia-dcgm",
+				manager: m,
 			},
 			deployLabel: "nvidia.com/gpu.deploy.dcgm",
 		},
 		&operand{
 			// TODO: Why don't we wait for the following pd deletion.
 			pod: pod{
-				namespace: opts.GPUClientsNamespace,
-				nodename:  opts.NodeName,
-				app:       "",
+				app:     "",
+				manager: m,
 			},
 			deployLabel: "nvidia.com/gpu.deploy.nvsm",
 		},
 		withNoRestart(&pod{
-			namespace: opts.GPUClientsNamespace,
-			nodename:  opts.NodeName,
-			app:       "nvidia-cuda-validator",
+			app:     "nvidia-cuda-validator",
+			manager: m,
 		}),
 		withNoRestart(&pod{
-			namespace: opts.GPUClientsNamespace,
-			nodename:  opts.NodeName,
-			app:       "nvidia-device-plugin-validator",
+			app:     "nvidia-device-plugin-validator",
+			manager: m,
 		}),
 		withNoStop(&pod{
-			namespace: opts.GPUClientsNamespace,
-			nodename:  opts.NodeName,
-			app:       "nvidia-operator-validator",
+			app:     "nvidia-operator-validator",
+			manager: m,
 		}),
 	}
 
 	return k8sGPUClients
 }
 
-func (o k8sClients) Restart(clientset *kubernetes.Clientset) error {
+func (o k8sClients) Restart() error {
 	for _, c := range o {
 		if c == nil {
 			continue
 		}
-		if err := c.Restart(clientset); err != nil {
+		if err := c.Restart(); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (o k8sClients) Stop(clientset *kubernetes.Clientset) error {
+func (o k8sClients) Stop() error {
 	for _, c := range o {
 		if c == nil {
 			continue
 		}
-		if err := c.Stop(clientset); err != nil {
+		if err := c.Stop(); err != nil {
 			return err
 		}
 	}
@@ -133,21 +124,21 @@ func withNoStop(k k8sClient) k8sClient {
 	return &withNoStopClient{k}
 }
 
-func (o *withNoRestartClient) Restart(_ *kubernetes.Clientset) error {
+func (o *withNoRestartClient) Restart() error {
 	return nil
 }
 
-func (o *withNoStopClient) Stop(_ *kubernetes.Clientset) error {
+func (o *withNoStopClient) Stop() error {
 	return nil
 }
 
-func (o *pod) Restart(clientset *kubernetes.Clientset) error {
+func (o *pod) Restart() error {
 	// TODO: We need to add this namespace to the options.
-	err := clientset.CoreV1().Pods(o.namespace).DeleteCollection(
+	err := o.manager.clientset.CoreV1().Pods(o.manager.Namespace).DeleteCollection(
 		context.TODO(),
 		metav1.DeleteOptions{},
 		metav1.ListOptions{
-			FieldSelector: fmt.Sprintf("spec.nodeName=%s", o.nodename),
+			FieldSelector: fmt.Sprintf("spec.nodeName=%s", o.manager.NodeName),
 			LabelSelector: fmt.Sprintf("app=%s", o.app),
 		},
 	)
@@ -157,15 +148,15 @@ func (o *pod) Restart(clientset *kubernetes.Clientset) error {
 	return nil
 }
 
-func (o *pod) Stop(clientset *kubernetes.Clientset) error {
+func (o *pod) Stop() error {
 	if o.app == "" {
 		return nil
 	}
-	err := clientset.CoreV1().Pods(o.namespace).DeleteCollection(
+	err := o.manager.clientset.CoreV1().Pods(o.manager.Namespace).DeleteCollection(
 		context.TODO(),
 		metav1.DeleteOptions{},
 		metav1.ListOptions{
-			FieldSelector: fmt.Sprintf("spec.nodeName=%s", o.nodename),
+			FieldSelector: fmt.Sprintf("spec.nodeName=%s", o.manager.NodeName),
 			LabelSelector: fmt.Sprintf("app=%s", o.app),
 		},
 	)
@@ -175,7 +166,7 @@ func (o *pod) Stop(clientset *kubernetes.Clientset) error {
 	return nil
 }
 
-func (o *pod) waitForDeletion(clientset *kubernetes.Clientset) error {
+func (o *pod) waitForDeletion() error {
 	if o.app == "" {
 		return nil
 	}
@@ -183,8 +174,8 @@ func (o *pod) waitForDeletion(clientset *kubernetes.Clientset) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	watcher, err := clientset.CoreV1().Pods(o.namespace).Watch(ctx, metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("spec.nodeName=%s", o.nodename),
+	watcher, err := o.manager.clientset.CoreV1().Pods(o.manager.Namespace).Watch(ctx, metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("spec.nodeName=%s", o.manager.NodeName),
 		LabelSelector: fmt.Sprintf("app=%s", o.app),
 	})
 	if err != nil {
@@ -200,8 +191,8 @@ func (o *pod) waitForDeletion(clientset *kubernetes.Clientset) error {
 		case event := <-watcher.ResultChan():
 			if event.Type == watch.Deleted {
 				// Check if there are any remaining pods matching our criteria
-				pods, err := clientset.CoreV1().Pods(o.namespace).List(ctx, metav1.ListOptions{
-					FieldSelector: fmt.Sprintf("spec.nodeName=%s", o.nodename),
+				pods, err := o.manager.clientset.CoreV1().Pods(o.manager.Namespace).List(ctx, metav1.ListOptions{
+					FieldSelector: fmt.Sprintf("spec.nodeName=%s", o.manager.NodeName),
 					LabelSelector: fmt.Sprintf("app=%s", o.app),
 				})
 				if err != nil {
@@ -216,19 +207,19 @@ func (o *pod) waitForDeletion(clientset *kubernetes.Clientset) error {
 	}
 }
 
-func (o *operand) Restart(clientset *kubernetes.Clientset) error {
+func (o *operand) Restart() error {
 	if o.deployLabel == "" || o.lastValue == "false" {
 		return nil
 	}
-	err := setNodeLabelValue(clientset, o.deployLabel, "true")
+	err := o.manager.setNodeLabelValue(o.deployLabel, "true")
 	if err != nil {
 		return fmt.Errorf("unable to restart operand %q: %w", o.app, err)
 	}
 	return nil
 }
 
-func (o *operand) Stop(clientset *kubernetes.Clientset) error {
-	value, err := getNodeLabelValue(clientset, o.deployLabel)
+func (o *operand) Stop() error {
+	value, err := o.manager.getNodeLabelValue(o.deployLabel)
 	if err != nil {
 		return fmt.Errorf("unable to get the value of the %q label: %w", o.deployLabel, err)
 	}
@@ -238,9 +229,9 @@ func (o *operand) Stop(clientset *kubernetes.Clientset) error {
 	// this value, at which point we want to honor it's existing value and
 	// not change it.
 	if value != "false" {
-		if err := setNodeLabelValue(clientset, o.deployLabel, "paused-for-mig-change"); err != nil {
+		if err := o.manager.setNodeLabelValue(o.deployLabel, "paused-for-mig-change"); err != nil {
 			return err
 		}
 	}
-	return o.waitForDeletion(clientset)
+	return o.waitForDeletion()
 }

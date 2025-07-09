@@ -29,7 +29,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -51,11 +50,6 @@ var (
 // parameters required for applying MIG configurations through mig-parted, including node identification, configuration files, reboot behavior, and host
 // system service management.
 type reconfigureMIGOptions struct {
-	// NodeName is the kubernetes node to change the MIG configuration on.
-	// Its validation follows the RFC 1123 standard for DNS subdomain names.
-	// Source: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
-	NodeName string `validate:"required,hostname_rfc1123"`
-
 	// MIGPartedConfigFile is the mig-parted configuration file path.
 	MIGPartedConfigFile string `validate:"required,filepath"`
 
@@ -91,9 +85,6 @@ type reconfigureMIGOptions struct {
 	// which may need to be shutdown/restarted across a MIG mode reconfiguration.
 	HostKubeletService string `validate:"systemd_service_name"`
 
-	// GPUClientsNamespace represents the namespace of the k8s GPU clients.
-	GPUClientsNamespace string
-
 	DriverRoot        string
 	DriverRootCtrPath string
 	DevRoot           string
@@ -109,7 +100,7 @@ type reconfigureMIGOptions struct {
 // applies MIG mode changes, manages host GPU client services, and handles
 // reboots when necessary. The function ensures that MIG configurations are
 // applied safely with proper service lifecycle management.
-func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions) error {
+func (m *migManager) reconfigureMIG(opts *reconfigureMIGOptions) error {
 	log.Info("Validating reconfigure MIG options")
 	if err := validate(opts); err != nil {
 		log.Errorf("%v", err)
@@ -123,7 +114,7 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 	}
 
 	log.Infof("Getting current value of the '%s' node label", opts.ConfigStateLabel)
-	state, err := getNodeLabelValue(clientset, opts.ConfigStateLabel)
+	state, err := m.getNodeLabelValue(opts.ConfigStateLabel)
 	if err != nil {
 		log.Errorf("Unable to get the value of the '%s' label", opts.ConfigStateLabel)
 		return err
@@ -161,13 +152,13 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 		migModeChangeRequired = true
 	}
 
-	if err := setNodeLabelValue(clientset, opts.ConfigStateLabel, "pending"); err != nil {
+	if err := m.setNodeLabelValue(opts.ConfigStateLabel, "pending"); err != nil {
 		// TODO: Check whether this error is already constructed in setNodeLabelValue.
 		return fmt.Errorf("unable to set the value of %q to %q: %w", opts.ConfigStateLabel, "pending", err)
 	}
 
-	k8sClients := getK8sClients(opts)
-	if err := k8sClients.Stop(clientset); err != nil {
+	k8sClients := m.getK8sClients(opts)
+	if err := k8sClients.Stop(); err != nil {
 		return fmt.Errorf("unable to shutdown k8s GPU clients: %w", err)
 	}
 
@@ -188,7 +179,7 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 	if err := applyMIGModeOnly(opts); err != nil || assertMIGModeOnly(opts) != nil {
 		if opts.WithReboot {
 			log.Infof("Changing the '%s' node label to '%s'", opts.ConfigStateLabel, configStateRebooting)
-			if err := setNodeLabelValue(clientset, opts.ConfigStateLabel, configStateRebooting); err != nil {
+			if err := m.setNodeLabelValue(opts.ConfigStateLabel, configStateRebooting); err != nil {
 				log.Errorf("Unable to set the value of '%s' to '%s'", opts.ConfigStateLabel, configStateRebooting)
 				log.Error("Exiting so as not to reboot multiple times unexpectedly")
 				return err
@@ -230,7 +221,7 @@ func reconfigureMIG(clientset *kubernetes.Clientset, opts *reconfigureMIGOptions
 	}
 
 	// Restart the required k8s clients.
-	if err := k8sClients.Restart(clientset); err != nil {
+	if err := k8sClients.Restart(); err != nil {
 		return fmt.Errorf("unable to restart k8s clients: %w", err)
 	}
 
@@ -508,8 +499,8 @@ func validateSystemdServiceName(fl validator.FieldLevel) bool {
 	return systemdServicePrefixPattern.MatchString(serviceName)
 }
 
-func getNodeLabelValue(clientset *kubernetes.Clientset, label string) (string, error) {
-	node, err := clientset.CoreV1().Nodes().Get(context.TODO(), nodeNameFlag, metav1.GetOptions{})
+func (m *migManager) getNodeLabelValue(label string) (string, error) {
+	node, err := m.clientset.CoreV1().Nodes().Get(context.TODO(), m.NodeName, metav1.GetOptions{})
 	if err != nil {
 		return "", fmt.Errorf("unable to get node object: %v", err)
 	}
@@ -522,8 +513,8 @@ func getNodeLabelValue(clientset *kubernetes.Clientset, label string) (string, e
 	return value, nil
 }
 
-func setNodeLabelValue(clientset *kubernetes.Clientset, label, value string) error {
-	node, err := clientset.CoreV1().Nodes().Get(context.TODO(), nodeNameFlag, metav1.GetOptions{})
+func (m *migManager) setNodeLabelValue(label, value string) error {
+	node, err := m.clientset.CoreV1().Nodes().Get(context.TODO(), m.NodeName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("unable to get node object: %v", err)
 	}
@@ -531,7 +522,7 @@ func setNodeLabelValue(clientset *kubernetes.Clientset, label, value string) err
 	labels := node.GetLabels()
 	labels[label] = value
 	node.SetLabels(labels)
-	_, err = clientset.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{})
+	_, err = m.clientset.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("unable to update node object: %v", err)
 	}

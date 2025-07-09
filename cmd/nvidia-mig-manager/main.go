@@ -52,10 +52,9 @@ const (
 	DefaultNvidiaCDIHookPath         = "/usr/local/nvidia/toolkit/nvidia-cdi-hook"
 )
 
-var nodeNameFlag string
-
 type options struct {
 	kubeconfig                 string
+	nodeName                   string
 	configFile                 string
 	reconfigureScript          string
 	withReboot                 bool
@@ -137,7 +136,7 @@ func main() {
 			Aliases:     []string{"n"},
 			Value:       "",
 			Usage:       "the name of the node to watch for label changes on",
-			Destination: &nodeNameFlag,
+			Destination: &o.nodeName,
 			EnvVars:     []string{"NODE_NAME"},
 		},
 		&cli.StringFlag{
@@ -276,7 +275,7 @@ func main() {
 }
 
 func validateFlags(c *cli.Context, o *options) error {
-	if nodeNameFlag == "" {
+	if o.nodeName == "" {
 		return fmt.Errorf("invalid -n <node-name> flag: must not be empty string")
 	}
 	if o.configFile == "" {
@@ -304,7 +303,7 @@ func start(c *cli.Context, o *options) error {
 	manager := &migManager{
 		clientset:         clientset,
 		migConfig:         NewSyncableMigConfig(),
-		nodeName:          nodeNameFlag,
+		NodeName:          o.nodeName,
 		driverLibraryPath: driverLibraryPath,
 		nvidiaSMIPath:     nvidiaSMIPath,
 	}
@@ -327,9 +326,16 @@ func start(c *cli.Context, o *options) error {
 // A migManger is responsible for watching a particular label and triggering a
 // reconfiguration if the value change.
 type migManager struct {
-	clientset         *kubernetes.Clientset
-	migConfig         *SyncableMigConfig
-	nodeName          string
+	clientset *kubernetes.Clientset
+	migConfig *SyncableMigConfig
+	// NodeName is the kubernetes node to change the MIG configuration on.
+	// Its validation follows the RFC 1123 standard for DNS subdomain names.
+	// Source: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
+	NodeName string `validate:"required,hostname_rfc1123"`
+
+	// Namespace represents the namespace of the k8s GPU clients.
+	Namespace string
+
 	driverLibraryPath string
 	nvidiaSMIPath     string
 }
@@ -404,14 +410,12 @@ func (m *migManager) Reconfigure(o *options, migConfigValue string) error {
 
 	// TODO: Use functional options.
 	opts := &reconfigureMIGOptions{
-		NodeName:                   m.nodeName,
 		MIGPartedConfigFile:        o.configFile,
 		SelectedMIGConfig:          migConfigValue,
 		HostRootMount:              o.hostRootMount,
 		HostMIGManagerStateFile:    o.hostMigManagerStateFile,
 		HostGPUClientServices:      gpuClients.SystemdServices,
 		HostKubeletService:         o.hostKubeletSystemdService,
-		GPUClientsNamespace:        o.defaultGPUClientsNamespace,
 		ConfigStateLabel:           "nvidia.com/mig.config.state",
 		WithReboot:                 o.withReboot,
 		WithShutdownHostGPUClients: o.withShutdownHostGPUClients,
@@ -428,7 +432,7 @@ func (m *migManager) Reconfigure(o *options, migConfigValue string) error {
 		NVIDIACDIHookPath: o.nvidiaCDIHookPath,
 	}
 
-	return reconfigureMIG(m.clientset, opts)
+	return m.reconfigureMIG(opts)
 }
 
 func (m *migManager) ContinuouslySyncMigConfigChanges() chan struct{} {
@@ -436,7 +440,7 @@ func (m *migManager) ContinuouslySyncMigConfigChanges() chan struct{} {
 		m.clientset.CoreV1().RESTClient(),
 		ResourceNodes,
 		v1.NamespaceAll,
-		fields.OneTermEqualSelector("metadata.name", m.nodeName),
+		fields.OneTermEqualSelector("metadata.name", m.NodeName),
 	)
 
 	_, controller := cache.NewInformerWithOptions(cache.InformerOptions{
