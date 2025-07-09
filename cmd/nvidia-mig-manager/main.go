@@ -55,19 +55,19 @@ const (
 var nodeNameFlag string
 
 type options struct {
-	kubeconfigFlag                 string
-	configFileFlag                 string
-	reconfigureScriptFlag          string
-	withRebootFlag                 bool
-	withShutdownHostGPUClientsFlag bool
-	gpuClientsFileFlag             string
-	hostRootMountFlag              string
-	hostNvidiaDirFlag              string
-	hostMigManagerStateFileFlag    string
-	hostKubeletSystemdServiceFlag  string
-	defaultGPUClientsNamespaceFlag string
+	kubeconfig                 string
+	configFile                 string
+	reconfigureScript          string
+	withReboot                 bool
+	withShutdownHostGPUClients bool
+	gpuClientsFile             string
+	hostRootMount              string
+	hostNvidiaDir              string
+	hostMigManagerStateFile    string
+	hostKubeletSystemdService  string
+	defaultGPUClientsNamespace string
 
-	cdiEnabledFlag    bool
+	cdiEnabled        bool
 	driverRoot        string
 	driverRootCtrPath string
 	devRoot           string
@@ -129,7 +129,7 @@ func main() {
 			Name:        "kubeconfig",
 			Value:       "",
 			Usage:       "absolute path to the kubeconfig file",
-			Destination: &o.kubeconfigFlag,
+			Destination: &o.kubeconfig,
 			EnvVars:     []string{"KUBECONFIG"},
 		},
 		&cli.StringFlag{
@@ -145,7 +145,7 @@ func main() {
 			Aliases:     []string{"f"},
 			Value:       "",
 			Usage:       "the path to the MIG parted configuration file",
-			Destination: &o.configFileFlag,
+			Destination: &o.configFile,
 			EnvVars:     []string{"CONFIG_FILE"},
 		},
 		&cli.StringFlag{
@@ -153,7 +153,7 @@ func main() {
 			Aliases:     []string{"s"},
 			Value:       DefaultReconfigureScript,
 			Usage:       "script to run to do the actual MIG reconfiguration",
-			Destination: &o.reconfigureScriptFlag,
+			Destination: &o.reconfigureScript,
 			EnvVars:     []string{"RECONFIGURE_SCRIPT"},
 		},
 		&cli.StringFlag{
@@ -161,7 +161,7 @@ func main() {
 			Aliases:     []string{"m"},
 			Value:       DefaultHostRootMount,
 			Usage:       "container path where host root directory is mounted",
-			Destination: &o.hostRootMountFlag,
+			Destination: &o.hostRootMount,
 			EnvVars:     []string{"HOST_ROOT_MOUNT"},
 		},
 		&cli.StringFlag{
@@ -169,7 +169,7 @@ func main() {
 			Aliases:     []string{"i"},
 			Value:       DefaultHostNvidiaDir,
 			Usage:       "host path of the directory where NVIDIA managed software directory is typically located",
-			Destination: &o.hostNvidiaDirFlag,
+			Destination: &o.hostNvidiaDir,
 			EnvVars:     []string{"HOST_NVIDIA_DIR"},
 		},
 		&cli.StringFlag{
@@ -177,7 +177,7 @@ func main() {
 			Aliases:     []string{"o"},
 			Value:       DefaultHostMigManagerStateFile,
 			Usage:       "host path where the host's systemd mig-manager state file is located",
-			Destination: &o.hostMigManagerStateFileFlag,
+			Destination: &o.hostMigManagerStateFile,
 			EnvVars:     []string{"HOST_MIG_MANAGER_STATE_FILE"},
 		},
 		&cli.StringFlag{
@@ -185,7 +185,7 @@ func main() {
 			Aliases:     []string{"k"},
 			Value:       DefaultHostKubeletSystemdService,
 			Usage:       "name of the host's 'kubelet' systemd service which may need to be shutdown/restarted across a MIG mode reconfiguration",
-			Destination: &o.hostKubeletSystemdServiceFlag,
+			Destination: &o.hostKubeletSystemdService,
 			EnvVars:     []string{"HOST_KUBELET_SYSTEMD_SERVICE"},
 		},
 		&cli.StringFlag{
@@ -193,7 +193,7 @@ func main() {
 			Aliases:     []string{"g"},
 			Value:       "",
 			Usage:       "the path to the file listing the GPU clients that need to be shutdown across a MIG configuration",
-			Destination: &o.gpuClientsFileFlag,
+			Destination: &o.gpuClientsFile,
 			EnvVars:     []string{"GPU_CLIENTS_FILE"},
 		},
 		&cli.BoolFlag{
@@ -201,7 +201,7 @@ func main() {
 			Aliases:     []string{"r"},
 			Value:       false,
 			Usage:       "reboot the node if changing the MIG mode fails for any reason",
-			Destination: &o.withRebootFlag,
+			Destination: &o.withReboot,
 			EnvVars:     []string{"WITH_REBOOT"},
 		},
 		&cli.BoolFlag{
@@ -209,7 +209,7 @@ func main() {
 			Aliases:     []string{"d"},
 			Value:       false,
 			Usage:       "shutdown/restart any required host GPU clients across a MIG configuration",
-			Destination: &o.withShutdownHostGPUClientsFlag,
+			Destination: &o.withShutdownHostGPUClients,
 			EnvVars:     []string{"WITH_SHUTDOWN_HOST_GPU_CLIENTS"},
 		},
 		&cli.StringFlag{
@@ -217,7 +217,7 @@ func main() {
 			Aliases:     []string{"p"},
 			Value:       DefaultGPUClientsNamespace,
 			Usage:       "Default name of the Kubernetes namespace in which the GPU client Pods are installed in",
-			Destination: &o.defaultGPUClientsNamespaceFlag,
+			Destination: &o.defaultGPUClientsNamespace,
 			EnvVars:     []string{"DEFAULT_GPU_CLIENTS_NAMESPACE"},
 		},
 		&cli.StringFlag{
@@ -239,7 +239,7 @@ func main() {
 		&cli.BoolFlag{
 			Name:        "cdi-enabled",
 			Usage:       "Enable CDI support",
-			Destination: &o.cdiEnabledFlag,
+			Destination: &o.cdiEnabled,
 			EnvVars:     []string{"CDI_ENABLED"},
 		},
 		&cli.StringFlag{
@@ -279,14 +279,14 @@ func validateFlags(c *cli.Context, o *options) error {
 	if nodeNameFlag == "" {
 		return fmt.Errorf("invalid -n <node-name> flag: must not be empty string")
 	}
-	if o.configFileFlag == "" {
+	if o.configFile == "" {
 		return fmt.Errorf("invalid -f <config-file> flag: must not be empty string")
 	}
 	return nil
 }
 
 func start(c *cli.Context, o *options) error {
-	config, err := clientcmd.BuildConfigFromFlags("", o.kubeconfigFlag)
+	config, err := clientcmd.BuildConfigFromFlags("", o.kubeconfig)
 	if err != nil {
 		return fmt.Errorf("error building kubernetes clientcmd config: %s", err)
 	}
@@ -348,28 +348,28 @@ func (m *migManager) Get() string {
 // pass these as arguments to reconfigure-mig.sh
 //
 // Currently, driverRoot != devRoot only when devRoot='/'. Since mig-manager
-// has rw access to the host rootFS (at hostRootMountFlag), reconfigure-mig.sh
+// has rw access to the host rootFS (at hostRootMount), reconfigure-mig.sh
 // will first chroot into the host rootFS before invoking nvidia-smi, so the
 // device nodes get created at '/dev' on the host.
 func getPathsForCDI(o *options) (string, string, error) {
-	if !o.cdiEnabledFlag || (o.driverRoot == o.devRoot) {
+	if !o.cdiEnabled || (o.driverRoot == o.devRoot) {
 		return "", "", nil
 	}
 
-	driverRoot := root(filepath.Join(o.hostRootMountFlag, o.driverRoot))
+	driverRoot := root(filepath.Join(o.hostRootMount, o.driverRoot))
 	driverLibraryPath, err := driverRoot.getDriverLibraryPath()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to locate driver libraries: %w", err)
 	}
 	// Strip the leading '/host' so that the path is relative to the host rootFS
-	driverLibraryPath = filepath.Clean(strings.TrimPrefix(driverLibraryPath, o.hostRootMountFlag))
+	driverLibraryPath = filepath.Clean(strings.TrimPrefix(driverLibraryPath, o.hostRootMount))
 
 	nvidiaSMIPath, err := driverRoot.getNvidiaSMIPath()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to locate nvidia-smi: %w", err)
 	}
 	// Strip the leading '/host' so that the path is relative to the host rootFS
-	nvidiaSMIPath = filepath.Clean(strings.TrimPrefix(nvidiaSMIPath, o.hostRootMountFlag))
+	nvidiaSMIPath = filepath.Clean(strings.TrimPrefix(nvidiaSMIPath, o.hostRootMount))
 
 	return driverLibraryPath, nvidiaSMIPath, nil
 }
@@ -397,7 +397,7 @@ func parseGPUCLientsFile(file string) (*GPUClients, error) {
 }
 
 func (m *migManager) Reconfigure(o *options, migConfigValue string) error {
-	gpuClients, err := parseGPUCLientsFile(o.gpuClientsFileFlag)
+	gpuClients, err := parseGPUCLientsFile(o.gpuClientsFile)
 	if err != nil {
 		return fmt.Errorf("error parsing host's GPU clients file: %s", err)
 	}
@@ -405,16 +405,16 @@ func (m *migManager) Reconfigure(o *options, migConfigValue string) error {
 	// TODO: Use functional options.
 	opts := &reconfigureMIGOptions{
 		NodeName:                   m.nodeName,
-		MIGPartedConfigFile:        o.configFileFlag,
+		MIGPartedConfigFile:        o.configFile,
 		SelectedMIGConfig:          migConfigValue,
-		HostRootMount:              o.hostRootMountFlag,
-		HostMIGManagerStateFile:    o.hostMigManagerStateFileFlag,
+		HostRootMount:              o.hostRootMount,
+		HostMIGManagerStateFile:    o.hostMigManagerStateFile,
 		HostGPUClientServices:      gpuClients.SystemdServices,
-		HostKubeletService:         o.hostKubeletSystemdServiceFlag,
-		GPUClientsNamespace:        o.defaultGPUClientsNamespaceFlag,
+		HostKubeletService:         o.hostKubeletSystemdService,
+		GPUClientsNamespace:        o.defaultGPUClientsNamespace,
 		ConfigStateLabel:           "nvidia.com/mig.config.state",
-		WithReboot:                 o.withRebootFlag,
-		WithShutdownHostGPUClients: o.withShutdownHostGPUClientsFlag,
+		WithReboot:                 o.withReboot,
+		WithShutdownHostGPUClients: o.withShutdownHostGPUClients,
 
 		DriverLibraryPath: m.driverLibraryPath,
 
@@ -423,7 +423,7 @@ func (m *migManager) Reconfigure(o *options, migConfigValue string) error {
 		DevRoot:           o.devRoot,
 		DevRootCtrPath:    o.devRootCtrPath,
 
-		CDIEnabled:        o.cdiEnabledFlag,
+		CDIEnabled:        o.cdiEnabled,
 		NVIDIASMIPath:     m.nvidiaSMIPath,
 		NVIDIACDIHookPath: o.nvidiaCDIHookPath,
 	}
