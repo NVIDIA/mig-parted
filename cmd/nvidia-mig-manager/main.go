@@ -294,22 +294,41 @@ func start(c *cli.Context) error {
 		return fmt.Errorf("failed to get paths required for cdi: %w", err)
 	}
 
-	migConfig := NewSyncableMigConfig()
+	manager := &migManager{
+		clientset:         clientset,
+		migConfig:         NewSyncableMigConfig(),
+		nodeName:          nodeNameFlag,
+		driverLibraryPath: driverLibraryPath,
+		nvidiaSMIPath:     nvidiaSMIPath,
+	}
 
-	stop := ContinuouslySyncMigConfigChanges(clientset, migConfig)
+	stop := manager.ContinuouslySyncMigConfigChanges()
 	defer close(stop)
 
 	for {
 		log.Infof("Waiting for change to '%s' label", MigConfigLabel)
-		value := migConfig.Get()
-		log.Infof("Updating to MIG config: %s", value)
-		err := runScript(value, driverLibraryPath, nvidiaSMIPath)
-		if err != nil {
+		migConfigLabelValue := manager.Get()
+		log.Infof("Updating to MIG config: %s", migConfigLabelValue)
+		if err := manager.Reconfigure(migConfigLabelValue); err != nil {
 			log.Errorf("Error: %s", err)
 			continue
 		}
-		log.Infof("Successfully updated to MIG config: %s", value)
+		log.Infof("Successfully updated to MIG config: %s", migConfigLabelValue)
 	}
+}
+
+// A migManger is responsible for watching a particular label and triggering a
+// reconfiguration if the value change.
+type migManager struct {
+	clientset         *kubernetes.Clientset
+	migConfig         *SyncableMigConfig
+	nodeName          string
+	driverLibraryPath string
+	nvidiaSMIPath     string
+}
+
+func (m *migManager) Get() string {
+	return m.migConfig.Get()
 }
 
 // getPathsForCDI discovers the paths to libnvidia-ml.so.1 and nvidia-smi
@@ -370,7 +389,7 @@ func parseGPUCLientsFile(file string) (*GPUClients, error) {
 	return &clients, nil
 }
 
-func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath string) error {
+func (m *migManager) Reconfigure(migConfigValue string) error {
 	gpuClients, err := parseGPUCLientsFile(gpuClientsFileFlag)
 	if err != nil {
 		return fmt.Errorf("error parsing host's GPU clients file: %s", err)
@@ -378,7 +397,7 @@ func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath st
 
 	// TODO: Use functional options.
 	opts := &reconfigureMIGOptions{
-		NodeName:                   nodeNameFlag,
+		NodeName:                   m.nodeName,
 		MIGPartedConfigFile:        configFileFlag,
 		SelectedMIGConfig:          migConfigValue,
 		HostRootMount:              hostRootMountFlag,
@@ -390,8 +409,7 @@ func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath st
 		WithReboot:                 withRebootFlag,
 		WithShutdownHostGPUClients: withShutdownHostGPUClientsFlag,
 
-		// TODO(elezar):
-		DriverLibraryPath: driverLibraryPath,
+		DriverLibraryPath: m.driverLibraryPath,
 
 		DriverRoot:        driverRoot,
 		DriverRootCtrPath: driverRootCtrPath,
@@ -399,25 +417,19 @@ func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath st
 		DevRootCtrPath:    devRootCtrPath,
 
 		CDIEnabled:        cdiEnabledFlag,
-		NVIDIASMIPath:     nvidiaSMIPath,
+		NVIDIASMIPath:     m.nvidiaSMIPath,
 		NVIDIACDIHookPath: nvidiaCDIHookPath,
 	}
 
-	// TODO(elezar)
-	// if cdiEnabledFlag {
-	// 	args = append(args, "-e", "-t", driverRoot, "-a", driverRootCtrPath, "-b", devRoot, "-j", devRootCtrPath, "-l", driverLibraryPath, "-q", nvidiaSMIPath, "-s", nvidiaCDIHookPath)
-	// }
-
-	// TODO: Construct a k8s clientset
-	return reconfigureMIG(nil, opts)
+	return reconfigureMIG(m.clientset, opts)
 }
 
-func ContinuouslySyncMigConfigChanges(clientset *kubernetes.Clientset, migConfig *SyncableMigConfig) chan struct{} {
+func (m *migManager) ContinuouslySyncMigConfigChanges() chan struct{} {
 	listWatch := cache.NewListWatchFromClient(
-		clientset.CoreV1().RESTClient(),
+		m.clientset.CoreV1().RESTClient(),
 		ResourceNodes,
 		v1.NamespaceAll,
-		fields.OneTermEqualSelector("metadata.name", nodeNameFlag),
+		fields.OneTermEqualSelector("metadata.name", m.nodeName),
 	)
 
 	_, controller := cache.NewInformerWithOptions(cache.InformerOptions{
@@ -426,13 +438,13 @@ func ContinuouslySyncMigConfigChanges(clientset *kubernetes.Clientset, migConfig
 		ResyncPeriod:  0,
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				migConfig.Set(obj.(*v1.Node).Labels[MigConfigLabel])
+				m.migConfig.Set(obj.(*v1.Node).Labels[MigConfigLabel])
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				oldLabel := oldObj.(*v1.Node).Labels[MigConfigLabel]
 				newLabel := newObj.(*v1.Node).Labels[MigConfigLabel]
 				if oldLabel != newLabel {
-					migConfig.Set(newLabel)
+					m.migConfig.Set(newLabel)
 				}
 			},
 		},
