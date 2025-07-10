@@ -5,26 +5,27 @@ import (
 )
 
 // An Option represents a functional option passed to the constructor.
-type Option func(*options)
+type Option func(*reconfigureMIGOptions)
 
 // reconfigureMIGOptions contains configuration options for reconfiguring MIG
 // settings on a Kubernetes node. This struct is used to manage the various
 // parameters required for applying MIG configurations through mig-parted, including node identification, configuration files, reboot behavior, and host
 // system service management.
 type reconfigureMIGOptions struct {
+	clientset *kubernetes.Clientset `validate:"required"`
+
 	// NodeName is the kubernetes node to change the MIG configuration on.
 	// Its validation follows the RFC 1123 standard for DNS subdomain names.
 	// Source: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
-	// NodeName string `validate:"required,hostname_rfc1123"`
+	NodeName string `validate:"required,hostname_rfc1123"`
 
 	// MIGPartedConfigFile is the mig-parted configuration file path.
-	// Deprecated: Pass the config file as an argument.
 	MIGPartedConfigFile string `validate:"required,filepath"`
 
 	// SelectedMIGConfig is the selected mig-parted configuration to apply to the
 	// node.
-	// Deprecated: Pass the selected config as an argument.
-	SelectedMIGConfig string
+	// TODO: Define the validation schema.
+	SelectedMIGConfig string `validate:"required"`
 
 	// DriverLibrayPath is the path to libnvidia-ml.so.1 in the container.
 	DriverLibraryPath string `validate:"required,filepath"`
@@ -51,84 +52,81 @@ type reconfigureMIGOptions struct {
 	// which may need to be shutdown/restarted across a MIG mode reconfiguration.
 	HostKubeletService string `validate:"systemd_service_name"`
 
-	configStateLabel string
+	// TODO: Define the validation schema.
+	configStateLabel string `validate:"required"`
+
+	// TODO: The following is not an option, but is tracked during the reconfiguration.
+	hostGPUClientServicesStopped []string
 }
 
-type manager struct {
-	clientset *kubernetes.Clientset
-	nodeName  string
-}
-
-type options struct {
-	manager
-
-	driverRoot root
-
-	reconfigureMIGOptions
+func WithAllowReboot(allowReboot bool) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.WithReboot = allowReboot
+	}
 }
 
 func WithClientset(clientset *kubernetes.Clientset) Option {
-	return func(o *options) {
+	return func(o *reconfigureMIGOptions) {
 		o.clientset = clientset
 	}
 }
 
-func WithNodeName(nodeName string) Option {
-	return func(o *options) {
-		o.nodeName = nodeName
-	}
-}
-
-func WithDriverRoot[T string | root](driverRoot T) Option {
-	return func(o *options) {
-		o.driverRoot = root(driverRoot)
+func WithConfigStateLabel(configStateLabel string) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.configStateLabel = configStateLabel
 	}
 }
 
 func WithDriverLibraryPath(driverLibraryPath string) Option {
-	return func(o *options) {
+	return func(o *reconfigureMIGOptions) {
 		o.DriverLibraryPath = driverLibraryPath
 	}
 }
 
-func WithShutdownHostGPUClients(shutdownHostGPUClients bool) Option {
-	return func(o *options) {
-		o.WithShutdownHostGPUClients = shutdownHostGPUClients
-	}
-}
-
 func WithHostGPUClientServices(hostGPUClientServices ...string) Option {
-	return func(o *options) {
+	return func(o *reconfigureMIGOptions) {
 		o.HostGPUClientServices = append([]string{}, hostGPUClientServices...)
 	}
 }
 
 func WithHostKubeletService(hostKubeletService string) Option {
-	return func(o *options) {
+	return func(o *reconfigureMIGOptions) {
 		o.HostKubeletService = hostKubeletService
 	}
 }
 
 func WithHostMIGManagerStateFile(hostMIGManagerStateFile string) Option {
-	return func(o *options) {
+	return func(o *reconfigureMIGOptions) {
 		o.HostMIGManagerStateFile = hostMIGManagerStateFile
 	}
 }
 
 func WithHostRootMount(hostRootMount string) Option {
-	return func(o *options) {
+	return func(o *reconfigureMIGOptions) {
 		o.HostRootMount = hostRootMount
 	}
 }
 
-func WithAllowReboot(allowReboot bool) Option {
-	return func(o *options) {
-		o.WithReboot = allowReboot
+func WithMIGPartedConfigFile(migPartedConfigFile string) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.MIGPartedConfigFile = migPartedConfigFile
 	}
 }
 
-func WithConfigStateLabel(configStateLabel string) Option {
-	return func(o *options) {
-		o.configStateLabel = configStateLabel
+func WithNodeName(nodeName string) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.NodeName = nodeName
+	}
+}
+
+func WithSelectedMIGConfig(selectedMIGConfig string) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.SelectedMIGConfig = selectedMIGConfig
+	}
+}
+
+func WithShutdownHostGPUClients(shutdownHostGPUClients bool) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.WithShutdownHostGPUClients = shutdownHostGPUClients
 	}
 }

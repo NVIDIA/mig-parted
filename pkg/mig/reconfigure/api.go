@@ -5,7 +5,7 @@ const (
 	VGPUConfigStateLabel = "nvidia.com/vgpu.config.state"
 )
 
-// A Reconfigurer applies applies applies the specified config.
+// A Reconfigurer applies a specified MIG configuration.
 type Reconfigurer interface {
-	Reconfigure(string, string) error
+	Reconfigure() error
 }
