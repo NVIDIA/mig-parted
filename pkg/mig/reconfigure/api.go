@@ -7,5 +7,5 @@ const (
 
 // A Reconfigurer applies applies applies the specified config.
 type Reconfigurer interface {
-	Reconfigure(string, string) error
+	Reconfigure() error
 }
