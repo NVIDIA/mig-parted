@@ -39,6 +39,17 @@ const (
 	ldPreloadEnvVar = "LD_PRELOAD"
 )
 
+type reconfigurer struct {
+	*reconfigureMIGOptions
+	commandRunner
+}
+
+// A commandWithOutput runs a command and ensures that STDERR and STDOUT are
+// set.
+type commandWithOutput struct{}
+
+var _ commandRunner = (*commandWithOutput)(nil)
+
 // New creates a MIG Reconfigurer with the supplied options.
 func New(opts ...Option) (Reconfigurer, error) {
 	o := &reconfigureMIGOptions{}
@@ -51,7 +62,12 @@ func New(opts ...Option) (Reconfigurer, error) {
 		return nil, err
 	}
 
-	return o, nil
+	r := &reconfigurer{
+		reconfigureMIGOptions: o,
+		commandRunner:         &commandWithOutput{},
+	}
+
+	return r, nil
 }
 
 // Reconfigure configures MIG (Multi-Instance GPU) settings on a Kubernetes
@@ -59,18 +75,18 @@ func New(opts ...Option) (Reconfigurer, error) {
 // applies MIG mode changes, manages host GPU client services, and handles
 // reboots when necessary. The function ensures that MIG configurations are
 // applied safely with proper service lifecycle management.
-func (opts *reconfigureMIGOptions) Reconfigure() error {
+func (opts *reconfigurer) Reconfigure() error {
 	log.Info("Asserting that the requested configuration is present in the configuration file")
 	if err := opts.assertValidMIGConfig(); err != nil {
 		return fmt.Errorf("error validating the selected MIG configuration: %w", err)
 	}
 
-	log.Infof("Getting current value of the '%s' node label", opts.configStateLabel)
-	state, err := opts.getNodeLabelValue(opts.configStateLabel)
+	log.Infof("Getting current value of the '%s' node label", opts.ConfigStateLabel)
+	state, err := opts.getNodeLabelValue(opts.ConfigStateLabel)
 	if err != nil {
-		return fmt.Errorf("unable to get the value of the %q label: %w", opts.configStateLabel, err)
+		return fmt.Errorf("unable to get the value of the %q label: %w", opts.ConfigStateLabel, err)
 	}
-	log.Infof("Current value of '%s=%s'", opts.configStateLabel, state)
+	log.Infof("Current value of '%s=%s'", opts.ConfigStateLabel, state)
 
 	log.Info("Checking if the selected MIG config is currently applied or not")
 	if err := opts.assertMIGConfig(); err == nil {
@@ -116,11 +132,11 @@ func (opts *reconfigureMIGOptions) Reconfigure() error {
 	log.Info("If the -r option was passed, the node will be automatically rebooted if this is not successful")
 	if err := opts.applyMIGModeOnly(); err != nil || opts.assertMIGModeOnly() != nil {
 		if opts.WithReboot {
-			log.Infof("Changing the '%s' node label to '%s'", opts.configStateLabel, configStateRebooting)
-			if err := opts.setNodeLabelValue(opts.configStateLabel, configStateRebooting); err != nil {
-				log.Errorf("Unable to set the value of '%s' to '%s'", opts.configStateLabel, configStateRebooting)
+			log.Infof("Changing the '%s' node label to '%s'", opts.ConfigStateLabel, configStateRebooting)
+			if err := opts.setNodeLabelValue(opts.ConfigStateLabel, configStateRebooting); err != nil {
+				log.Errorf("Unable to set the value of '%s' to '%s'", opts.ConfigStateLabel, configStateRebooting)
 				log.Error("Exiting so as not to reboot multiple times unexpectedly")
-				return fmt.Errorf("unable to set the value of %q to %q: %w", opts.configStateLabel, configStateRebooting, err)
+				return fmt.Errorf("unable to set the value of %q to %q: %w", opts.ConfigStateLabel, configStateRebooting, err)
 			}
 			return rebootHost(opts.HostRootMount)
 		}
@@ -141,7 +157,7 @@ func (opts *reconfigureMIGOptions) Reconfigure() error {
 	return nil
 }
 
-func (opts *reconfigureMIGOptions) assertValidMIGConfig() error {
+func (opts *reconfigurer) assertValidMIGConfig() error {
 	args := []string{
 		"--debug",
 		"assert",
@@ -152,7 +168,7 @@ func (opts *reconfigureMIGOptions) assertValidMIGConfig() error {
 	return opts.runMigParted(args...)
 }
 
-func (opts *reconfigureMIGOptions) assertMIGConfig() error {
+func (opts *reconfigurer) assertMIGConfig() error {
 	args := []string{
 		"--debug",
 		"assert",
@@ -162,7 +178,7 @@ func (opts *reconfigureMIGOptions) assertMIGConfig() error {
 	return opts.runMigParted(args...)
 }
 
-func (opts *reconfigureMIGOptions) assertMIGModeOnly() error {
+func (opts *reconfigurer) assertMIGModeOnly() error {
 	args := []string{
 		"--debug",
 		"assert",
@@ -173,7 +189,7 @@ func (opts *reconfigureMIGOptions) assertMIGModeOnly() error {
 	return opts.runMigParted(args...)
 }
 
-func (opts *reconfigureMIGOptions) applyMIGModeOnly() error {
+func (opts *reconfigurer) applyMIGModeOnly() error {
 	args := []string{
 		"--debug",
 		"apply",
@@ -184,7 +200,7 @@ func (opts *reconfigureMIGOptions) applyMIGModeOnly() error {
 	return opts.runMigParted(args...)
 }
 
-func (opts *reconfigureMIGOptions) applyMIGConfig() error {
+func (opts *reconfigurer) applyMIGConfig() error {
 	args := []string{
 		"--debug",
 		"apply",
@@ -194,7 +210,7 @@ func (opts *reconfigureMIGOptions) applyMIGConfig() error {
 	return opts.runMigParted(args...)
 }
 
-func (opts *reconfigureMIGOptions) hostPersistConfig() error {
+func (opts *reconfigurer) hostPersistConfig() error {
 	config := fmt.Sprintf(`[Service]
 Environment="MIG_PARTED_SELECTED_CONFIG=%s"
 `, opts.SelectedMIGConfig)
@@ -206,7 +222,7 @@ Environment="MIG_PARTED_SELECTED_CONFIG=%s"
 	}
 
 	cmd := exec.Command("chroot", opts.HostRootMount, "systemctl", "daemon-reload") // #nosec G204 -- HostRootMount is validated via dirpath validator.
-	return runCommandWithOutput(cmd)
+	return opts.Run(cmd)
 }
 
 func (opts *reconfigureMIGOptions) hostStopSystemdServices() error {
@@ -234,7 +250,7 @@ func (opts *reconfigureMIGOptions) hostStartSystemdServices() error {
 		log.Infof("Starting %s", service)
 		cmd := exec.Command("chroot", opts.HostRootMount, "systemctl", "start", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
 		if err := cmd.Run(); err != nil {
-			serviceError := fmt.Errorf("error starting %q: %w", err)
+			serviceError := fmt.Errorf("error starting %q: %w", service, err)
 			log.Errorf("%v; skipping, but continuing...", serviceError)
 
 			errs = errors.Join(errs, serviceError)
@@ -332,15 +348,15 @@ func shouldRestartService(opts *reconfigureMIGOptions, service string) bool {
 	return true
 }
 
-func runCommandWithOutput(cmd *exec.Cmd) error {
+func (c *commandWithOutput) Run(cmd *exec.Cmd) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-func (opts *reconfigureMIGOptions) runMigParted(args ...string) error {
+func (opts *reconfigurer) runMigParted(args ...string) error {
 	cmd := opts.migPartedCmd(args...)
-	return runCommandWithOutput(cmd)
+	return opts.Run(cmd)
 }
 
 func (opts *reconfigureMIGOptions) migPartedCmd(args ...string) *exec.Cmd {
