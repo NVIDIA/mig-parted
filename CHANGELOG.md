@@ -1,5 +1,7 @@
 # NVIDIA MIG Manager Changelog
 
+- Add %posttrans to the rpm spec to ensure symlinks for config.yaml and hooks.yaml are maintained during an upgrade
+
 ## v0.12.1
 - Add the 4g.90gb MIG profile for the B200 GPU
 - Bump golang/x/net to v0.36.0

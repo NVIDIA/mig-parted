@@ -79,33 +79,54 @@ install -m 644 -t %{buildroot}/usr/lib/systemd/system %{SOURCE11}
 %dir /var/lib/nvidia-mig-manager
 /usr/lib/systemd/system/nvidia-gpu-reset.target
 
+%define maybe_add_hooks_symlink_body \
+if [ -e /etc/nvidia-mig-manager/hooks.yaml ]; then \
+  return; \
+fi; \
+if ! which nvidia-smi > /dev/null 2>&1; then \
+  ln -s hooks-default.yaml /etc/nvidia-mig-manager/hooks.yaml; \
+  return; \
+fi; \
+local compute_cap=$(nvidia-smi -i 0 --query-gpu=compute_cap --format=csv,noheader); \
+if [ "${compute_cap/./}" -ge "90" ] 2> /dev/null; then \
+  ln -s hooks-minimal.yaml /etc/nvidia-mig-manager/hooks.yaml; \
+else \
+  ln -s hooks-default.yaml /etc/nvidia-mig-manager/hooks.yaml; \
+fi
+
+%define maybe_add_config_symlink_body \
+if [ -e /etc/nvidia-mig-manager/config.yaml ]; then \
+  return; \
+fi; \
+ln -s config-default.yaml /etc/nvidia-mig-manager/config.yaml; \
+
 %post
 systemctl daemon-reload
 systemctl enable nvidia-mig-manager.service
 
 function maybe_add_hooks_symlink() {
-  if [ -e /etc/nvidia-mig-manager/hooks.yaml ]; then
-    return
-  fi
-
-  if ! which nvidia-smi > /dev/null 2>&1; then
-    ln -s hooks-default.yaml /etc/nvidia-mig-manager/hooks.yaml
-    return
-  fi
-
-  local compute_cap=$(nvidia-smi -i 0 --query-gpu=compute_cap --format=csv,noheader)
-  if [ "${compute_cap/./}" -ge "90" ] 2> /dev/null; then
-    ln -s hooks-minimal.yaml /etc/nvidia-mig-manager/hooks.yaml
-  else
-    ln -s hooks-default.yaml /etc/nvidia-mig-manager/hooks.yaml
-  fi
+  # For upgrades, we need to recreate symlinks even if they were removed during uninstall
+  %maybe_add_hooks_symlink_body
 }
 
 function maybe_add_config_symlink() {
-  if [ -e /etc/nvidia-mig-manager/config.yaml ]; then
-    return
-  fi
-  ln -s config-default.yaml /etc/nvidia-mig-manager/config.yaml
+  # For upgrades, we need to recreate symlinks even if they were removed during uninstall
+  %maybe_add_config_symlink_body
+}
+
+maybe_add_hooks_symlink
+maybe_add_config_symlink
+
+%posttrans
+# Ensure symlinks are recreated after any package operation
+function maybe_add_hooks_symlink() {
+  # For upgrades, we need to recreate symlinks even if they were removed during uninstall
+  %maybe_add_hooks_symlink_body
+}
+
+function maybe_add_config_symlink() {
+  # For upgrades, we need to recreate symlinks even if they were removed during uninstall
+  %maybe_add_config_symlink_body
 }
 
 maybe_add_hooks_symlink
