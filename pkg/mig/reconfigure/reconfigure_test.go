@@ -37,14 +37,16 @@ func (c *commandRunnerWithCLI) Run(cmd *exec.Cmd) error {
 
 func TestReconfigure(t *testing.T) {
 	testCases := []struct {
-		description   string
-		options       reconfigureMIGOptions
-		commandRunner *commandRunnerWithCLI
-		expectedError error
-		expectedCalls [][]string
+		description    string
+		options        reconfigureMIGOptions
+		commandRunner  *commandRunnerWithCLI
+		migParted      *migPartedMock
+		checkMigParted func(*migPartedMock)
+		expectedError  error
+		expectedCalls  [][]string
 	}{
 		{
-			description: "test command failure",
+			description: "mig assert valid config failure does not call commands",
 			options: reconfigureMIGOptions{
 				NodeName:            "NodeName",
 				MIGPartedConfigFile: "/path/to/config/file.yaml",
@@ -59,10 +61,20 @@ func TestReconfigure(t *testing.T) {
 					},
 				},
 			},
-			expectedError: fmt.Errorf("error validating the selected MIG configuration: error running command nvidia-mig-parted"),
-			expectedCalls: [][]string{
-				{"nvidia-mig-parted", "nvidia-mig-parted", "--debug", "assert", "--valid-config", "--config-file", "/path/to/config/file.yaml", "--selected-config", "selected-mig-config"},
+			migParted: &migPartedMock{
+				assertValidMIGConfigFunc: func() error {
+					return fmt.Errorf("invalid mig config")
+				},
 			},
+			checkMigParted: func(mpm *migPartedMock) {
+				require.Len(t, mpm.calls.assertValidMIGConfig, 1)
+				require.Len(t, mpm.calls.applyMIGConfig, 0)
+				require.Len(t, mpm.calls.assertMIGModeOnly, 0)
+				require.Len(t, mpm.calls.applyMIGModeOnly, 0)
+				require.Len(t, mpm.calls.applyMIGConfig, 0)
+			},
+			expectedError: fmt.Errorf("error validating the selected MIG configuration: invalid mig config"),
+			expectedCalls: nil,
 		},
 	}
 
@@ -80,10 +92,13 @@ func TestReconfigure(t *testing.T) {
 			r := &reconfigurer{
 				reconfigureMIGOptions: &tc.options,
 				commandRunner:         tc.commandRunner,
+				migParted:             tc.migParted,
 			}
 
 			err := r.Reconfigure()
 			require.EqualValues(t, tc.expectedError.Error(), err.Error())
+
+			tc.checkMigParted(tc.migParted)
 
 			require.EqualValues(t, tc.expectedCalls, tc.commandRunner.calls)
 
