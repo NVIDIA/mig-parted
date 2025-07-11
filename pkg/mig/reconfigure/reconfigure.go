@@ -19,6 +19,7 @@ package reconfigure
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -61,15 +62,13 @@ func New(opts ...Option) (Reconfigurer, error) {
 func (opts *reconfigureMIGOptions) Reconfigure() error {
 	log.Info("Asserting that the requested configuration is present in the configuration file")
 	if err := opts.assertValidMIGConfig(); err != nil {
-		log.Error("Unable to validate the selected MIG configuration")
-		return err
+		return fmt.Errorf("error validating the selected MIG configuration: %w", err)
 	}
 
 	log.Infof("Getting current value of the '%s' node label", opts.configStateLabel)
 	state, err := opts.getNodeLabelValue(opts.configStateLabel)
 	if err != nil {
-		log.Errorf("Unable to get the value of the '%s' label", opts.configStateLabel)
-		return err
+		return fmt.Errorf("unable to get the value of the %q label: %w", opts.configStateLabel, err)
 	}
 	log.Infof("Current value of '%s=%s'", opts.configStateLabel, state)
 
@@ -84,8 +83,7 @@ func (opts *reconfigureMIGOptions) Reconfigure() error {
 		if _, err := os.Stat(stateFilePath); err == nil {
 			log.Infof("Persisting %s to %s", opts.SelectedMIGConfig, opts.HostMIGManagerStateFile)
 			if err := opts.hostPersistConfig(); err != nil {
-				log.Errorf("Unable to persist %s to %s", opts.SelectedMIGConfig, opts.HostMIGManagerStateFile)
-				return err
+				return fmt.Errorf("unable to persist %s to %s: %w", opts.SelectedMIGConfig, opts.HostMIGManagerStateFile, err)
 			}
 		}
 	}
@@ -95,8 +93,7 @@ func (opts *reconfigureMIGOptions) Reconfigure() error {
 	migModeChangeRequired := false
 	if err := opts.assertMIGModeOnly(); err != nil {
 		if state == configStateRebooting {
-			log.Error("MIG mode change did not take effect after rebooting")
-			return fmt.Errorf("MIG mode change failed after reboot")
+			return fmt.Errorf("MIG mode change failed after reboot: %w", err)
 		}
 		if opts.WithShutdownHostGPUClients {
 			opts.HostGPUClientServices = append(opts.HostGPUClientServices, opts.HostKubeletService)
@@ -107,8 +104,7 @@ func (opts *reconfigureMIGOptions) Reconfigure() error {
 	if opts.WithShutdownHostGPUClients {
 		log.Info("Shutting down all GPU clients on the host by stopping their systemd services")
 		if err := opts.hostStopSystemdServices(); err != nil {
-			log.Error("Unable to shutdown GPU clients on host by stopping their systemd services")
-			return err
+			return fmt.Errorf("unable to shutdown host GPU clients: %w", err)
 		}
 		if migModeChangeRequired {
 			log.Info("Waiting 30 seconds for services to settle")
@@ -124,7 +120,7 @@ func (opts *reconfigureMIGOptions) Reconfigure() error {
 			if err := opts.setNodeLabelValue(opts.configStateLabel, configStateRebooting); err != nil {
 				log.Errorf("Unable to set the value of '%s' to '%s'", opts.configStateLabel, configStateRebooting)
 				log.Error("Exiting so as not to reboot multiple times unexpectedly")
-				return err
+				return fmt.Errorf("unable to set the value of %q to %q: %w", opts.configStateLabel, configStateRebooting, err)
 			}
 			return rebootHost(opts.HostRootMount)
 		}
@@ -138,8 +134,7 @@ func (opts *reconfigureMIGOptions) Reconfigure() error {
 	if opts.WithShutdownHostGPUClients {
 		log.Info("Restarting all GPU clients previously shutdown on the host by restarting their systemd services")
 		if err := opts.hostStartSystemdServices(); err != nil {
-			log.Error("Unable to restart GPU clients on host by restarting their systemd services")
-			return err
+			return fmt.Errorf("unable to restart host GPU clients: %w", err)
 		}
 	}
 
@@ -234,18 +229,20 @@ func (opts *reconfigureMIGOptions) hostStartSystemdServices() error {
 		}
 	}
 
-	retCode := 0
+	var errs error
 	for _, service := range opts.hostGPUClientServicesStopped {
 		log.Infof("Starting %s", service)
 		cmd := exec.Command("chroot", opts.HostRootMount, "systemctl", "start", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
 		if err := cmd.Run(); err != nil {
-			log.Errorf("Error Starting %s: skipping, but continuing...", service)
-			retCode = 1
+			serviceError := fmt.Errorf("error starting %q: %w", err)
+			log.Errorf("%v; skipping, but continuing...", serviceError)
+
+			errs = errors.Join(errs, serviceError)
 		}
 	}
 
-	if retCode != 0 {
-		return fmt.Errorf("some services failed to start")
+	if errs != nil {
+		return fmt.Errorf("some services failed to start: %w", errs)
 	}
 	return nil
 }
