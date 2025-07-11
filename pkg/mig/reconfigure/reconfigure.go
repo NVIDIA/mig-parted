@@ -29,6 +29,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -41,8 +42,9 @@ const (
 
 type reconfigurer struct {
 	*reconfigureMIGOptions
-	migParted migParted
 	commandRunner
+	migParted migParted
+	node      nodeLabeller
 }
 
 // A commandWithOutput runs a command and ensures that STDERR and STDOUT are
@@ -74,6 +76,10 @@ func New(opts ...Option) (Reconfigurer, error) {
 			DriverLibraryPath:   o.DriverLibraryPath,
 			commandRunner:       c,
 		},
+		node: &node{
+			clientset: o.clientset,
+			name:      o.NodeName,
+		},
 	}
 
 	return r, nil
@@ -91,7 +97,7 @@ func (opts *reconfigurer) Reconfigure() error {
 	}
 
 	log.Infof("Getting current value of the '%s' node label", opts.ConfigStateLabel)
-	state, err := opts.getNodeLabelValue(opts.ConfigStateLabel)
+	state, err := opts.node.getNodeLabelValue(opts.ConfigStateLabel)
 	if err != nil {
 		return fmt.Errorf("unable to get the value of the %q label: %w", opts.ConfigStateLabel, err)
 	}
@@ -142,7 +148,7 @@ func (opts *reconfigurer) Reconfigure() error {
 	if err := opts.migParted.applyMIGModeOnly(); err != nil || opts.migParted.assertMIGModeOnly() != nil {
 		if opts.WithReboot {
 			log.Infof("Changing the '%s' node label to '%s'", opts.ConfigStateLabel, configStateRebooting)
-			if err := opts.setNodeLabelValue(opts.ConfigStateLabel, configStateRebooting); err != nil {
+			if err := opts.node.setNodeLabelValue(opts.ConfigStateLabel, configStateRebooting); err != nil {
 				log.Errorf("Unable to set the value of '%s' to '%s'", opts.ConfigStateLabel, configStateRebooting)
 				log.Error("Exiting so as not to reboot multiple times unexpectedly")
 				return fmt.Errorf("unable to set the value of %q to %q: %w", opts.ConfigStateLabel, configStateRebooting, err)
@@ -393,8 +399,13 @@ func rebootHost(hostRootMount string) error {
 	return nil
 }
 
-func (opts *reconfigureMIGOptions) getNodeLabelValue(label string) (string, error) {
-	node, err := opts.clientset.CoreV1().Nodes().Get(context.TODO(), opts.NodeName, metav1.GetOptions{})
+type node struct {
+	clientset *kubernetes.Clientset
+	name      string
+}
+
+func (n *node) getNodeLabelValue(label string) (string, error) {
+	node, err := n.clientset.CoreV1().Nodes().Get(context.TODO(), n.name, metav1.GetOptions{})
 	if err != nil {
 		return "", fmt.Errorf("unable to get node object: %w", err)
 	}
@@ -407,8 +418,8 @@ func (opts *reconfigureMIGOptions) getNodeLabelValue(label string) (string, erro
 	return value, nil
 }
 
-func (opts *reconfigureMIGOptions) setNodeLabelValue(label, value string) error {
-	node, err := opts.clientset.CoreV1().Nodes().Get(context.TODO(), opts.NodeName, metav1.GetOptions{})
+func (n *node) setNodeLabelValue(label, value string) error {
+	node, err := n.clientset.CoreV1().Nodes().Get(context.TODO(), n.name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("unable to get node object: %w", err)
 	}
@@ -416,7 +427,7 @@ func (opts *reconfigureMIGOptions) setNodeLabelValue(label, value string) error 
 	labels := node.GetLabels()
 	labels[label] = value
 	node.SetLabels(labels)
-	_, err = opts.clientset.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{})
+	_, err = n.clientset.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("unable to update node object: %w", err)
 	}

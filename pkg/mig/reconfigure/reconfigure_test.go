@@ -35,15 +35,36 @@ func (c *commandRunnerWithCLI) Run(cmd *exec.Cmd) error {
 	return c.mock.Run(cmd)
 }
 
+type nodeWithLabels struct {
+	mock      *nodeLabellerMock
+	setLabels map[string]string
+}
+
+func (n *nodeWithLabels) getNodeLabelValue(label string) (string, error) {
+	return n.mock.getNodeLabelValue(label)
+}
+
+func (n *nodeWithLabels) setNodeLabelValue(label string, value string) error {
+	if err := n.mock.setNodeLabelValue(label, value); err != nil {
+		return err
+	}
+	if n.setLabels == nil {
+		n.setLabels = make(map[string]string)
+	}
+	n.setLabels[label] = value
+	return nil
+}
+
 func TestReconfigure(t *testing.T) {
 	testCases := []struct {
-		description    string
-		options        reconfigureMIGOptions
-		commandRunner  *commandRunnerWithCLI
-		migParted      *migPartedMock
-		checkMigParted func(*migPartedMock)
-		expectedError  error
-		expectedCalls  [][]string
+		description       string
+		options           reconfigureMIGOptions
+		migParted         *migPartedMock
+		checkMigParted    func(*migPartedMock)
+		nodeLabeller      *nodeWithLabels
+		checkNodeLabeller func(*nodeWithLabels)
+		expectedError     error
+		expectedCalls     [][]string
 	}{
 		{
 			description: "mig assert valid config failure does not call commands",
@@ -53,13 +74,7 @@ func TestReconfigure(t *testing.T) {
 				SelectedMIGConfig:   "selected-mig-config",
 				DriverLibraryPath:   "/path/to/libnvidia-ml.so.1",
 				HostRootMount:       "/host/",
-			},
-			commandRunner: &commandRunnerWithCLI{
-				mock: &commandRunnerMock{
-					RunFunc: func(cmd *exec.Cmd) error {
-						return fmt.Errorf("error running command %v", cmd.Path)
-					},
-				},
+				ConfigStateLabel:    "example.com/config.state",
 			},
 			migParted: &migPartedMock{
 				assertValidMIGConfigFunc: func() error {
@@ -76,9 +91,53 @@ func TestReconfigure(t *testing.T) {
 			expectedError: fmt.Errorf("error validating the selected MIG configuration: invalid mig config"),
 			expectedCalls: nil,
 		},
+		{
+			description: "node label error is causes exit",
+			options: reconfigureMIGOptions{
+				NodeName:            "NodeName",
+				MIGPartedConfigFile: "/path/to/config/file.yaml",
+				SelectedMIGConfig:   "selected-mig-config",
+				DriverLibraryPath:   "/path/to/libnvidia-ml.so.1",
+				HostRootMount:       "/host/",
+				ConfigStateLabel:    "example.com/config.state",
+			},
+			migParted: &migPartedMock{
+				assertValidMIGConfigFunc: func() error {
+					return nil
+				},
+			},
+			checkMigParted: func(mpm *migPartedMock) {
+				require.Len(t, mpm.calls.assertValidMIGConfig, 1)
+				require.Len(t, mpm.calls.applyMIGConfig, 0)
+				require.Len(t, mpm.calls.assertMIGModeOnly, 0)
+				require.Len(t, mpm.calls.applyMIGModeOnly, 0)
+				require.Len(t, mpm.calls.applyMIGConfig, 0)
+			},
+			nodeLabeller: &nodeWithLabels{
+				mock: &nodeLabellerMock{
+					getNodeLabelValueFunc: func(s string) (string, error) {
+						return "", fmt.Errorf("error getting label")
+					},
+				},
+			},
+			checkNodeLabeller: func(nwl *nodeWithLabels) {
+				calls := nwl.mock.getNodeLabelValueCalls()
+				require.Len(t, calls, 1)
+				require.EqualValues(t, []struct{ S string }{{"example.com/config.state"}}, calls)
+			},
+			expectedError: fmt.Errorf(`unable to get the value of the "example.com/config.state" label: error getting label`),
+		},
 	}
 
 	for _, tc := range testCases {
+		commandRunner := &commandRunnerWithCLI{
+			mock: &commandRunnerMock{
+				RunFunc: func(cmd *exec.Cmd) error {
+					return fmt.Errorf("error running command %v", cmd.Path)
+				},
+			},
+		}
+
 		t.Run(tc.description, func(t *testing.T) {
 			// TODO: Once we have better mocks in place for the following
 			// functionality, we can update this.
@@ -91,17 +150,26 @@ func TestReconfigure(t *testing.T) {
 
 			r := &reconfigurer{
 				reconfigureMIGOptions: &tc.options,
-				commandRunner:         tc.commandRunner,
+				commandRunner:         commandRunner,
 				migParted:             tc.migParted,
+				node:                  tc.nodeLabeller,
 			}
 
 			err := r.Reconfigure()
-			require.EqualValues(t, tc.expectedError.Error(), err.Error())
+			if tc.expectedError == nil {
+				require.NoError(t, err)
+			} else {
+				require.EqualError(t, err, tc.expectedError.Error())
+			}
 
-			tc.checkMigParted(tc.migParted)
+			if tc.checkMigParted != nil {
+				tc.checkMigParted(tc.migParted)
+			}
+			if tc.checkNodeLabeller != nil {
+				tc.checkNodeLabeller(tc.nodeLabeller)
+			}
 
-			require.EqualValues(t, tc.expectedCalls, tc.commandRunner.calls)
-
+			require.EqualValues(t, tc.expectedCalls, commandRunner.calls)
 		})
 	}
 }
