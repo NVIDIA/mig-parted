@@ -19,3 +19,14 @@ type Reconfigurer interface {
 type commandRunner interface {
 	Run(*exec.Cmd) error
 }
+
+// migParted defines an interface for interacting with mig-parted.
+//
+//go:generate moq -rm -fmt=goimports -out mig-parted_mock.go . migParted
+type migParted interface {
+	assertValidMIGConfig() error
+	assertMIGConfig() error
+	assertMIGModeOnly() error
+	applyMIGModeOnly() error
+	applyMIGConfig() error
+}

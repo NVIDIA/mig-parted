@@ -24,6 +24,7 @@ const (
 
 type reconfigurer struct {
 	*reconfigureMIGOptions
+	migParted migParted
 	commandRunner
 }
 
@@ -45,9 +46,17 @@ func New(opts ...Option) (Reconfigurer, error) {
 		return nil, err
 	}
 
+	c := &commandWithOutput{}
+
 	r := &reconfigurer{
 		reconfigureMIGOptions: o,
-		commandRunner:         &commandWithOutput{},
+		commandRunner:         c,
+		migParted: &migPartedCLI{
+			MIGPartedConfigFile: o.MIGPartedConfigFile,
+			SelectedMIGConfig:   o.SelectedMIGConfig,
+			DriverLibraryPath:   o.DriverLibraryPath,
+			commandRunner:       c,
+		},
 	}
 
 	return r, nil
@@ -60,7 +69,7 @@ func New(opts ...Option) (Reconfigurer, error) {
 // applied safely with proper service lifecycle management.
 func (opts *reconfigurer) Reconfigure() error {
 	log.Info("Asserting that the requested configuration is present in the configuration file")
-	if err := opts.assertValidMIGConfig(); err != nil {
+	if err := opts.migParted.assertValidMIGConfig(); err != nil {
 		return fmt.Errorf("error validating the selected MIG configuration: %w", err)
 	}
 
@@ -72,7 +81,7 @@ func (opts *reconfigurer) Reconfigure() error {
 	log.Infof("Current value of '%s=%s'", opts.ConfigStateLabel, state)
 
 	log.Info("Checking if the selected MIG config is currently applied or not")
-	if err := opts.assertMIGConfig(); err == nil {
+	if err := opts.migParted.assertMIGConfig(); err == nil {
 		log.Info("MIG configuration already applied")
 		return nil
 	}
@@ -90,7 +99,7 @@ func (opts *reconfigurer) Reconfigure() error {
 	log.Info("Checking if the MIG mode setting in the selected config is currently applied or not")
 	log.Infof("If the state is '%s', we expect this to always return true", configStateRebooting)
 	migModeChangeRequired := false
-	if err := opts.assertMIGModeOnly(); err != nil {
+	if err := opts.migParted.assertMIGModeOnly(); err != nil {
 		if state == configStateRebooting {
 			return fmt.Errorf("MIG mode change failed after reboot: %w", err)
 		}
@@ -113,7 +122,7 @@ func (opts *reconfigurer) Reconfigure() error {
 
 	log.Info("Applying the MIG mode change from the selected config to the node (and double checking it took effect)")
 	log.Info("If the -r option was passed, the node will be automatically rebooted if this is not successful")
-	if err := opts.applyMIGModeOnly(); err != nil || opts.assertMIGModeOnly() != nil {
+	if err := opts.migParted.applyMIGModeOnly(); err != nil || opts.migParted.assertMIGModeOnly() != nil {
 		if opts.WithReboot {
 			log.Infof("Changing the '%s' node label to '%s'", opts.ConfigStateLabel, configStateRebooting)
 			if err := opts.setNodeLabelValue(opts.ConfigStateLabel, configStateRebooting); err != nil {
@@ -126,7 +135,7 @@ func (opts *reconfigurer) Reconfigure() error {
 	}
 
 	log.Info("Applying the selected MIG config to the node")
-	if err := opts.applyMIGConfig(); err != nil {
+	if err := opts.migParted.applyMIGConfig(); err != nil {
 		return err
 	}
 
@@ -140,7 +149,16 @@ func (opts *reconfigurer) Reconfigure() error {
 	return nil
 }
 
-func (opts *reconfigurer) assertValidMIGConfig() error {
+type migPartedCLI struct {
+	MIGPartedConfigFile string
+	SelectedMIGConfig   string
+	DriverLibraryPath   string
+	commandRunner
+}
+
+var _ migParted = (*migPartedCLI)(nil)
+
+func (opts *migPartedCLI) assertValidMIGConfig() error {
 	args := []string{
 		"--debug",
 		"assert",
@@ -151,7 +169,7 @@ func (opts *reconfigurer) assertValidMIGConfig() error {
 	return opts.runMigParted(args...)
 }
 
-func (opts *reconfigurer) assertMIGConfig() error {
+func (opts *migPartedCLI) assertMIGConfig() error {
 	args := []string{
 		"--debug",
 		"assert",
@@ -161,7 +179,7 @@ func (opts *reconfigurer) assertMIGConfig() error {
 	return opts.runMigParted(args...)
 }
 
-func (opts *reconfigurer) assertMIGModeOnly() error {
+func (opts *migPartedCLI) assertMIGModeOnly() error {
 	args := []string{
 		"--debug",
 		"assert",
@@ -172,7 +190,7 @@ func (opts *reconfigurer) assertMIGModeOnly() error {
 	return opts.runMigParted(args...)
 }
 
-func (opts *reconfigurer) applyMIGModeOnly() error {
+func (opts *migPartedCLI) applyMIGModeOnly() error {
 	args := []string{
 		"--debug",
 		"apply",
@@ -183,7 +201,7 @@ func (opts *reconfigurer) applyMIGModeOnly() error {
 	return opts.runMigParted(args...)
 }
 
-func (opts *reconfigurer) applyMIGConfig() error {
+func (opts *migPartedCLI) applyMIGConfig() error {
 	args := []string{
 		"--debug",
 		"apply",
@@ -337,12 +355,12 @@ func (c *commandWithOutput) Run(cmd *exec.Cmd) error {
 	return cmd.Run()
 }
 
-func (opts *reconfigurer) runMigParted(args ...string) error {
+func (opts *migPartedCLI) runMigParted(args ...string) error {
 	cmd := opts.migPartedCmd(args...)
 	return opts.Run(cmd)
 }
 
-func (opts *reconfigureMIGOptions) migPartedCmd(args ...string) *exec.Cmd {
+func (opts *migPartedCLI) migPartedCmd(args ...string) *exec.Cmd {
 	cmd := exec.Command(migPartedCliName, args...)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", ldPreloadEnvVar, opts.DriverLibraryPath))
 	return cmd
