@@ -30,3 +30,11 @@ type migParted interface {
 	applyMIGModeOnly() error
 	applyMIGConfig() error
 }
+
+// nodeLabeller defines an interface for interacting with node labels.
+//
+//go:generate moq -rm -fmt=goimports -out node-labeller_mock.go . nodeLabeller
+type nodeLabeller interface {
+	getNodeLabelValue(string) (string, error)
+	setNodeLabelValue(string, string) error
+}
