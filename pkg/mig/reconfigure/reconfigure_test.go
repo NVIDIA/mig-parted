@@ -127,6 +127,183 @@ func TestReconfigure(t *testing.T) {
 			},
 			expectedError: fmt.Errorf(`unable to get the value of the "example.com/config.state" label: error getting label`),
 		},
+		{
+			description: "reconfigure exits if config is applied",
+			options: reconfigureMIGOptions{
+				NodeName:            "NodeName",
+				MIGPartedConfigFile: "/path/to/config/file.yaml",
+				SelectedMIGConfig:   "selected-mig-config",
+				DriverLibraryPath:   "/path/to/libnvidia-ml.so.1",
+				HostRootMount:       "/host/",
+				ConfigStateLabel:    "example.com/config.state",
+			},
+			migParted: &migPartedMock{
+				assertValidMIGConfigFunc: func() error {
+					return nil
+				},
+				assertMIGConfigFunc: func() error {
+					return nil
+				},
+			},
+			checkMigParted: func(mpm *migPartedMock) {
+				require.Len(t, mpm.calls.assertValidMIGConfig, 1)
+				require.Len(t, mpm.calls.assertMIGConfig, 1)
+				require.Len(t, mpm.calls.applyMIGConfig, 0)
+				require.Len(t, mpm.calls.assertMIGModeOnly, 0)
+				require.Len(t, mpm.calls.applyMIGModeOnly, 0)
+			},
+			nodeLabeller: &nodeWithLabels{
+				mock: &nodeLabellerMock{
+					getNodeLabelValueFunc: func(s string) (string, error) {
+						return "current-state", nil
+					},
+				},
+			},
+			checkNodeLabeller: func(nwl *nodeWithLabels) {
+				calls := nwl.mock.getNodeLabelValueCalls()
+				require.Len(t, calls, 1)
+				require.EqualValues(t, []struct{ S string }{{"example.com/config.state"}}, calls)
+			},
+			expectedError: nil,
+		},
+		{
+			description: "mode change required after reboot is error",
+			options: reconfigureMIGOptions{
+				NodeName:            "NodeName",
+				MIGPartedConfigFile: "/path/to/config/file.yaml",
+				SelectedMIGConfig:   "selected-mig-config",
+				DriverLibraryPath:   "/path/to/libnvidia-ml.so.1",
+				HostRootMount:       "/host/",
+				ConfigStateLabel:    "example.com/config.state",
+			},
+			migParted: &migPartedMock{
+				assertValidMIGConfigFunc: func() error {
+					return nil
+				},
+				assertMIGConfigFunc: func() error {
+					return fmt.Errorf("config needs updating")
+				},
+				assertMIGModeOnlyFunc: func() error {
+					return fmt.Errorf("mode needs updating")
+				},
+			},
+			checkMigParted: func(mpm *migPartedMock) {
+				require.Len(t, mpm.calls.assertValidMIGConfig, 1)
+				require.Len(t, mpm.calls.assertMIGConfig, 1)
+				require.Len(t, mpm.calls.assertMIGModeOnly, 1)
+				require.Len(t, mpm.calls.applyMIGConfig, 0)
+				require.Len(t, mpm.calls.applyMIGModeOnly, 0)
+			},
+			nodeLabeller: &nodeWithLabels{
+				mock: &nodeLabellerMock{
+					getNodeLabelValueFunc: func(s string) (string, error) {
+						return "rebooting", nil
+					},
+				},
+			},
+			checkNodeLabeller: func(nwl *nodeWithLabels) {
+				calls := nwl.mock.getNodeLabelValueCalls()
+				require.Len(t, calls, 1)
+				require.EqualValues(t, []struct{ S string }{{"example.com/config.state"}}, calls)
+			},
+			expectedError: fmt.Errorf("MIG mode change failed after reboot: mode needs updating"),
+		},
+		{
+			description: "mode does not need updating; apply config error is returned",
+			options: reconfigureMIGOptions{
+				NodeName:            "NodeName",
+				MIGPartedConfigFile: "/path/to/config/file.yaml",
+				SelectedMIGConfig:   "selected-mig-config",
+				DriverLibraryPath:   "/path/to/libnvidia-ml.so.1",
+				HostRootMount:       "/host/",
+				ConfigStateLabel:    "example.com/config.state",
+			},
+			migParted: &migPartedMock{
+				assertValidMIGConfigFunc: func() error {
+					return nil
+				},
+				assertMIGConfigFunc: func() error {
+					return fmt.Errorf("config needs updating")
+				},
+				assertMIGModeOnlyFunc: func() error {
+					return nil
+				},
+				applyMIGModeOnlyFunc: func() error {
+					return nil
+				},
+				applyMIGConfigFunc: func() error {
+					return fmt.Errorf("failed to apply config")
+				},
+			},
+			checkMigParted: func(mpm *migPartedMock) {
+				require.Len(t, mpm.calls.assertValidMIGConfig, 1)
+				require.Len(t, mpm.calls.assertMIGConfig, 1)
+				require.Len(t, mpm.calls.assertMIGModeOnly, 2)
+				require.Len(t, mpm.calls.applyMIGModeOnly, 1)
+				require.Len(t, mpm.calls.applyMIGConfig, 1)
+			},
+			nodeLabeller: &nodeWithLabels{
+				mock: &nodeLabellerMock{
+					getNodeLabelValueFunc: func(s string) (string, error) {
+						return "current-state", nil
+					},
+				},
+			},
+			checkNodeLabeller: func(nwl *nodeWithLabels) {
+				calls := nwl.mock.getNodeLabelValueCalls()
+				require.Len(t, calls, 1)
+				require.EqualValues(t, []struct{ S string }{{"example.com/config.state"}}, calls)
+			},
+			expectedError: fmt.Errorf("failed to apply config"),
+		},
+		{
+			description: "mode does not need updating; apply config succeeds",
+			options: reconfigureMIGOptions{
+				NodeName:            "NodeName",
+				MIGPartedConfigFile: "/path/to/config/file.yaml",
+				SelectedMIGConfig:   "selected-mig-config",
+				DriverLibraryPath:   "/path/to/libnvidia-ml.so.1",
+				HostRootMount:       "/host/",
+				ConfigStateLabel:    "example.com/config.state",
+			},
+			migParted: &migPartedMock{
+				assertValidMIGConfigFunc: func() error {
+					return nil
+				},
+				assertMIGConfigFunc: func() error {
+					return fmt.Errorf("config needs updating")
+				},
+				assertMIGModeOnlyFunc: func() error {
+					return nil
+				},
+				applyMIGModeOnlyFunc: func() error {
+					return nil
+				},
+				applyMIGConfigFunc: func() error {
+					return nil
+				},
+			},
+			checkMigParted: func(mpm *migPartedMock) {
+				require.Len(t, mpm.calls.assertValidMIGConfig, 1)
+				require.Len(t, mpm.calls.assertMIGConfig, 1)
+				require.Len(t, mpm.calls.assertMIGModeOnly, 2)
+				require.Len(t, mpm.calls.applyMIGModeOnly, 1)
+				require.Len(t, mpm.calls.applyMIGConfig, 1)
+			},
+			nodeLabeller: &nodeWithLabels{
+				mock: &nodeLabellerMock{
+					getNodeLabelValueFunc: func(s string) (string, error) {
+						return "current-state", nil
+					},
+				},
+			},
+			checkNodeLabeller: func(nwl *nodeWithLabels) {
+				calls := nwl.mock.getNodeLabelValueCalls()
+				require.Len(t, calls, 1)
+				require.EqualValues(t, []struct{ S string }{{"example.com/config.state"}}, calls)
+			},
+			expectedError: nil,
+		},
 	}
 
 	for _, tc := range testCases {
