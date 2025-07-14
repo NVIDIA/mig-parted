@@ -35,6 +35,7 @@ import (
 const (
 	migPartedCliName = "nvidia-mig-parted"
 
+	configStatePending   = "pending"
 	configStateRebooting = "rebooting"
 
 	ldPreloadEnvVar = "LD_PRELOAD"
@@ -67,6 +68,9 @@ func New(opts ...Option) (Reconfigurer, error) {
 
 	c := &commandWithOutput{}
 
+	// TODO: If WITH_SHUTDOWN_HOST_GPU_CLIENTS is set we need to run mig-parted
+	// on the host. We also need to update the MIG_CONFIG_FILE to refer to one
+	// that we copy to the host.
 	r := &reconfigurer{
 		reconfigureMIGOptions: o,
 		commandRunner:         c,
@@ -90,7 +94,42 @@ func New(opts ...Option) (Reconfigurer, error) {
 // applies MIG mode changes, manages host GPU client services, and handles
 // reboots when necessary. The function ensures that MIG configurations are
 // applied safely with proper service lifecycle management.
-func (opts *reconfigurer) Reconfigure() error {
+func (opts *reconfigurer) Reconfigure() (rerr error) {
+	restartSystemdClients := true
+	var systemdClients gpuClients
+
+	restartK8sGPUClients := true
+	k8sGPUClients := opts.node.getK8sGPUClients(opts.GPUClientNamespace)
+
+	// TODO(elezar) get current k8s clients
+	defer func() {
+		// TODO(elezar): Check whether the systemd clients need to be restarted.
+		// If we're returning due to an error in restarting the services, then
+		// don't restart them here.
+		if restartSystemdClients {
+			if err := systemdClients.Restart(); err != nil {
+				rerr = errors.Join(rerr, err)
+			}
+
+		}
+		// TODO(elezar): Check whether the k8s clients need to be restarted.
+		// If we're returning due to an error in restartig the k8s clients, then
+		// don't restart them here.
+		if restartK8sGPUClients {
+			if err := k8sGPUClients.Restart(); err != nil {
+				rerr = errors.Join(rerr, err)
+			}
+		}
+		// TODO(elezar): If we are not returning from a reboot, we should set
+		// set the mig-state label to `failed` or `success` based on the value
+		// of rerr
+		if rerr != nil {
+			_ = opts.node.setNodeLabelValue(opts.ConfigStateLabel, "failed")
+		} else {
+			_ = opts.node.setNodeLabelValue(opts.ConfigStateLabel, "success")
+		}
+	}()
+
 	log.Info("Asserting that the requested configuration is present in the configuration file")
 	if err := opts.migParted.assertValidMIGConfig(); err != nil {
 		return fmt.Errorf("error validating the selected MIG configuration: %w", err)
@@ -132,9 +171,20 @@ func (opts *reconfigurer) Reconfigure() error {
 		migModeChangeRequired = true
 	}
 
+	log.Infof("Changing the %q node label to %q", opts.ConfigStateLabel, configStatePending)
+	if err := opts.node.setNodeLabelValue(opts.ConfigStateLabel, configStatePending); err != nil {
+		return fmt.Errorf("unable to set the value of %q to %q: %w", opts.ConfigStateLabel, configStatePending, err)
+	}
+
+	log.Infof("Shutting down all GPU clients in Kubernetes by disabling their component-specific nodeSelector labels")
+	if err := k8sGPUClients.Stop(); err != nil {
+		// TODO: Update this error message.
+		return fmt.Errorf("unable to tear down GPU client pods by setting their daemonset labels: %w", err)
+	}
+
 	if opts.WithShutdownHostGPUClients {
 		log.Info("Shutting down all GPU clients on the host by stopping their systemd services")
-		if err := opts.hostStopSystemdServices(); err != nil {
+		if err := opts.hostStopSystemdServices(systemdClients); err != nil {
 			return fmt.Errorf("unable to shutdown host GPU clients: %w", err)
 		}
 		if migModeChangeRequired {
@@ -162,11 +212,38 @@ func (opts *reconfigurer) Reconfigure() error {
 		return err
 	}
 
+	if opts.CDIEnabled {
+		// Run nvidia-smi to ensure that the kernel modules are loaded and the
+		// basic device nodes are available.
+		if err := runNvidiaSMI(opts); err != nil {
+			return err
+		}
+
+		// Create additional control devices that are not created by nvidia-smi
+		// e.g. /dev/nvidia-uvm and /dev/nvidia-uvm-tools
+		if err := createControlDeviceNodes(opts); err != nil {
+			return err
+		}
+
+		// Ensure that we regenerate a CDI spec for management containers.
+		if err := regenerateManagementCDISpec(opts); err != nil {
+			return err
+		}
+	}
+
 	if opts.WithShutdownHostGPUClients {
 		log.Info("Restarting all GPU clients previously shutdown on the host by restarting their systemd services")
-		if err := opts.hostStartSystemdServices(); err != nil {
+		if err := opts.hostStartSystemdServices(systemdClients); err != nil {
+			restartSystemdClients = false
 			return fmt.Errorf("unable to restart host GPU clients: %w", err)
 		}
+	}
+
+	log.Info("Restarting validator pod to re-run all validations")
+	log.Info("Restarting all GPU clients previously shutdown in Kubernetes by reenabling their component-specific nodeSelector labels")
+	if err := k8sGPUClients.Restart(); err != nil {
+		restartK8sGPUClients = false
+		return fmt.Errorf("unable to bring up GPU client components by setting their daemonset labels: %w", err)
 	}
 
 	return nil
@@ -249,34 +326,34 @@ Environment="MIG_PARTED_SELECTED_CONFIG=%s"
 	return opts.Run(cmd)
 }
 
-func (opts *reconfigureMIGOptions) hostStopSystemdServices() error {
-	opts.hostGPUClientServicesStopped = []string{}
-
+func (opts *reconfigureMIGOptions) hostStopSystemdServices(systemdGPUClients gpuClients) error {
 	for _, service := range opts.HostGPUClientServices {
-		if err := processSystemdService(opts, service, "stop"); err != nil {
+		mustRestart, err := stopSystemdService(opts, service)
+		if err != nil {
 			return err
+		}
+		if mustRestart {
+			systemdGPUClients = append(systemdGPUClients, opts.newSystemdService(service))
 		}
 	}
 	return nil
 }
 
-func (opts *reconfigureMIGOptions) hostStartSystemdServices() error {
-	if len(opts.hostGPUClientServicesStopped) == 0 {
+func (opts *reconfigureMIGOptions) hostStartSystemdServices(systemdGPUClients gpuClients) error {
+	if len(systemdGPUClients) == 0 {
 		for _, service := range opts.HostGPUClientServices {
 			if shouldRestartService(opts, service) {
-				opts.hostGPUClientServicesStopped = append(opts.hostGPUClientServicesStopped, service)
+				systemdGPUClients = append(systemdGPUClients, opts.newSystemdService(service))
 			}
 		}
 	}
 
 	var errs error
-	for _, service := range opts.hostGPUClientServicesStopped {
+	for _, service := range systemdGPUClients {
 		log.Infof("Starting %s", service)
-		cmd := exec.Command("chroot", opts.HostRootMount, "systemctl", "start", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
-		if err := cmd.Run(); err != nil {
+		if err := service.Restart(); err != nil {
 			serviceError := fmt.Errorf("error starting %q: %w", service, err)
 			log.Errorf("%v; skipping, but continuing...", serviceError)
-
 			errs = errors.Join(errs, serviceError)
 		}
 	}
@@ -287,56 +364,47 @@ func (opts *reconfigureMIGOptions) hostStartSystemdServices() error {
 	return nil
 }
 
-func processSystemdService(opts *reconfigureMIGOptions, service, action string) error {
+func stopSystemdService(opts *reconfigureMIGOptions, service string) (bool, error) {
 	cmd := exec.Command("chroot", opts.HostRootMount, "systemctl", "-q", "is-active", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
 	if err := cmd.Run(); err == nil {
-		log.Infof("%s %s (active, will-restart)", action, service)
-		cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", action, service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name, action is controlled parameter.
+		log.Infof("%s %s (active, will-restart)", "stop", service)
+		cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "stop", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name, action is controlled parameter.
 		if err := cmd.Run(); err != nil {
-			return err
+			return false, err
 		}
-		if action == "stop" {
-			opts.hostGPUClientServicesStopped = append([]string{service}, opts.hostGPUClientServicesStopped...)
-		}
-		return nil
+		return true, nil
 	}
 
 	cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "-q", "is-enabled", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
 	if err := cmd.Run(); err != nil {
 		log.Infof("Skipping %s (no-exist)", service)
-		return nil
+		return false, nil
 	}
 
 	cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "-q", "is-failed", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
 	if err := cmd.Run(); err == nil {
 		log.Infof("Skipping %s (is-failed, will-restart)", service)
-		if action == "stop" {
-			opts.hostGPUClientServicesStopped = append([]string{service}, opts.hostGPUClientServicesStopped...)
-		}
-		return nil
+		return true, nil
 	}
 
 	cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "-q", "is-enabled", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
 	if err := cmd.Run(); err != nil {
 		log.Infof("Skipping %s (disabled)", service)
-		return nil
+		return false, nil
 	}
 
 	cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "show", "--property=Type", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
 	output, err := cmd.Output()
 	if err != nil {
-		return err
+		return false, err
 	}
 	if strings.TrimSpace(string(output)) == "Type=oneshot" {
 		log.Infof("Skipping %s (inactive, oneshot, no-restart)", service)
-		return nil
+		return false, nil
 	}
 
 	log.Infof("Skipping %s (inactive, will-restart)", service)
-	if action == "stop" {
-		opts.hostGPUClientServicesStopped = append([]string{service}, opts.hostGPUClientServicesStopped...)
-	}
-	return nil
+	return true, nil
 }
 
 func shouldRestartService(opts *reconfigureMIGOptions, service string) bool {

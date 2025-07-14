@@ -36,6 +36,9 @@ type reconfigureMIGOptions struct {
 	// Source: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
 	NodeName string `validate:"required,hostname_rfc1123"`
 
+	// GPUClientNamespace is the namespace to use for the configured k8s GPU clients.
+	GPUClientNamespace string
+
 	// MIGPartedConfigFile is the mig-parted configuration file path.
 	MIGPartedConfigFile string `validate:"required,filepath"`
 
@@ -72,8 +75,20 @@ type reconfigureMIGOptions struct {
 	// TODO: Define the validation schema.
 	ConfigStateLabel string `validate:"required"`
 
-	// TODO: The following is not an option, but is tracked during the reconfiguration.
-	hostGPUClientServicesStopped []string
+	// DriverRootCtrPath is the path to the NVIDIA driver installation in the container.
+	DriverRootCtrPath string
+	// DevRoot is the path where the NVIDIA device nodes are found on in the container.
+	DevRootCtrPath string
+
+	// DriverRoot is the path to the NVIDIA driver installation on the HOST.
+	DriverRoot string
+	// DevRoot is the path where the required device nodes are created on the HOST.
+	DevRoot string
+
+	CDIEnabled    bool
+	NVIDIASMIPath string
+	// NVIDIACDIHookPath is the path to the nvidia-cdi-hook executable on the HOST.
+	NVIDIACDIHookPath string
 }
 
 func WithAllowReboot(allowReboot bool) Option {
@@ -97,6 +112,12 @@ func WithConfigStateLabel(configStateLabel string) Option {
 func WithDriverLibraryPath(driverLibraryPath string) Option {
 	return func(o *reconfigureMIGOptions) {
 		o.DriverLibraryPath = driverLibraryPath
+	}
+}
+
+func WithGPUClientNamespace(gpuClientNamepsace string) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.GPUClientNamespace = gpuClientNamepsace
 	}
 }
 

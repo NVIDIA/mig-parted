@@ -37,4 +37,5 @@ type migParted interface {
 type nodeLabeller interface {
 	getNodeLabelValue(string) (string, error)
 	setNodeLabelValue(string, string) error
+	getK8sGPUClients(string) gpuClients
 }
