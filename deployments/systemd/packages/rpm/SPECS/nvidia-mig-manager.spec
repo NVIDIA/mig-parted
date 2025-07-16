@@ -79,7 +79,7 @@ install -m 644 -t %{buildroot}/usr/lib/systemd/system %{SOURCE11}
 %dir /var/lib/nvidia-mig-manager
 /usr/lib/systemd/system/nvidia-gpu-reset.target
 
-%post
+%posttrans
 systemctl daemon-reload
 systemctl enable nvidia-mig-manager.service
 
