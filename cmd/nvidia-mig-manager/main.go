@@ -28,6 +28,7 @@ import (
 	cli "github.com/urfave/cli/v2"
 
 	"github.com/NVIDIA/mig-parted/internal/info"
+	"github.com/NVIDIA/mig-parted/pkg/mig/reconfigure"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -377,26 +378,36 @@ func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath st
 		return fmt.Errorf("error parsing host's GPU clients file: %s", err)
 	}
 
-	args := []string{
-		"-n", nodeNameFlag,
-		"-f", configFileFlag,
-		"-c", migConfigValue,
-		"-m", hostRootMountFlag,
-		"-i", hostNvidiaDirFlag,
-		"-o", hostMigManagerStateFileFlag,
-		"-g", strings.Join(gpuClients.SystemdServices, ","),
-		"-k", hostKubeletSystemdServiceFlag,
-		"-p", defaultGPUClientsNamespaceFlag,
+	options := []reconfigure.Option{
+		reconfigure.WithNodeName(nodeNameFlag),
+		reconfigure.WithMIGPartedConfigFile(configFileFlag),
+		reconfigure.WithSelectedMIGConfig(migConfigValue),
+		reconfigure.WithHostRootMount(hostRootMountFlag),
+		reconfigure.WithHostNVIDIADir(hostNvidiaDirFlag),
+		reconfigure.WithHostMIGManagerStateFile(hostMigManagerStateFileFlag),
+		reconfigure.WithHostGPUClientServices(gpuClients.SystemdServices...),
+		reconfigure.WithHostKubeletService(hostKubeletSystemdServiceFlag),
+		reconfigure.WithGPUClientNamespace(defaultGPUClientsNamespaceFlag),
 	}
+
 	if cdiEnabledFlag {
-		args = append(args, "-e", "-t", driverRoot, "-a", driverRootCtrPath, "-b", devRoot, "-j", devRootCtrPath, "-l", driverLibraryPath, "-q", nvidiaSMIPath, "-s", nvidiaCDIHookPath)
+		options = append(options,
+			reconfigure.WithCDIEnabled(cdiEnabledFlag),
+			reconfigure.WithDriverRoot(driverRoot),
+			reconfigure.WithDriverRootCtrPath(driverRootCtrPath),
+			reconfigure.WithDevRoot(devRoot),
+			reconfigure.WithDevRootCtrPath(devRootCtrPath),
+			reconfigure.WithDriverLibraryPath(driverLibraryPath),
+			reconfigure.WithNVIDIASMIPath(nvidiaSMIPath),
+			reconfigure.WithNVIDIACDIHookPath(nvidiaCDIHookPath),
+		)
 	}
-	if withRebootFlag {
-		args = append(args, "-r")
-	}
-	if withShutdownHostGPUClientsFlag {
-		args = append(args, "-d")
-	}
+
+	options = append(options,
+		reconfigure.WithAllowReboot(withRebootFlag),
+		reconfigure.WithShutdownHostGPUClients(withShutdownHostGPUClientsFlag),
+	)
+
 	cmd := exec.Command(reconfigureScriptFlag, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

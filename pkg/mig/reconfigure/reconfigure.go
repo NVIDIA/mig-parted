@@ -101,7 +101,6 @@ func (opts *reconfigurer) Reconfigure() (rerr error) {
 	restartK8sGPUClients := true
 	k8sGPUClients := opts.node.getK8sGPUClients(opts.GPUClientNamespace)
 
-	// TODO(elezar) get current k8s clients
 	defer func() {
 		// TODO(elezar): Check whether the systemd clients need to be restarted.
 		// If we're returning due to an error in restarting the services, then

@@ -91,6 +91,49 @@ type reconfigureMIGOptions struct {
 	NVIDIACDIHookPath string
 }
 
+// Functional options for the above members, sorted alphabetically.
+func WithCDIEnabled(cdiEnabled bool) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.CDIEnabled = cdiEnabled
+	}
+}
+
+func WithDevRoot(devRoot string) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.DevRoot = devRoot
+	}
+}
+
+func WithDevRootCtrPath(devRootCtrPath string) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.DevRootCtrPath = devRootCtrPath
+	}
+}
+
+func WithDriverRoot(driverRoot string) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.DriverRoot = driverRoot
+	}
+}
+
+func WithDriverRootCtrPath(driverRootCtrPath string) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.DriverRootCtrPath = driverRootCtrPath
+	}
+}
+
+func WithNVIDIACDIHookPath(nvidiaCDIHookPath string) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.NVIDIACDIHookPath = nvidiaCDIHookPath
+	}
+}
+
+func WithNVIDIASMIPath(nvidiaSMIPath string) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.NVIDIASMIPath = nvidiaSMIPath
+	}
+}
+
 func WithAllowReboot(allowReboot bool) Option {
 	return func(o *reconfigureMIGOptions) {
 		o.WithReboot = allowReboot
@@ -136,6 +179,12 @@ func WithHostKubeletService(hostKubeletService string) Option {
 func WithHostMIGManagerStateFile(hostMIGManagerStateFile string) Option {
 	return func(o *reconfigureMIGOptions) {
 		o.HostMIGManagerStateFile = hostMIGManagerStateFile
+	}
+}
+
+func WithHostNVIDIADir(hostNVIDIADir string) Option {
+	return func(o *reconfigureMIGOptions) {
+		o.hostNVIDIADir = hostNVIDIADir
 	}
 }
 
