@@ -214,18 +214,18 @@ func (opts *reconfigurer) Reconfigure() (rerr error) {
 	if opts.CDIEnabled {
 		// Run nvidia-smi to ensure that the kernel modules are loaded and the
 		// basic device nodes are available.
-		if err := runNvidiaSMI(opts); err != nil {
+		if err := opts.runNvidiaSMI(); err != nil {
 			return err
 		}
 
 		// Create additional control devices that are not created by nvidia-smi
 		// e.g. /dev/nvidia-uvm and /dev/nvidia-uvm-tools
-		if err := createControlDeviceNodes(opts); err != nil {
+		if err := opts.createControlDeviceNodes(); err != nil {
 			return err
 		}
 
 		// Ensure that we regenerate a CDI spec for management containers.
-		if err := regenerateManagementCDISpec(opts); err != nil {
+		if err := opts.regenerateManagementCDISpec(); err != nil {
 			return err
 		}
 	}
