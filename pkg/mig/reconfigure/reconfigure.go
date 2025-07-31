@@ -326,13 +326,15 @@ Environment="MIG_PARTED_SELECTED_CONFIG=%s"
 }
 
 func (opts *reconfigureMIGOptions) hostStopSystemdServices(systemdGPUClients gpuClients) error {
-	for _, service := range opts.HostGPUClientServices {
-		mustRestart, err := stopSystemdService(opts, service)
+	for _, serviceName := range opts.HostGPUClientServices {
+		service := opts.newSystemdService(serviceName)
+
+		mustRestart, err := service.Pause()
 		if err != nil {
 			return err
 		}
 		if mustRestart {
-			systemdGPUClients = append(systemdGPUClients, opts.newSystemdService(service))
+			systemdGPUClients = append(systemdGPUClients, service)
 		}
 	}
 	return nil
@@ -340,25 +342,18 @@ func (opts *reconfigureMIGOptions) hostStopSystemdServices(systemdGPUClients gpu
 
 func (opts *reconfigureMIGOptions) hostStartSystemdServices(systemdGPUClients gpuClients) error {
 	if len(systemdGPUClients) == 0 {
-		for _, service := range opts.HostGPUClientServices {
-			if shouldRestartService(opts, service) {
-				systemdGPUClients = append(systemdGPUClients, opts.newSystemdService(service))
+		for _, serviceName := range opts.HostGPUClientServices {
+			service := opts.newSystemdService(serviceName)
+
+			if mustRestart, _ := service.shouldRestart(); mustRestart {
+				systemdGPUClients = append(systemdGPUClients, service)
 			}
 		}
 	}
 
-	var errs error
-	for _, service := range systemdGPUClients {
-		log.Infof("Starting %s", service)
-		if err := service.Restart(); err != nil {
-			serviceError := fmt.Errorf("error starting %q: %w", service, err)
-			log.Errorf("%v; skipping, but continuing...", serviceError)
-			errs = errors.Join(errs, serviceError)
-		}
-	}
-
-	if errs != nil {
-		return fmt.Errorf("some services failed to start: %w", errs)
+	// TODO: We should allow restarts to continue on failure.
+	if err := systemdGPUClients.Restart(); err != nil {
+		return fmt.Errorf("some services failed to start: %w", err)
 	}
 	return nil
 }

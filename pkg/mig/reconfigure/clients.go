@@ -19,10 +19,13 @@ package reconfigure
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
@@ -109,13 +112,14 @@ func (n *node) newPod(namespace string, app string) *pod {
 // Restart restarts each of a set of k8s clients.
 // The first error encountered is returned and not further clients are restarted.
 func (o gpuClients) Restart() error {
+	var errs error
 	for i := range len(o) {
 		c := o[len(o)-i-1]
 		if err := c.Restart(); err != nil {
-			return err
+			errs = errors.Join(errs, err)
 		}
 	}
-	return nil
+	return errs
 }
 
 // Stop stops each of a set of k8s clients.
@@ -263,4 +267,78 @@ func (o *systemdService) Restart() error {
 func (o *systemdService) Stop() error {
 	cmd := exec.Command("chroot", o.hostRootMount, "systemctl", "stop", o.name) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name, action is controlled parameter.
 	return cmd.Run()
+}
+
+// Pause stops the specified systemd service and returns whether it should be restarted.
+func (o *systemdService) Pause() (bool, error) {
+	if err := o.assertIsActive(); err == nil {
+		log.Infof("pause %s (active, will-restart)", o.name)
+		if err := o.Stop(); err != nil {
+			// If we fail to stop a server, we don't restart the service.
+			return false, err
+		}
+		// An active service that was successfully stopped must be restarted.
+		return true, nil
+	}
+
+	return o.shouldRestart()
+}
+
+func (o *systemdService) shouldRestart() (bool, error) {
+	if err := o.assertIsActive(); err != nil {
+		return false, nil
+	}
+
+	// TODO: Is there a better way to check existence?
+	// In the shell script we check the output to be empty.
+	if err := o.assertIsEnabled(); err != nil {
+		log.Infof("Skipping %s (no-exist)", o.name)
+		return false, nil
+	}
+
+	if err := o.assertIsFailed(); err == nil {
+		log.Infof("Skipping %s (is-failed, will-restart)", o.name)
+		return true, nil
+	}
+
+	if err := o.assertIsEnabled(); err != nil {
+		log.Infof("Skipping %s (disabled)", o.name)
+		return false, nil
+	}
+
+	serviceType, err := o.getType()
+	if err != nil {
+		return false, err
+	}
+	if serviceType == "oneshot" {
+		log.Infof("Skipping %s (inactive, oneshot, no-restart)", o.name)
+		return false, nil
+	}
+
+	log.Infof("Skipping %s (type=%s, inactive, will-restart)", o.name, serviceType)
+	return true, nil
+}
+
+func (o *systemdService) assertIsActive() error {
+	cmd := exec.Command("chroot", o.hostRootMount, "systemctl", "-q", "is-active", o.name) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
+	return cmd.Run()
+}
+
+func (o *systemdService) assertIsEnabled() error {
+	cmd := exec.Command("chroot", o.hostRootMount, "systemctl", "-q", "is-enabled", o.name) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
+	return cmd.Run()
+}
+
+func (o *systemdService) assertIsFailed() error {
+	cmd := exec.Command("chroot", o.hostRootMount, "systemctl", "-q", "is-failed", o.name) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
+	return cmd.Run()
+}
+
+func (o *systemdService) getType() (string, error) {
+	cmd := exec.Command("chroot", o.hostRootMount, "systemctl", "show", "--property=Type", o.name) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimPrefix(strings.TrimSpace(string(output)), "Type="), nil
 }
