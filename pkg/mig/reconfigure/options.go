@@ -89,6 +89,8 @@ type reconfigureMIGOptions struct {
 	NVIDIASMIPath string
 	// NVIDIACDIHookPath is the path to the nvidia-cdi-hook executable on the HOST.
 	NVIDIACDIHookPath string
+
+	hostNVIDIADir string
 }
 
 // Functional options for the above members, sorted alphabetically.

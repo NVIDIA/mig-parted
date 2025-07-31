@@ -17,6 +17,9 @@ var _ nodeLabeller = &nodeLabellerMock{}
 //
 //		// make and configure a mocked nodeLabeller
 //		mockednodeLabeller := &nodeLabellerMock{
+//			getK8sGPUClientsFunc: func(s string) gpuClients {
+//				panic("mock out the getK8sGPUClients method")
+//			},
 //			getNodeLabelValueFunc: func(s string) (string, error) {
 //				panic("mock out the getNodeLabelValue method")
 //			},
@@ -30,6 +33,9 @@ var _ nodeLabeller = &nodeLabellerMock{}
 //
 //	}
 type nodeLabellerMock struct {
+	// getK8sGPUClientsFunc mocks the getK8sGPUClients method.
+	getK8sGPUClientsFunc func(s string) gpuClients
+
 	// getNodeLabelValueFunc mocks the getNodeLabelValue method.
 	getNodeLabelValueFunc func(s string) (string, error)
 
@@ -38,6 +44,11 @@ type nodeLabellerMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// getK8sGPUClients holds details about calls to the getK8sGPUClients method.
+		getK8sGPUClients []struct {
+			// S is the s argument value.
+			S string
+		}
 		// getNodeLabelValue holds details about calls to the getNodeLabelValue method.
 		getNodeLabelValue []struct {
 			// S is the s argument value.
@@ -51,8 +62,41 @@ type nodeLabellerMock struct {
 			S2 string
 		}
 	}
+	lockgetK8sGPUClients  sync.RWMutex
 	lockgetNodeLabelValue sync.RWMutex
 	locksetNodeLabelValue sync.RWMutex
+}
+
+// getK8sGPUClients calls getK8sGPUClientsFunc.
+func (mock *nodeLabellerMock) getK8sGPUClients(s string) gpuClients {
+	if mock.getK8sGPUClientsFunc == nil {
+		panic("nodeLabellerMock.getK8sGPUClientsFunc: method is nil but nodeLabeller.getK8sGPUClients was just called")
+	}
+	callInfo := struct {
+		S string
+	}{
+		S: s,
+	}
+	mock.lockgetK8sGPUClients.Lock()
+	mock.calls.getK8sGPUClients = append(mock.calls.getK8sGPUClients, callInfo)
+	mock.lockgetK8sGPUClients.Unlock()
+	return mock.getK8sGPUClientsFunc(s)
+}
+
+// getK8sGPUClientsCalls gets all the calls that were made to getK8sGPUClients.
+// Check the length with:
+//
+//	len(mockednodeLabeller.getK8sGPUClientsCalls())
+func (mock *nodeLabellerMock) getK8sGPUClientsCalls() []struct {
+	S string
+} {
+	var calls []struct {
+		S string
+	}
+	mock.lockgetK8sGPUClients.RLock()
+	calls = mock.calls.getK8sGPUClients
+	mock.lockgetK8sGPUClients.RUnlock()
+	return calls
 }
 
 // getNodeLabelValue calls getNodeLabelValueFunc.

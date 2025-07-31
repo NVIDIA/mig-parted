@@ -19,7 +19,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -408,10 +407,11 @@ func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath st
 		reconfigure.WithShutdownHostGPUClients(withShutdownHostGPUClientsFlag),
 	)
 
-	cmd := exec.Command(reconfigureScriptFlag, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	reconfigurer, err := reconfigure.New(options...)
+	if err != nil {
+		return err
+	}
+	return reconfigurer.Reconfigure()
 }
 
 func ContinuouslySyncMigConfigChanges(clientset *kubernetes.Clientset, migConfig *SyncableMigConfig) chan struct{} {

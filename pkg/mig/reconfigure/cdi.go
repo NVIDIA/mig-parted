@@ -77,11 +77,11 @@ func (opts *reconfigurer) createControlDeviceNodes() error {
 
 func (opts *reconfigurer) runNvidiaSMI() error {
 	if opts.DriverRootCtrPath == opts.DevRootCtrPath {
-		cmd := exec.Command("chroot", opts.DriverRootCtrPath, opts.NVIDIASMIPath)
+		cmd := exec.Command("chroot", opts.DriverRootCtrPath, opts.NVIDIASMIPath) //nolint:gosec
 		return opts.Run(cmd)
 	}
 
-	cmd := exec.Command("chroot", opts.HostRootMount, opts.NVIDIASMIPath)
+	cmd := exec.Command("chroot", opts.HostRootMount, opts.NVIDIASMIPath) //nolint:gosec
 	cmd.Env = append(cmd.Env, ldPreloadEnvVar+"="+opts.DriverLibraryPath)
 	return opts.Run(cmd)
 }

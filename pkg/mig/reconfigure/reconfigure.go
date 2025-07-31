@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,8 +34,6 @@ import (
 )
 
 const (
-	migPartedCliName = "nvidia-mig-parted"
-
 	configStatePending   = "pending"
 	configStateRebooting = "rebooting"
 
@@ -66,20 +65,15 @@ func New(opts ...Option) (Reconfigurer, error) {
 		return nil, err
 	}
 
-	c := &commandWithOutput{}
+	migParted, err := o.createMIGPartedCLI()
+	if err != nil {
+		return nil, err
+	}
 
-	// TODO: If WITH_SHUTDOWN_HOST_GPU_CLIENTS is set we need to run mig-parted
-	// on the host. We also need to update the MIG_CONFIG_FILE to refer to one
-	// that we copy to the host.
 	r := &reconfigurer{
 		reconfigureMIGOptions: o,
-		commandRunner:         c,
-		migParted: &migPartedCLI{
-			MIGPartedConfigFile: o.MIGPartedConfigFile,
-			SelectedMIGConfig:   o.SelectedMIGConfig,
-			DriverLibraryPath:   o.DriverLibraryPath,
-			commandRunner:       c,
-		},
+		commandRunner:         &commandWithOutput{},
+		migParted:             migParted,
 		node: &node{
 			clientset: o.clientset,
 			name:      o.NodeName,
@@ -87,6 +81,90 @@ func New(opts ...Option) (Reconfigurer, error) {
 	}
 
 	return r, nil
+}
+
+func (opts *reconfigureMIGOptions) createMIGPartedCLI() (*migPartedCLI, error) {
+	c := &commandWithOutput{}
+
+	if !opts.WithShutdownHostGPUClients {
+		m := &migPartedCLI{
+			path:                "/usr/bin/nvidia-mig-parted",
+			MIGPartedConfigFile: opts.MIGPartedConfigFile,
+			SelectedMIGConfig:   opts.SelectedMIGConfig,
+			DriverLibraryPath:   opts.DriverLibraryPath,
+			commandRunner:       c,
+		}
+		return m, nil
+	}
+
+	if opts.hostNVIDIADir == "" {
+		return nil, fmt.Errorf("HOST_NVIDIA_DIR must be specified")
+	}
+
+	hostRoot, err := os.OpenRoot(opts.HostRootMount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open host root: %w", err)
+	}
+	defer hostRoot.Close()
+
+	// TODO: Once we switch to go 1.25, we can use os.Root.MkdirAll.
+	hostNVIDIADir := strings.TrimPrefix(opts.hostNVIDIADir, "/")
+	if err := hostRoot.Mkdir(hostNVIDIADir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create directory: %w", err)
+	}
+	if err := hostRoot.Mkdir(filepath.Join(hostNVIDIADir, "mig-manager"), 0755); err != nil {
+		return nil, fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	migParted, err := os.Open("/usr/bin/nvidia-mig-parted")
+	if err != nil {
+		return nil, err
+	}
+	defer migParted.Close()
+
+	hostMigPartedPath := filepath.Join(hostNVIDIADir, "mig-manager", "nvidia-mig-parted")
+	hostMigParted, err := hostRoot.Create(hostMigPartedPath)
+	if err != nil {
+		return nil, err
+	}
+	defer hostMigParted.Close()
+
+	if _, err := io.Copy(hostMigParted, migParted); err != nil {
+		return nil, err
+	}
+	// Ensure that the file is executable.
+	if err := hostMigParted.Chmod(0755); err != nil {
+		return nil, err
+	}
+
+	configFile, err := os.Open(opts.MIGPartedConfigFile)
+	if err != nil {
+		return nil, err
+	}
+	defer configFile.Close()
+
+	hostConfigFilePath := filepath.Join(hostNVIDIADir, "mig-manager", "config.yaml")
+	hostConfigFile, err := hostRoot.Create(hostConfigFilePath)
+	if err != nil {
+		return nil, err
+	}
+	defer hostConfigFile.Close()
+
+	if _, err := io.Copy(hostConfigFile, configFile); err != nil {
+		return nil, err
+	}
+
+	m := &migPartedCLI{
+		root:                hostRoot.Name(),
+		path:                "/" + hostMigPartedPath,
+		MIGPartedConfigFile: "/" + hostConfigFilePath,
+		SelectedMIGConfig:   opts.SelectedMIGConfig,
+		// TODO: We may need to update this for the host.
+		DriverLibraryPath: "",
+		commandRunner:     c,
+	}
+
+	return m, nil
 }
 
 // Reconfigure configures MIG (Multi-Instance GPU) settings on a Kubernetes
@@ -106,7 +184,7 @@ func (opts *reconfigurer) Reconfigure() (rerr error) {
 		// If we're returning due to an error in restarting the services, then
 		// don't restart them here.
 		if restartSystemdClients {
-			if err := systemdClients.Restart(); err != nil {
+			if err := opts.hostStartSystemdServices(systemdClients); err != nil {
 				rerr = errors.Join(rerr, err)
 			}
 
@@ -249,6 +327,8 @@ func (opts *reconfigurer) Reconfigure() (rerr error) {
 }
 
 type migPartedCLI struct {
+	root                string
+	path                string
 	MIGPartedConfigFile string
 	SelectedMIGConfig   string
 	DriverLibraryPath   string
@@ -358,82 +438,6 @@ func (opts *reconfigureMIGOptions) hostStartSystemdServices(systemdGPUClients gp
 	return nil
 }
 
-func stopSystemdService(opts *reconfigureMIGOptions, service string) (bool, error) {
-	cmd := exec.Command("chroot", opts.HostRootMount, "systemctl", "-q", "is-active", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
-	if err := cmd.Run(); err == nil {
-		log.Infof("%s %s (active, will-restart)", "stop", service)
-		cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "stop", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name, action is controlled parameter.
-		if err := cmd.Run(); err != nil {
-			return false, err
-		}
-		return true, nil
-	}
-
-	cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "-q", "is-enabled", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
-	if err := cmd.Run(); err != nil {
-		log.Infof("Skipping %s (no-exist)", service)
-		return false, nil
-	}
-
-	cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "-q", "is-failed", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
-	if err := cmd.Run(); err == nil {
-		log.Infof("Skipping %s (is-failed, will-restart)", service)
-		return true, nil
-	}
-
-	cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "-q", "is-enabled", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
-	if err := cmd.Run(); err != nil {
-		log.Infof("Skipping %s (disabled)", service)
-		return false, nil
-	}
-
-	cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "show", "--property=Type", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
-	output, err := cmd.Output()
-	if err != nil {
-		return false, err
-	}
-	if strings.TrimSpace(string(output)) == "Type=oneshot" {
-		log.Infof("Skipping %s (inactive, oneshot, no-restart)", service)
-		return false, nil
-	}
-
-	log.Infof("Skipping %s (inactive, will-restart)", service)
-	return true, nil
-}
-
-func shouldRestartService(opts *reconfigureMIGOptions, service string) bool {
-	cmd := exec.Command("chroot", opts.HostRootMount, "systemctl", "-q", "is-active", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
-	if err := cmd.Run(); err == nil {
-		return false
-	}
-
-	cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "-q", "is-enabled", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
-	if err := cmd.Run(); err != nil {
-		return false
-	}
-
-	cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "-q", "is-failed", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
-	if err := cmd.Run(); err == nil {
-		return true
-	}
-
-	cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "-q", "is-enabled", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
-	if err := cmd.Run(); err != nil {
-		return false
-	}
-
-	cmd = exec.Command("chroot", opts.HostRootMount, "systemctl", "show", "--property=Type", service) // #nosec G204 -- HostRootMount validated via dirpath, service validated via systemd_service_name.
-	output, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-	if strings.TrimSpace(string(output)) == "Type=oneshot" {
-		return false
-	}
-
-	return true
-}
-
 func (c *commandWithOutput) Run(cmd *exec.Cmd) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -446,8 +450,19 @@ func (opts *migPartedCLI) runMigParted(args ...string) error {
 }
 
 func (opts *migPartedCLI) migPartedCmd(args ...string) *exec.Cmd {
-	cmd := exec.Command(migPartedCliName, args...)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", ldPreloadEnvVar, opts.DriverLibraryPath))
+	var commandAndArgs []string
+
+	if opts.root != "" && opts.root != "/" {
+		commandAndArgs = append(commandAndArgs, "chroot", opts.root)
+	}
+	commandAndArgs = append(commandAndArgs, opts.path)
+	commandAndArgs = append(commandAndArgs, args...)
+
+	cmd := exec.Command(commandAndArgs[0], commandAndArgs[1:]...) //nolint:gosec
+	if opts.DriverLibraryPath != "" {
+		cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", ldPreloadEnvVar, opts.DriverLibraryPath))
+	}
+
 	return cmd
 }
 

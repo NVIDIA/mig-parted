@@ -55,6 +55,10 @@ func (n *nodeWithLabels) setNodeLabelValue(label string, value string) error {
 	return nil
 }
 
+func (n *nodeWithLabels) getK8sGPUClients(s string) gpuClients {
+	return n.mock.getK8sGPUClients(s)
+}
+
 func TestReconfigure(t *testing.T) {
 	testCases := []struct {
 		description       string
