@@ -243,13 +243,6 @@ data:
             "1g.12gb+me": 1
 
       all-1g.24gb:
-        # GB200 HGX
-        - device-filter: ["0x294110DE"]
-          devices: all
-          mig-enabled: true
-          mig-devices:
-            "1g.24gb": 7
-        
         # H100 NVL
         - device-filter: ["0x232110DE"]
           devices: all
@@ -276,11 +269,11 @@ data:
             "7g.94gb": 1
     
       # GB200 HGX
-      all-1g.24gb.me:
+      all-2g.23gb:
         - devices: all
           mig-enabled: true
           mig-devices:
-            "1g.24gb+me": 1
+            "2g.23gb": 3
 
       all-1g.47gb:
         - devices: all
@@ -294,6 +287,18 @@ data:
           mig-devices:
             "2g.47gb": 3
 
+      all-3g.93gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "3g.93gb": 2
+
+      all-4g.93gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "4g.93gb": 1
+
       all-3g.95gb:
         - devices: all
           mig-enabled: true
@@ -305,6 +310,12 @@ data:
           mig-enabled: true
           mig-devices:
             "4g.95gb": 1
+
+      all-7g.186gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "7g.186gb": 1
 
       all-7g.189gb:
         - devices: all
@@ -319,9 +330,9 @@ data:
           devices: all
           mig-enabled: true
           mig-devices:
-            "1g.24gb": 2
+            "1g.23gb": 2
             "2g.47gb": 1
-            "3g.95gb": 1
+            "3g.93gb": 1
 
         # B200
         - device-filter: ["0x290110DE"]

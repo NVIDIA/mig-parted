@@ -1,5 +1,7 @@
 # NVIDIA MIG Manager Changelog
 
+- Use the correct mig partition settings for the GB200
+
 ## v0.12.2
 - Add %posttrans to the rpm spec to ensure symlinks for config.yaml and hooks.yaml are maintained during an upgrade
 - Bump golang version to v1.24.5
