@@ -1,6 +1,11 @@
 # NVIDIA MIG Manager Changelog
 
-- Use the correct mig partition settings for the GB200
+## v0.12.3
+- Use the correct MIG profiles for GB200
+- Add MIG profiles for RTX PRO 6000 Blackwell
+- Bump golang version to 1.24.6
+- Bump go-nvlib to 0.7.4
+- Update libxml2 and sqlite-libs packages in ubi9 image to resolve CVEs
 
 ## v0.12.2
 - Add %posttrans to the rpm spec to ensure symlinks for config.yaml and hooks.yaml are maintained during an upgrade
