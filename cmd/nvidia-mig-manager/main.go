@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 
 	"sigs.k8s.io/yaml"
 )
@@ -280,6 +281,8 @@ func validateFlags(c *cli.Context) error {
 }
 
 func start(c *cli.Context) error {
+	klog.InfoS(fmt.Sprintf("Starting %s", c.App.Name), "version", c.App.Version)
+
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigFlag)
 	if err != nil {
 		return fmt.Errorf("error building kubernetes clientcmd config: %s", err)
