@@ -390,6 +390,7 @@ func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath st
 		reconfigure.WithHostGPUClientServices(gpuClients.SystemdServices...),
 		reconfigure.WithHostKubeletService(hostKubeletSystemdServiceFlag),
 		reconfigure.WithGPUClientNamespace(defaultGPUClientsNamespaceFlag),
+		reconfigure.WithConfigStateLabel(reconfigure.MIGConfigStateLabel),
 	}
 
 	if cdiEnabledFlag {
