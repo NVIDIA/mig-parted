@@ -92,7 +92,6 @@ func (n *node) getK8sGPUClients(namespace string) gpuClients {
 		n.newOperand(namespace, "", "nvidia.com/gpu.deploy.nvsm"),
 		withNoRestart(n.newPod(namespace, "nvidia-cuda-validator")),
 		withNoRestart(n.newPod(namespace, "nvidia-device-plugin-validator")),
-		withNoStop(n.newPod(namespace, "nvidia-operator-validator")),
 	}
 }
 
@@ -167,6 +166,7 @@ func (o *pod) Stop() error {
 }
 
 func (o *pod) delete() error {
+	klog.InfoS("Deleting pod", "node", o.node.name, "namespace", o.namespace, "app", o.app)
 	args := []string{
 		"delete", "pod",
 		"--field-selector \"spec.nodeName=" + o.node.name + "\"",
@@ -174,6 +174,7 @@ func (o *pod) delete() error {
 		"-l app=" + o.app,
 	}
 
+	klog.InfoS("TODO: running kubctl with args", "args", args)
 	// TODO: We should use the klientset here, but we don't have the correct
 	// permissions.
 	cmd := exec.Command("kubectl", args...)

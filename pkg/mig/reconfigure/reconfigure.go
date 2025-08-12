@@ -31,6 +31,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -324,6 +325,12 @@ func (opts *reconfigurer) Reconfigure() (rerr error) {
 	}
 
 	log.Info("Restarting validator pod to re-run all validations")
+
+	// TODO: This cast here should not be needed.
+	if err := withNoStop((opts.node.(*node).newPod(opts.GPUClientNamespace, "nvidia-operator-validator"))).Restart(); err != nil {
+		klog.ErrorS(err, "could not restart nvidia-operator-validator")
+	}
+
 	log.Info("Restarting all GPU clients previously shutdown in Kubernetes by reenabling their component-specific nodeSelector labels")
 	if err := k8sGPUClients.Restart(); err != nil {
 		restartK8sGPUClients = false
