@@ -111,12 +111,15 @@ func (opts *reconfigureMIGOptions) createMIGPartedCLI() (*migPartedCLI, error) {
 	}
 	defer hostRoot.Close()
 
-	// TODO: Once we switch to go 1.25, we can use os.Root.MkdirAll.
 	hostNVIDIADir := strings.TrimPrefix(opts.hostNVIDIADir, "/")
-	if err := hostRoot.Mkdir(hostNVIDIADir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create directory: %w", err)
-	}
-	if err := hostRoot.Mkdir(filepath.Join(hostNVIDIADir, "mig-manager"), 0755); err != nil {
+	// TODO: Once we switch to go 1.25, we can use os.Root.MkdirAll.
+	// if err := hostRoot.Mkdir(hostNVIDIADir, 0755); err != nil {
+	// 	return nil, fmt.Errorf("failed to create directory: %w", err)
+	// }
+	// if err := hostRoot.Mkdir(filepath.Join(hostNVIDIADir, "mig-manager"), 0755); err != nil {
+	// 	return nil, fmt.Errorf("failed to create directory: %w", err)
+	// }
+	if err := os.MkdirAll(filepath.Join(opts.HostRootMount, opts.hostNVIDIADir, "mig-manager"), 0755); err != nil {
 		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
 
