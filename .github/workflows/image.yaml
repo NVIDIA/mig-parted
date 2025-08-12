@@ -35,7 +35,7 @@ jobs:
       matrix:
         dist: [ubuntu20.04, ubi9]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: Check out code
       - name: Calculate build vars
         id: vars
