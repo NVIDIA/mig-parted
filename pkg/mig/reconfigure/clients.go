@@ -215,7 +215,7 @@ func (o *pod) waitForDeletion() error {
 		case <-ctx.Done():
 			return fmt.Errorf("timeout waiting for pod deletion: %w", ctx.Err())
 		case event := <-watcher.ResultChan():
-			klog.InfoS("got watcher result", "event", event)
+			klog.InfoS("got watcher result", "event.Type", event.Type)
 			if event.Type == watch.Deleted {
 				// Check if there are any remaining pods matching our criteria
 				pods, err := o.node.clientset.CoreV1().Pods(o.namespace).List(ctx, metav1.ListOptions{
