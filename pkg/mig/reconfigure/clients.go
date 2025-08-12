@@ -28,6 +28,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/klog/v2"
 )
 
 // A gpuClient represents a client that can be stoped or restarted.
@@ -199,6 +200,7 @@ func (o *pod) waitForDeletion() error {
 		case <-ctx.Done():
 			return fmt.Errorf("timeout waiting for pod deletion: %w", ctx.Err())
 		case event := <-watcher.ResultChan():
+			klog.InfoS("got watcher result", "event", event)
 			if event.Type == watch.Deleted {
 				// Check if there are any remaining pods matching our criteria
 				pods, err := o.node.clientset.CoreV1().Pods(o.namespace).List(ctx, metav1.ListOptions{
@@ -212,6 +214,7 @@ func (o *pod) waitForDeletion() error {
 					// All pods have been deleted
 					break
 				}
+				klog.InfoS("Still waiting for pods", "pods", pods)
 			}
 		}
 	}
