@@ -47,8 +47,8 @@ type reconfigureMIGOptions struct {
 	// TODO: Define the validation schema.
 	SelectedMIGConfig string `validate:"required"`
 
-	// DriverLibraryPath is the path to libnvidia-ml.so.1 in the container.
-	DriverLibraryPath string `validate:"required,filepath"`
+	// DriverLibrayPath is the path to libnvidia-ml.so.1 in the container.
+	DriverLibraryPath string `validate:"omitempty,filepath"`
 
 	// WithReboot reboots the node if changing the MIG mode fails for any reason.
 	WithReboot bool

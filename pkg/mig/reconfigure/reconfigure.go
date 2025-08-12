@@ -65,6 +65,10 @@ func New(opts ...Option) (Reconfigurer, error) {
 		return nil, err
 	}
 
+	if o.CDIEnabled && o.DriverLibraryPath == "" {
+		return nil, fmt.Errorf("A driver library path must be specified for CDI mode")
+	}
+
 	migParted, err := o.createMIGPartedCLI()
 	if err != nil {
 		return nil, err
