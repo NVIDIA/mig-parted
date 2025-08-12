@@ -169,9 +169,9 @@ func (o *pod) delete() error {
 	klog.InfoS("Deleting pod", "app", o.app, "node", o.node.name, "namespace", o.namespace)
 	args := []string{
 		"delete", "pod",
-		"--field-selector \"spec.nodeName=" + o.node.name + "\"",
-		"-n \"" + o.namespace + "\"",
-		"-l app=" + o.app,
+		"--field-selector", "spec.nodeName=" + o.node.name,
+		"-n", o.namespace,
+		"-l", "app=" + o.app,
 	}
 
 	klog.InfoS("TODO: running kubctl with args", "args", args)
