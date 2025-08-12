@@ -307,7 +307,7 @@ func start(c *cli.Context) error {
 		log.Infof("Waiting for change to '%s' label", MigConfigLabel)
 		value := migConfig.Get()
 		log.Infof("Updating to MIG config: %s", value)
-		err := runScript(value, driverLibraryPath, nvidiaSMIPath)
+		err := runScript(value, driverLibraryPath, nvidiaSMIPath, clientset)
 		if err != nil {
 			log.Errorf("Error: %s", err)
 			continue
@@ -374,7 +374,7 @@ func parseGPUCLientsFile(file string) (*GPUClients, error) {
 	return &clients, nil
 }
 
-func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath string) error {
+func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath string, clientset *kubernetes.Clientset) error {
 	gpuClients, err := parseGPUCLientsFile(gpuClientsFileFlag)
 	if err != nil {
 		return fmt.Errorf("error parsing host's GPU clients file: %s", err)
@@ -391,6 +391,7 @@ func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath st
 		reconfigure.WithHostKubeletService(hostKubeletSystemdServiceFlag),
 		reconfigure.WithGPUClientNamespace(defaultGPUClientsNamespaceFlag),
 		reconfigure.WithConfigStateLabel(reconfigure.MIGConfigStateLabel),
+		reconfigure.WithClientset(clientset),
 	}
 
 	if cdiEnabledFlag {

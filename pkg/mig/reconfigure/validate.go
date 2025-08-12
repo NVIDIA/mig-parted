@@ -31,6 +31,9 @@ var (
 
 // Validate the MIG reconfiguration options.
 func (o *reconfigureMIGOptions) Validate() error {
+	if o.clientset == nil {
+		return fmt.Errorf("a k8s ClientSet must be specified")
+	}
 	validate := validator.New(validator.WithRequiredStructEnabled())
 
 	err := validate.RegisterValidation("systemd_service_name", validateSystemdServiceName)
