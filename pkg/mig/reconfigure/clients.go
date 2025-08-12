@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -166,14 +167,28 @@ func (o *pod) Stop() error {
 }
 
 func (o *pod) delete() error {
-	err := o.node.clientset.CoreV1().Pods(o.namespace).DeleteCollection(
-		context.TODO(),
-		metav1.DeleteOptions{},
-		metav1.ListOptions{
-			FieldSelector: fmt.Sprintf("spec.nodeName=%s", o.node.name),
-			LabelSelector: fmt.Sprintf("app=%s", o.app),
-		},
-	)
+	args := []string{
+		"delete", "pod",
+		"--field-selector \"spec.nodeName=" + o.node.name + "\"",
+		"-n \"" + o.namespace + "\"",
+		"-l app=" + o.app,
+	}
+
+	// TODO: We should use the klientset here, but we don't have the correct
+	// permissions.
+	cmd := exec.Command("kubectl", args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+
+	err := cmd.Run()
+	// err := o.node.clientset.CoreV1().Pods(o.namespace).DeleteCollection(
+	// 	context.TODO(),
+	// 	metav1.DeleteOptions{},
+	// 	metav1.ListOptions{
+	// 		FieldSelector: fmt.Sprintf("spec.nodeName=%s", o.node.name),
+	// 		LabelSelector: fmt.Sprintf("app=%s", o.app),
+	// 	},
+	// )
 	if err != nil {
 		return fmt.Errorf("unable to delete pods for app %s: %w", o.app, err)
 	}
