@@ -228,7 +228,7 @@ func (o *pod) waitForDeletion() error {
 				}
 				if len(pods.Items) == 0 {
 					// All pods have been deleted
-					break
+					return nil
 				}
 				klog.InfoS("Still waiting for pods", "pods", pods)
 			}
