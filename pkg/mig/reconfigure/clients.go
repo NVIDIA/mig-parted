@@ -197,11 +197,23 @@ func (o *pod) delete() error {
 }
 
 func (o *pod) waitForDeletion() error {
-	klog.InfoS("Waiting for shutdown", "app", o.app, "node", o.node.name, "namespace", o.namespace)
 	timeout := 5 * time.Minute
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	pods, err := o.node.clientset.CoreV1().Pods(o.namespace).List(ctx, metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("spec.nodeName=%s", o.node.name),
+		LabelSelector: fmt.Sprintf("app=%s", o.app),
+	})
+	if err != nil {
+		return fmt.Errorf("unable to list pods for %v: %w", o.app, err)
+	}
+	if len(pods.Items) == 0 {
+		klog.InfoS("No pods found; skipping", "app", o.app, "node", o.node.name, "namespace", o.namespace)
+		return nil
+	}
+
+	klog.InfoS("Waiting for shutdown", "app", o.app, "node", o.node.name, "namespace", o.namespace)
 	watcher, err := o.node.clientset.CoreV1().Pods(o.namespace).Watch(ctx, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("spec.nodeName=%s", o.node.name),
 		LabelSelector: fmt.Sprintf("app=%s", o.app),
