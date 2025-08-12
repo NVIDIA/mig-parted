@@ -166,7 +166,7 @@ func (o *pod) Stop() error {
 }
 
 func (o *pod) delete() error {
-	klog.InfoS("Deleting pod", "node", o.node.name, "namespace", o.namespace, "app", o.app)
+	klog.InfoS("Deleting pod", "app", o.app, "node", o.node.name, "namespace", o.namespace)
 	args := []string{
 		"delete", "pod",
 		"--field-selector \"spec.nodeName=" + o.node.name + "\"",
@@ -197,6 +197,7 @@ func (o *pod) delete() error {
 }
 
 func (o *pod) waitForDeletion() error {
+	klog.InfoS("Waiting for shutdown", "app", o.app, "node", o.node.name, "namespace", o.namespace)
 	timeout := 5 * time.Minute
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -227,6 +228,7 @@ func (o *pod) waitForDeletion() error {
 					return fmt.Errorf("unable to list pods: %w", err)
 				}
 				if len(pods.Items) == 0 {
+					klog.InfoS("Shutdown", "app", o.app, "node", o.node.name, "namespace", o.namespace)
 					// All pods have been deleted
 					return nil
 				}
@@ -243,6 +245,8 @@ func (o *operand) Restart() error {
 	if o.lastValue == "false" {
 		return nil
 	}
+	klog.InfoS("Restarting operand", "app", o.app, "node", o.node.name, "namespace", o.namespace)
+
 	err := o.node.setNodeLabelValue(o.deployLabel, "true")
 	if err != nil {
 		return fmt.Errorf("unable to restart operand %q: %w", o.app, err)
@@ -260,6 +264,7 @@ func (o *operand) Stop() error {
 	}
 	o.lastValue = value
 	if value != "false" {
+		klog.InfoS("Stopping operand", "app", o.app, "node", o.node.name, "namespace", o.namespace)
 		if err := o.node.setNodeLabelValue(o.deployLabel, "paused-for-mig-change"); err != nil {
 			return err
 		}
