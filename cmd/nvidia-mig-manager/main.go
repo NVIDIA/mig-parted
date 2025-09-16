@@ -19,7 +19,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -28,12 +27,14 @@ import (
 	cli "github.com/urfave/cli/v2"
 
 	"github.com/NVIDIA/mig-parted/internal/info"
+	"github.com/NVIDIA/mig-parted/pkg/mig/reconfigure"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 
 	"sigs.k8s.io/yaml"
 )
@@ -280,6 +281,8 @@ func validateFlags(c *cli.Context) error {
 }
 
 func start(c *cli.Context) error {
+	klog.InfoS(fmt.Sprintf("Starting %s", c.App.Name), "version", c.App.Version)
+
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigFlag)
 	if err != nil {
 		return fmt.Errorf("error building kubernetes clientcmd config: %s", err)
@@ -304,7 +307,7 @@ func start(c *cli.Context) error {
 		log.Infof("Waiting for change to '%s' label", MigConfigLabel)
 		value := migConfig.Get()
 		log.Infof("Updating to MIG config: %s", value)
-		err := runScript(value, driverLibraryPath, nvidiaSMIPath)
+		err := runScript(value, driverLibraryPath, nvidiaSMIPath, clientset)
 		if err != nil {
 			log.Errorf("Error: %s", err)
 			continue
@@ -371,36 +374,49 @@ func parseGPUCLientsFile(file string) (*GPUClients, error) {
 	return &clients, nil
 }
 
-func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath string) error {
+func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath string, clientset *kubernetes.Clientset) error {
 	gpuClients, err := parseGPUCLientsFile(gpuClientsFileFlag)
 	if err != nil {
 		return fmt.Errorf("error parsing host's GPU clients file: %s", err)
 	}
 
-	args := []string{
-		"-n", nodeNameFlag,
-		"-f", configFileFlag,
-		"-c", migConfigValue,
-		"-m", hostRootMountFlag,
-		"-i", hostNvidiaDirFlag,
-		"-o", hostMigManagerStateFileFlag,
-		"-g", strings.Join(gpuClients.SystemdServices, ","),
-		"-k", hostKubeletSystemdServiceFlag,
-		"-p", defaultGPUClientsNamespaceFlag,
+	options := []reconfigure.Option{
+		reconfigure.WithNodeName(nodeNameFlag),
+		reconfigure.WithMIGPartedConfigFile(configFileFlag),
+		reconfigure.WithSelectedMIGConfig(migConfigValue),
+		reconfigure.WithHostRootMount(hostRootMountFlag),
+		reconfigure.WithHostNVIDIADir(hostNvidiaDirFlag),
+		reconfigure.WithHostMIGManagerStateFile(hostMigManagerStateFileFlag),
+		reconfigure.WithHostGPUClientServices(gpuClients.SystemdServices...),
+		reconfigure.WithHostKubeletService(hostKubeletSystemdServiceFlag),
+		reconfigure.WithGPUClientNamespace(defaultGPUClientsNamespaceFlag),
+		reconfigure.WithConfigStateLabel(reconfigure.MIGConfigStateLabel),
+		reconfigure.WithClientset(clientset),
 	}
+
 	if cdiEnabledFlag {
-		args = append(args, "-e", "-t", driverRoot, "-a", driverRootCtrPath, "-b", devRoot, "-j", devRootCtrPath, "-l", driverLibraryPath, "-q", nvidiaSMIPath, "-s", nvidiaCDIHookPath)
+		options = append(options,
+			reconfigure.WithCDIEnabled(cdiEnabledFlag),
+			reconfigure.WithDriverRoot(driverRoot),
+			reconfigure.WithDriverRootCtrPath(driverRootCtrPath),
+			reconfigure.WithDevRoot(devRoot),
+			reconfigure.WithDevRootCtrPath(devRootCtrPath),
+			reconfigure.WithDriverLibraryPath(driverLibraryPath),
+			reconfigure.WithNVIDIASMIPath(nvidiaSMIPath),
+			reconfigure.WithNVIDIACDIHookPath(nvidiaCDIHookPath),
+		)
 	}
-	if withRebootFlag {
-		args = append(args, "-r")
+
+	options = append(options,
+		reconfigure.WithAllowReboot(withRebootFlag),
+		reconfigure.WithShutdownHostGPUClients(withShutdownHostGPUClientsFlag),
+	)
+
+	reconfigurer, err := reconfigure.New(options...)
+	if err != nil {
+		return err
 	}
-	if withShutdownHostGPUClientsFlag {
-		args = append(args, "-d")
-	}
-	cmd := exec.Command(reconfigureScriptFlag, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return reconfigurer.Reconfigure()
 }
 
 func ContinuouslySyncMigConfigChanges(clientset *kubernetes.Clientset, migConfig *SyncableMigConfig) chan struct{} {
