@@ -45,12 +45,6 @@ ARG VERSION="N/A"
 ARG GIT_COMMIT="unknown"
 RUN make PREFIX=/artifacts cmds
 
-RUN cp ./deployments/container/reconfigure-mig.sh /artifacts/reconfigure-mig.sh
-
-ARG TARGETARCH
-RUN OS_ARCH=${TARGETARCH/x86_64/amd64} && OS_ARCH=${OS_ARCH/aarch64/arm64} && curl -o /artifacts/kubectl -L "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${OS_ARCH}/kubectl"
-RUN chmod a+x /artifacts/kubectl
-
 # Install the nvidia-ctk binary as a go executable
 # TODO: Once we can consume a golang API from reconfigure.sh we can remove this.
 ARG NVIDIA_CTK_VERSION=main
@@ -66,8 +60,6 @@ RUN dnf remove -y cuda-*
 RUN mkdir /licenses && mv /NGC-DL-CONTAINER-LICENSE /licenses/NGC-DL-CONTAINER-LICENSE
 COPY --from=build /artifacts/nvidia-mig-parted  /usr/bin/nvidia-mig-parted
 COPY --from=build /artifacts/nvidia-mig-manager /usr/bin/nvidia-mig-manager
-COPY --from=build /artifacts/reconfigure-mig.sh /usr/bin/reconfigure-mig.sh
-COPY --from=build /artifacts/kubectl            /usr/bin/kubectl
 COPY --from=build /artifacts/nvidia-ctk         /usr/bin/nvidia-ctk
 
 ENV NVIDIA_DISABLE_REQUIRE="true"

@@ -17,17 +17,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
-
-	"github.com/NVIDIA/mig-parted/internal/info"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -36,6 +34,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"sigs.k8s.io/yaml"
+
+	"github.com/NVIDIA/mig-parted/internal/info"
+	"github.com/NVIDIA/mig-parted/pkg/mig/reconfigure"
 )
 
 const (
@@ -304,7 +305,7 @@ func start(c *cli.Context) error {
 		log.Infof("Waiting for change to '%s' label", MigConfigLabel)
 		value := migConfig.Get()
 		log.Infof("Updating to MIG config: %s", value)
-		err := runScript(value, driverLibraryPath, nvidiaSMIPath)
+		err := migReconfigure(c.Context, value, clientset, driverLibraryPath, nvidiaSMIPath)
 		if err != nil {
 			log.Errorf("Error: %s", err)
 			continue
@@ -371,36 +372,53 @@ func parseGPUCLientsFile(file string) (*GPUClients, error) {
 	return &clients, nil
 }
 
-func runScript(migConfigValue string, driverLibraryPath string, nvidiaSMIPath string) error {
+func migReconfigure(ctx context.Context, migConfigValue string, clientset *kubernetes.Clientset, driverLibraryPath string, nvidiaSMIPath string) error {
 	gpuClients, err := parseGPUCLientsFile(gpuClientsFileFlag)
 	if err != nil {
 		return fmt.Errorf("error parsing host's GPU clients file: %s", err)
 	}
 
-	args := []string{
-		"-n", nodeNameFlag,
-		"-f", configFileFlag,
-		"-c", migConfigValue,
-		"-m", hostRootMountFlag,
-		"-i", hostNvidiaDirFlag,
-		"-o", hostMigManagerStateFileFlag,
-		"-g", strings.Join(gpuClients.SystemdServices, ","),
-		"-k", hostKubeletSystemdServiceFlag,
-		"-p", defaultGPUClientsNamespaceFlag,
+	opts := &reconfigure.Options{
+		NodeName:                   nodeNameFlag,
+		MigConfigFile:              configFileFlag,
+		SelectedMigConfig:          migConfigValue,
+		HostRootMount:              hostRootMountFlag,
+		HostNvidiaDir:              hostNvidiaDirFlag,
+		HostMigManagerStateFile:    hostMigManagerStateFileFlag,
+		HostGPUClientServices:      strings.Join(gpuClients.SystemdServices, ","),
+		HostKubeletService:         hostKubeletSystemdServiceFlag,
+		DefaultGPUClientsNamespace: defaultGPUClientsNamespaceFlag,
+		WithReboot:                 withRebootFlag,
+		WithShutdownHostGPUClients: withShutdownHostGPUClientsFlag,
 	}
+
 	if cdiEnabledFlag {
-		args = append(args, "-e", "-t", driverRoot, "-a", driverRootCtrPath, "-b", devRoot, "-j", devRootCtrPath, "-l", driverLibraryPath, "-q", nvidiaSMIPath, "-s", nvidiaCDIHookPath)
+		opts.CDIEnabled = true
+		opts.DriverRoot = driverRoot
+		opts.DriverRootCtrPath = driverRootCtrPath
+		opts.DevRoot = devRoot
+		opts.DevRootCtrPath = devRootCtrPath
+		opts.DriverLibraryPath = driverLibraryPath
+		opts.NvidiaSMIPath = nvidiaSMIPath
+		opts.NvidiaCDIHookPath = nvidiaCDIHookPath
 	}
-	if withRebootFlag {
-		args = append(args, "-r")
-	}
+
+	migPartedBinary := []string{"nvidia-mig-parted"}
 	if withShutdownHostGPUClientsFlag {
-		args = append(args, "-d")
+		hostMigPartedBinary, err := copyMigPartedToHost(hostRootMountFlag, hostNvidiaDirFlag, configFileFlag)
+		if err != nil {
+			return fmt.Errorf("failed to copy nvidia-mig-parted to host: %w", err)
+		}
+		migPartedBinary = strings.Split(hostMigPartedBinary, " ")
+		opts.MigConfigFile = filepath.Join(hostNvidiaDirFlag, "mig-manager", "config.yaml")
 	}
-	cmd := exec.Command(reconfigureScriptFlag, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+
+	rcfg, err := reconfigure.New(ctx, clientset, migPartedBinary, opts)
+	if err != nil {
+		return fmt.Errorf("error creating reconfigure instance: %w", err)
+	}
+
+	return rcfg.Run()
 }
 
 func ContinuouslySyncMigConfigChanges(clientset *kubernetes.Clientset, migConfig *SyncableMigConfig) chan struct{} {
@@ -432,4 +450,67 @@ func ContinuouslySyncMigConfigChanges(clientset *kubernetes.Clientset, migConfig
 	stop := make(chan struct{})
 	go controller.Run(stop)
 	return stop
+}
+
+// copyMigPartedToHost copies the "nvidia-mig-parted" binary from the container's root filesystem over to that of the host's.
+// After copying the binary, it aliases the "nvidia-mig-parted" command to the binary located in the host.
+// This ensures that all subsequent "nvidia-mig-parted" calls are executed from the host root filesystem.
+func copyMigPartedToHost(hostRootMount, hostNvidiaDir, migConfigFile string) (string, error) {
+	// Create directory
+	dir := filepath.Join(hostRootMount, hostNvidiaDir, "mig-manager")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// Copy the nvidia-mig-parted binary
+	sourceBinary := "/usr/bin/nvidia-mig-parted" // Assuming it's in PATH
+	destBinary := filepath.Join(dir, "nvidia-mig-parted")
+	if err := copyFile(sourceBinary, destBinary); err != nil {
+		return "", fmt.Errorf("failed to copy nvidia-mig-parted: %w", err)
+	}
+
+	// Copy the mig config file
+	configDst := filepath.Join(dir, "config.yaml")
+	if err := copyFile(migConfigFile, configDst); err != nil {
+		return "", fmt.Errorf("failed to copy config file: %w", err)
+	}
+
+	hostMigPartedBinaryPath := filepath.Join(hostNvidiaDir, "mig-manager", "nvidia-mig-parted")
+	hostMigPartedBinary := fmt.Sprintf("chroot %s %s", hostRootMount, hostMigPartedBinaryPath)
+
+	return hostMigPartedBinary, nil
+}
+
+// copyFile is a helper method to perform a copy of file located at the source "src" over to the destination "dst"
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = destFile.ReadFrom(sourceFile)
+	if err != nil {
+		return err
+	}
+
+	// Get source file info to retrieve permissions
+	sourceInfo, err := sourceFile.Stat()
+	if err != nil {
+		return err
+	}
+
+	// Explicitly set permissions on the destination file (in case OpenFile didn't fully apply them)
+	err = os.Chmod(dst, sourceInfo.Mode().Perm())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
