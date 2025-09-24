@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM nvcr.io/nvidia/cuda:12.9.1-base-ubuntu20.04 as build
+FROM nvcr.io/nvidia/cuda:12.9.1-base-ubi9 as build
 
 SHELL ["/bin/bash", "-c"]
 
-RUN apt-get update && \
-    apt-get install -y wget make git gcc curl \
-    && \
-    rm -rf /var/lib/apt/lists/*
+RUN yum install -y \
+    wget make git gcc \
+     && \
+    rm -rf /var/cache/yum/*
 
 ARG GOLANG_VERSION=1.22.8
 RUN set -eux; \
@@ -52,12 +52,12 @@ RUN go install -ldflags "-extldflags=-Wl,-z,lazy -s -w" \
     github.com/NVIDIA/nvidia-container-toolkit/cmd/nvidia-ctk@${NVIDIA_CTK_VERSION} \
     && cp ${GOPATH}/bin/nvidia-ctk /artifacts/nvidia-ctk
 
-FROM nvcr.io/nvidia/cuda:12.9.1-base-ubuntu20.04
+FROM nvcr.io/nvidia/distroless/go:v3.1.12-dev
 
-# Remove CUDA libs(compat etc) in favor of libs installed by the NVIDIA driver
-RUN apt-get --purge -y autoremove cuda-*
+USER 0:0
+SHELL ["/busybox/sh", "-c"]
+RUN ln -s /busybox/sh /bin/sh
 
-RUN mkdir /licenses && mv /NGC-DL-CONTAINER-LICENSE /licenses/NGC-DL-CONTAINER-LICENSE
 COPY --from=build /artifacts/nvidia-mig-parted  /usr/bin/nvidia-mig-parted
 COPY --from=build /artifacts/nvidia-mig-manager /usr/bin/nvidia-mig-manager
 COPY --from=build /artifacts/nvidia-ctk         /usr/bin/nvidia-ctk
@@ -74,12 +74,5 @@ LABEL io.k8s.display-name="NVIDIA MIG Manager for Kubernetes"
 LABEL name="NVIDIA MIG Manager for Kubernetes"
 LABEL summary="NVIDIA MIG Manager for Kubernetes"
 LABEL description="See summary"
-
-# Install / upgrade packages here that are required to resolve CVEs
-ARG CVE_UPDATES
-RUN if [ -n "${CVE_UPDATES}" ]; then \
-        apt-get update && apt-get upgrade -y ${CVE_UPDATES} && \
-        rm -rf /var/lib/apt/lists/*; \
-    fi
 
 ENTRYPOINT ["nvidia-mig-manager"]

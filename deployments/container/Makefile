@@ -31,17 +31,17 @@ endif
 
 IMAGE_VERSION := $(VERSION)
 
-IMAGE_TAG ?= $(VERSION)-$(DIST)
+IMAGE_TAG ?= $(VERSION)
 IMAGE = $(IMAGE_NAME):$(IMAGE_TAG)
 
 OUT_IMAGE_NAME ?= $(IMAGE_NAME)
 OUT_IMAGE_VERSION ?= $(IMAGE_VERSION)
-OUT_IMAGE_TAG = $(OUT_IMAGE_VERSION)-$(DIST)
+OUT_IMAGE_TAG = $(OUT_IMAGE_VERSION)
 OUT_IMAGE = $(OUT_IMAGE_NAME):$(OUT_IMAGE_TAG)
 
 ##### Public rules #####
-DEFAULT_PUSH_TARGET := ubuntu20.04
-DISTRIBUTIONS := ubuntu20.04 ubi9
+DEFAULT_PUSH_TARGET := image
+DISTRIBUTIONS := $(DEFAULT_PUSH_TARGET)
 
 BUILD_TARGETS := $(patsubst %,build-%,$(DISTRIBUTIONS))
 PUSH_TARGETS := $(patsubst %,push-%,$(DISTRIBUTIONS))
@@ -55,22 +55,7 @@ else
 include $(CURDIR)/deployments/container/multi-arch.mk
 endif
 
-# For the default push target we also push a short tag equal to the version.
-# We skip this for the development release
-DEVEL_RELEASE_IMAGE_VERSION ?= devel
-PUSH_MULTIPLE_TAGS ?= true
-ifeq ($(strip $(OUT_IMAGE_VERSION)),$(DEVEL_RELEASE_IMAGE_VERSION))
-PUSH_MULTIPLE_TAGS = false
-endif
-ifeq ($(PUSH_MULTIPLE_TAGS),true)
-push-$(DEFAULT_PUSH_TARGET): push-short
-endif
-
-push-%: DIST = $(*)
-push-short: DIST = $(DEFAULT_PUSH_TARGET)
-
-build-%: DIST = $(*)
-build-%: DOCKERFILE = $(CURDIR)/deployments/container/Dockerfile.$(DOCKERFILE_SUFFIX)
+DOCKERFILE = $(CURDIR)/deployments/container/Dockerfile
 
 # Use a generic build target to build the relevant images
 $(BUILD_TARGETS): build-%: $(ARTIFACTS_ROOT)
@@ -86,7 +71,3 @@ $(BUILD_TARGETS): build-%: $(ARTIFACTS_ROOT)
 		--build-arg CVE_UPDATES="$(CVE_UPDATES)" \
 		-f $(DOCKERFILE) \
 		$(CURDIR)
-
-build-ubuntu%: DOCKERFILE_SUFFIX := ubuntu
-
-build-ubi9: DOCKERFILE_SUFFIX := ubi9
