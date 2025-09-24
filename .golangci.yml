@@ -18,6 +18,11 @@ linters:
           - gosec
         path: pkg/mig/config/config_test.go
         text: G404
+      # TODO: remove this when shell command invocations are replaced with Go method calls
+      - linters:
+          - gosec
+        path: pkg/mig/reconfigure/reconfigure.go
+        text: G204
       - path: (.+)\.go$
         text: 'G115: integer overflow conversion(.+)'
     paths:
