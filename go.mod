@@ -3,8 +3,8 @@ module github.com/NVIDIA/mig-parted
 go 1.24.0
 
 require (
-	github.com/NVIDIA/go-nvlib v0.7.4
-	github.com/NVIDIA/go-nvml v0.12.9-0
+	github.com/NVIDIA/go-nvlib v0.8.0
+	github.com/NVIDIA/go-nvml v0.13.0-0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli/v2 v2.27.7
