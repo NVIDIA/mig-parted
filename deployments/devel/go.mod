@@ -1,10 +1,10 @@
 module devel
 
-go 1.24
+go 1.25
 
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.17.8
-	github.com/matryer/moq v0.5.3
+	github.com/matryer/moq v0.6.0
 )
 
 require (
