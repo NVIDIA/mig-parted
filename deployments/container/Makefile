@@ -39,6 +39,8 @@ OUT_IMAGE_VERSION ?= $(IMAGE_VERSION)
 OUT_IMAGE_TAG = $(OUT_IMAGE_VERSION)-$(DIST)
 OUT_IMAGE = $(OUT_IMAGE_NAME):$(OUT_IMAGE_TAG)
 
+GOPROXY ?= direct
+
 ##### Public rules #####
 DEFAULT_PUSH_TARGET := ubuntu20.04
 DISTRIBUTIONS := ubuntu20.04 ubi9
@@ -84,6 +86,7 @@ $(BUILD_TARGETS): build-%: $(ARTIFACTS_ROOT)
 		--build-arg GIT_COMMIT="$(GIT_COMMIT)" \
 		--build-arg NVIDIA_CTK_VERSION=$(NVIDIA_CTK_VERSION) \
 		--build-arg CVE_UPDATES="$(CVE_UPDATES)" \
+		--build-arg GOPROXY="$(GOPROXY)" \
 		-f $(DOCKERFILE) \
 		$(CURDIR)
 
