@@ -31,9 +31,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        dist: [ubuntu20.04, ubi9]
     steps:
       - uses: actions/checkout@v5
         name: Check out code
@@ -53,10 +50,6 @@ jobs:
             GENERATE_ARTIFACTS="true"
           elif [[ "${{ github.event_name }}" == "push" ]]; then
             GENERATE_ARTIFACTS="true"
-          fi
-
-          if [[ "${{ matrix.dist }}" == "ubi9" ]]; then
-             echo "CVE_UPDATES=libxml2 sqlite-libs" >> $GITHUB_ENV
           fi
 
           echo "PUSH_ON_BUILD=${GENERATE_ARTIFACTS}" >> $GITHUB_ENV
@@ -79,4 +72,4 @@ jobs:
           VERSION: ${COMMIT_SHORT_SHA}
         run: |
           echo "${VERSION}"
-          make -f deployments/container/Makefile build-${{ matrix.dist }}
+          make -f deployments/container/Makefile build-image
