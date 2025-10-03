@@ -39,7 +39,7 @@ OUT_IMAGE_VERSION ?= $(IMAGE_VERSION)
 OUT_IMAGE_TAG = $(OUT_IMAGE_VERSION)
 OUT_IMAGE = $(OUT_IMAGE_NAME):$(OUT_IMAGE_TAG)
 
-GOPROXY ?= direct
+GOPROXY ?= https://proxy.golang.org,direct
 
 ##### Public rules #####
 DEFAULT_PUSH_TARGET := image
