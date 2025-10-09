@@ -133,10 +133,18 @@ data:
             "1g.23gb+me": 1
 
       all-1g.35gb:
-        - devices: all
+        # H200-141GB
+        - device-filter: ["0x233510DE"]
+          devices: all
           mig-enabled: true
           mig-devices:
             "1g.35gb": 4
+        # GB300
+        - device-filter: ["0x31C210DE"]
+          devices: all
+          mig-enabled: true
+          mig-devices:
+            "1g.35gb": 7
 
       all-1g.45gb:
         - devices: all
@@ -274,17 +282,59 @@ data:
           mig-devices:
             "1g.24gb+me": 1
 
+      all-1g.34gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "1g.34gb": 7
+
+      all-1g.34gb.me:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "1g.34gb+me": 1
+
+      all-1g.35gb.me:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "1g.35gb+me": 1
+
       all-1g.47gb:
         - devices: all
           mig-enabled: true
           mig-devices:
             "1g.47gb": 4
 
+      all-1g.67gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "1g.67gb": 4
+
+      all-1g.70gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "1g.70gb": 4
+
       all-2g.47gb:
         - devices: all
           mig-enabled: true
           mig-devices:
             "2g.47gb": 3
+
+      all-2g.67gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "2g.67gb": 3
+
+      all-2g.70gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "2g.70gb": 3
 
       all-3g.93gb:
         - devices: all
@@ -304,11 +354,35 @@ data:
           mig-devices:
             "3g.95gb": 2
 
+      all-3g.135gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "3g.135gb": 2
+
+      all-3g.139gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "3g.139gb": 2
+
       all-4g.95gb:
         - devices: all
           mig-enabled: true
           mig-devices:
             "4g.95gb": 1
+
+      all-4g.135gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "4g.135gb": 1
+
+      all-4g.139gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "4g.139gb": 1
 
       all-7g.186gb:
         - devices: all
@@ -321,6 +395,18 @@ data:
           mig-enabled: true
           mig-devices:
             "7g.189gb": 1
+
+      all-7g.269gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "7g.269gb": 1
+
+      all-7g.278gb:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            "7g.278gb": 1
 
       # GB200 HGX, B200, H100-80GB, H100-NVL, H800-80GB, H800-NVL
       all-balanced:
@@ -367,3 +453,21 @@ data:
             "1g.12gb": 1
             "2g.24gb": 1
             "3g.47gb": 1
+
+        # B300
+        - device-filter: ["0x318210DE"]
+          devices: all
+          mig-enabled: true
+          mig-devices:
+            "1g.34gb": 2
+            "2g.67gb": 1
+            "3g.135gb": 1
+
+        # GB300
+        - device-filter: ["0x31C210DE"]
+          devices: all
+          mig-enabled: true
+          mig-devices:
+            "1g.35gb": 2
+            "2g.70gb": 1
+            "3g.139gb": 1
