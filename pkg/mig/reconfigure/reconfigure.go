@@ -170,29 +170,30 @@ func (r *Reconfigure) Run() error {
 			_ = r.setState(migStateFailed)
 			return fmt.Errorf("failed to shutdown host GPU clients: %w", err)
 		}
+		if r.migModeChangeRequired {
+			time.Sleep(30 * time.Second)
+		}
 	}
 
-	if r.migModeChangeRequired {
-		if err := r.applyMigModeChange(); err != nil {
-			if r.opts.WithReboot {
-				log.Infof("Changing the '%s' node label to 'rebooting'\n", migConfigStateLabel)
+	if err := r.applyMigModeChange(); err != nil {
+		if r.opts.WithReboot {
+			log.Infof("Changing the '%s' node label to 'rebooting'\n", migConfigStateLabel)
 
-				if err := r.setNodeLabel(migConfigStateLabel, "rebooting"); err != nil {
-					log.Info("Unable to set the value of 'nvidia.com/mig.config.state' to 'rebooting'")
-					log.Info("Exiting so as not to reboot multiple times unexpectedly")
-					_ = r.setState(migStateFailed)
-					return err
-				}
-
-				log.Info("Rebooting the node...")
-				cmd := exec.Command("chroot", r.opts.HostRootMount, "reboot")
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				if err := cmd.Run(); err != nil {
-					log.Warnf("Failed to reboot the node: %v", err)
-				}
-				return nil
+			if err := r.setNodeLabel(migConfigStateLabel, "rebooting"); err != nil {
+				log.Info("Unable to set the value of 'nvidia.com/mig.config.state' to 'rebooting'")
+				log.Info("Exiting so as not to reboot multiple times unexpectedly")
+				_ = r.setState(migStateFailed)
+				return err
 			}
+
+			log.Info("Rebooting the node...")
+			cmd := exec.Command("chroot", r.opts.HostRootMount, "reboot")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				log.Warnf("Failed to reboot the node: %v", err)
+			}
+			return nil
 		}
 	}
 
