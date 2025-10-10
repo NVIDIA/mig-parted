@@ -55,11 +55,11 @@ RUN go install -ldflags "-extldflags=-Wl,-z,lazy -s -w" \
     github.com/NVIDIA/nvidia-container-toolkit/cmd/nvidia-ctk@${NVIDIA_CTK_VERSION} \
     && cp ${GOPATH}/bin/nvidia-ctk /artifacts/nvidia-ctk
 
-FROM nvcr.io/nvidia/distroless/go:v3.1.13-dev
+FROM nvcr.io/nvidia/cuda:13.0.1-base-ubi9
 
-USER 0:0
-SHELL ["/busybox/sh", "-c"]
-RUN ln -s /busybox/sh /bin/sh
+#USER 0:0
+#SHELL ["/busybox/sh", "-c"]
+#RUN ln -s /busybox/sh /bin/sh
 
 COPY --from=build /artifacts/nvidia-mig-parted  /usr/bin/nvidia-mig-parted
 COPY --from=build /artifacts/nvidia-mig-manager /usr/bin/nvidia-mig-manager
