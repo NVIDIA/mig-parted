@@ -59,7 +59,11 @@ FROM nvcr.io/nvidia/distroless/go:v3.1.13-dev
 
 USER 0:0
 SHELL ["/busybox/sh", "-c"]
-RUN ln -s /busybox/sh /bin/sh
+RUN ln -s /busybox/sh /bin/sh && \
+    # delete /var/run as it's an empty dir
+    rm -r /var/run && \
+    # and symlink it to /run instead to emulate other distros
+    ln -s /run /var/run
 
 COPY --from=build /artifacts/nvidia-mig-parted  /usr/bin/nvidia-mig-parted
 COPY --from=build /artifacts/nvidia-mig-manager /usr/bin/nvidia-mig-manager
