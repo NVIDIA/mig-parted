@@ -16,3 +16,7 @@ hooks:
     - workdir: "/etc/nvidia-mig-manager"
       command: "/bin/bash"
       args: ["-x", "-c", "source hooks.sh; apply-exit"]
+    cdi-refresh:
+    - workdir: "/etc/nvidia-mig-manager"
+      command: "/bin/bash"
+      args: ["-x", "-c", "source cdi-refresh.sh; cdi-refresh"]
