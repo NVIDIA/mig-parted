@@ -3,7 +3,7 @@ module devel
 go 1.24.0
 
 require (
-	github.com/NVIDIA/nvidia-container-toolkit v1.18.0-rc.6
+	github.com/NVIDIA/nvidia-container-toolkit v1.18.0
 	github.com/matryer/moq v0.5.3
 )
 
@@ -25,10 +25,10 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/urfave/cli-altsrc/v3 v3.1.0 // indirect
 	github.com/urfave/cli/v3 v3.4.1 // indirect
-	golang.org/x/mod v0.28.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
-	golang.org/x/tools v0.36.0 // indirect
+	golang.org/x/mod v0.29.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
+	golang.org/x/tools v0.37.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 	tags.cncf.io/container-device-interface v1.0.1 // indirect
