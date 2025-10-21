@@ -14,12 +14,14 @@ github.com/NVIDIA/go-nvml/pkg/nvml/mock
 github.com/NVIDIA/go-nvml/pkg/nvml/mock/dgxa100
 # github.com/NVIDIA/nvidia-container-toolkit v1.18.0
 ## explicit; go 1.24.0
+github.com/NVIDIA/nvidia-container-toolkit/cmd/nvidia-ctk/system/create-device-nodes
 github.com/NVIDIA/nvidia-container-toolkit/internal/config/image
 github.com/NVIDIA/nvidia-container-toolkit/internal/discover
 github.com/NVIDIA/nvidia-container-toolkit/internal/dxcore
 github.com/NVIDIA/nvidia-container-toolkit/internal/edits
 github.com/NVIDIA/nvidia-container-toolkit/internal/info/drm
 github.com/NVIDIA/nvidia-container-toolkit/internal/info/proc
+github.com/NVIDIA/nvidia-container-toolkit/internal/info/proc/devices
 github.com/NVIDIA/nvidia-container-toolkit/internal/ldcache
 github.com/NVIDIA/nvidia-container-toolkit/internal/logger
 github.com/NVIDIA/nvidia-container-toolkit/internal/lookup
@@ -31,6 +33,8 @@ github.com/NVIDIA/nvidia-container-toolkit/internal/oci
 github.com/NVIDIA/nvidia-container-toolkit/internal/platform-support/dgpu
 github.com/NVIDIA/nvidia-container-toolkit/internal/platform-support/tegra
 github.com/NVIDIA/nvidia-container-toolkit/internal/platform-support/tegra/csv
+github.com/NVIDIA/nvidia-container-toolkit/internal/system/nvdevices
+github.com/NVIDIA/nvidia-container-toolkit/internal/system/nvmodules
 github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi
 github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi/spec
 github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi/transform
@@ -146,6 +150,9 @@ github.com/syndtr/gocapability/capability
 # github.com/urfave/cli/v2 v2.27.7
 ## explicit; go 1.18
 github.com/urfave/cli/v2
+# github.com/urfave/cli/v3 v3.4.1
+## explicit; go 1.22
+github.com/urfave/cli/v3
 # github.com/x448/float16 v0.8.4
 ## explicit; go 1.11
 github.com/x448/float16
