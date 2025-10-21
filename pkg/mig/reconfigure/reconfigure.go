@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 
+	devicenodes "github.com/NVIDIA/nvidia-container-toolkit/cmd/nvidia-ctk/system/create-device-nodes"
 	"github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi"
 	transformroot "github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi/transform/root"
 
@@ -472,11 +473,13 @@ func (r *Reconfigure) applyMigConfig() error {
 func (r *Reconfigure) handleCDI() error {
 
 	log.Info("Creating NVIDIA control device nodes")
-	// TODO: Instead of shelling out, we need to invoke the method via Go. The Toolkit code needs to be refactored first.
-	cmd := exec.Command("nvidia-ctk", "system", "create-device-nodes", "--control-devices", "--dev-root="+r.opts.DevRootCtrPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+
+	// TODO: Instead of abusing CLI command we generate here, we should expose
+	// this API and use that instead. This would require refactoring in the
+	// toolkit.
+	cmd := devicenodes.NewCommand(log.StandardLogger())
+	err := cmd.Run(context.Background(), []string{"--control-devices", "--dev-root" + r.opts.DevRootCtrPath})
+	if err != nil {
 		return fmt.Errorf("failed to create control device nodes: %w", err)
 	}
 
