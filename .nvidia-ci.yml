@@ -60,20 +60,14 @@ variables:
     - !reference [.regctl-setup, before_script]
     - apk add --no-cache make bash
     - >
-      regctl manifest get ${IN_REGISTRY}/${IN_IMAGE_NAME}:${IN_VERSION}-${DIST} --list > /dev/null && echo "${IN_REGISTRY}/${IN_IMAGE_NAME}:${IN_VERSION}-${DIST}" || ( echo "${IN_REGISTRY}/${IN_IMAGE_NAME}:${IN_VERSION}-${DIST} does not exist" && sleep infinity )
+      regctl manifest get ${IN_REGISTRY}/${IN_IMAGE_NAME}:${IN_VERSION} --list > /dev/null && echo "${IN_REGISTRY}/${IN_IMAGE_NAME}:${IN_VERSION}" || ( echo "${IN_REGISTRY}/${IN_IMAGE_NAME}:${IN_VERSION} does not exist" && sleep infinity )
   script:
     - regctl registry login "${OUT_REGISTRY}" -u "${OUT_REGISTRY_USER}" -p "${OUT_REGISTRY_TOKEN}"
-    - make -f deployments/container/Makefile IMAGE=${IN_REGISTRY}/${IN_IMAGE_NAME}:${IN_VERSION}-${DIST} OUT_IMAGE=${OUT_IMAGE_NAME}:${CI_COMMIT_SHORT_SHA}-${DIST} push-${DIST}
+    - make -f deployments/container/Makefile IMAGE=${IN_REGISTRY}/${IN_IMAGE_NAME}:${IN_VERSION} OUT_IMAGE=${OUT_IMAGE_NAME}:${CI_COMMIT_SHORT_SHA} push-image
 
-image-ubi9:
+image-distroless:
   extends:
     - .image-pull
-    - .dist-ubi9
-
-image-ubuntu20.04:
-  extends:
-    - .image-pull
-    - .dist-ubuntu20.04
 
 # We skip the integration tests for the internal CI:
 .integration:
@@ -118,8 +112,7 @@ image-ubuntu20.04:
 .update-nspect:
   stage: ngc-publish
   needs:
-    - job: release:staging-ubi9
-    - job: release:staging-ubuntu20.04
+    - job: release:staging
   extends:
     - .ngc-publish-variables
   image: 
