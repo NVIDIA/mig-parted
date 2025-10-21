@@ -1,5 +1,13 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.13.0
+- Fix device-filter for all-1g.24gb mig-parted config
+- Port reconfigure-mig.sh to Go
+- Move to distroless as the base image for nvidia-mig-manager
+- Add MIG profiles for B300 and GB300 in the mig-parted config
+- Bump NVIDIA Container Toolkit to v1.18.0
+- Bump github.com/NVIDIA/go-nvlib from 0.7.4 to 0.8.1
+
 ## v0.12.3
 - Use the correct MIG profiles for GB200
 - Add MIG profiles for RTX PRO 6000 Blackwell
