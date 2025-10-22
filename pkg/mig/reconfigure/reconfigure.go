@@ -29,6 +29,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"tags.cncf.io/container-device-interface/pkg/cdi"
+
+	devicenodes "github.com/NVIDIA/nvidia-container-toolkit/cmd/nvidia-ctk/system/create-device-nodes"
+	"github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi"
+	transformroot "github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi/transform/root"
 
 	"github.com/NVIDIA/mig-parted/internal/systemd"
 )
@@ -468,11 +473,13 @@ func (r *Reconfigure) applyMigConfig() error {
 func (r *Reconfigure) handleCDI() error {
 
 	log.Info("Creating NVIDIA control device nodes")
-	// TODO: Instead of shelling out, we need to invoke the method via Go. The Toolkit code needs to be refactored first.
-	cmd := exec.Command("nvidia-ctk", "system", "create-device-nodes", "--control-devices", "--dev-root="+r.opts.DevRootCtrPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+
+	// TODO: Instead of abusing CLI command we generate here, we should expose
+	// this API and use that instead. This would require refactoring in the
+	// toolkit.
+	cmd := devicenodes.NewCommand(log.StandardLogger())
+	err := cmd.Run(r.ctx, []string{"--control-devices", "--dev-root" + r.opts.DevRootCtrPath})
+	if err != nil {
 		return fmt.Errorf("failed to create control device nodes: %w", err)
 	}
 
@@ -641,59 +648,48 @@ func (r *Reconfigure) runNvidiaSMI() error {
 func (r *Reconfigure) createCDISpec() error {
 	log.Info("Creating management CDI spec (simplified implementation)")
 
-	cdiGenerateCommand := exec.Command("nvidia-ctk", "cdi", "generate",
-		"--driver-root="+r.opts.DriverRootCtrPath,
-		"--dev-root="+r.opts.DevRootCtrPath,
-		"--vendor=management.nvidia.com",
-		"--class=gpu",
-		"--nvidia-cdi-hook-path="+r.opts.NvidiaCDIHookPath,
+	if !r.opts.CDIEnabled {
+		return nil
+	}
+
+	cdilib, err := nvcdi.New(
+		// TODO: We may want to switch to klog for logging here.
+		nvcdi.WithLogger(log.StandardLogger()),
+		nvcdi.WithMode(nvcdi.ModeManagement),
+		nvcdi.WithDriverRoot(r.opts.DriverRootCtrPath),
+		nvcdi.WithDevRoot(r.opts.DevRootCtrPath),
+		nvcdi.WithNVIDIACDIHookPath(r.opts.NvidiaCDIHookPath),
+		nvcdi.WithVendor("management.nvidia.com"),
+		nvcdi.WithClass("gpu"),
 	)
-
-	stdout1, err := cdiGenerateCommand.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("failed to get stdout pipe for the nvidia-ctk command: %w", err)
+		return fmt.Errorf("failed to create CDI library for management containers: %v", err)
 	}
 
-	cdiTransformDriverRootCommand := exec.Command("nvidia-ctk", "cdi", "transform", "root",
-		"--from="+r.opts.DriverRootCtrPath,
-		"--to="+r.opts.DriverRoot,
-		"--input=-")
-	cdiTransformDriverRootCommand.Stdin = stdout1
-
-	stdout2, err := cdiTransformDriverRootCommand.StdoutPipe()
+	spec, err := cdilib.GetSpec()
 	if err != nil {
-		return fmt.Errorf("failed to get stdout pipe for the cdiTransformDriverRootCommand: %w", err)
+		return fmt.Errorf("failed to genereate CDI spec for management containers: %v", err)
 	}
 
-	cdiTransformDevRootCommand := exec.Command("nvidia-ctk", "cdi", "transform", "root",
-		"--from="+r.opts.DevRootCtrPath,
-		"--to="+r.opts.DevRoot,
-		"--input=-",
-		"--output=/var/run/cdi/management.nvidia.com-gpu.yaml")
+	transformer := transformroot.NewDriverTransformer(
+		transformroot.WithDriverRoot(r.opts.DriverRootCtrPath),
+		transformroot.WithTargetDriverRoot(r.opts.DriverRoot),
+		transformroot.WithDevRoot(r.opts.DevRootCtrPath),
+		transformroot.WithTargetDevRoot(r.opts.DevRoot),
+	)
+	if err := transformer.Transform(spec.Raw()); err != nil {
+		return fmt.Errorf("failed to transform driver root in CDI spec: %v", err)
+	}
 
-	cdiTransformDevRootCommand.Stdin = stdout2
-
-	err = cdiGenerateCommand.Start()
+	name, err := cdi.GenerateNameForSpec(spec.Raw())
 	if err != nil {
-		return fmt.Errorf("cmd.Start error for cdiGenerateCommand: %w", err)
+		return fmt.Errorf("failed to generate CDI name for management containers: %v", err)
 	}
-	err = cdiTransformDriverRootCommand.Start()
+	// TODO: Should this path be configurable? What's important is that this
+	// file path is the same as the one generated in the NVIDIA Container Toolkit.
+	err = spec.Save(filepath.Join("/var/run/cdi/", name))
 	if err != nil {
-		return fmt.Errorf("cmd.Start error for cdiTransformDriverRootCommand: %w", err)
-	}
-	err = cdiTransformDevRootCommand.Start()
-	if err != nil {
-		return fmt.Errorf("cmd.Start error for running cdiTransformDevRootCommand: %w", err)
-	}
-
-	if err = cdiGenerateCommand.Wait(); err != nil {
-		return fmt.Errorf("cmd.Wait error for cdiGenerateCommand: %w", err)
-	}
-	if err = cdiTransformDriverRootCommand.Wait(); err != nil {
-		return fmt.Errorf("cmd.Wait error for cdiTransformDriverRootCommand: %w", err)
-	}
-	if err = cdiTransformDevRootCommand.Wait(); err != nil {
-		return fmt.Errorf("cmd.Wait error for cdiTransformDevRootCommand: %w", err)
+		return fmt.Errorf("failed to save CDI spec for management containers: %v", err)
 	}
 
 	return nil

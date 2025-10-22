@@ -1,5 +1,5 @@
-#!/bin/bash
-# Copyright 2024 NVIDIA CORPORATION
+/**
+# Copyright (c) NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,12 +12,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+**/
 
-SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+package nvcdi
 
-DEVEL_ROOT=${SCRIPTS_DIR}/../deployments/devel
+import (
+	"github.com/NVIDIA/nvidia-container-toolkit/internal/discover"
+	"github.com/NVIDIA/nvidia-container-toolkit/internal/logger"
+)
 
-COMPONENT=github.com/NVIDIA/nvidia-container-toolkit
-VERSION=$(grep -E "^\s+${COMPONENT}\s+.*$" ${DEVEL_ROOT}/go.mod | sed "s#.*${COMPONENT}##g" | grep -oE "v?[0-9\.]+(-rc\.([0-9]+))?" )
+const (
+	dxgDeviceNode = "/dev/dxg"
+)
 
-echo $VERSION
+// newDXGDeviceDiscoverer returns a Discoverer for DXG devices under WSL2.
+func newDXGDeviceDiscoverer(logger logger.Interface, devRoot string) discover.Discover {
+	deviceNodes := discover.NewCharDeviceDiscoverer(
+		logger,
+		devRoot,
+		[]string{dxgDeviceNode},
+	)
+
+	return deviceNodes
+}

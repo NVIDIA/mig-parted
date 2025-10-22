@@ -69,8 +69,6 @@ $(BUILD_TARGETS): build-%: $(ARTIFACTS_ROOT)
 		--build-arg GOLANG_VERSION="$(GOLANG_VERSION)" \
 		--build-arg VERSION="$(vVERSION)" \
 		--build-arg GIT_COMMIT="$(GIT_COMMIT)" \
-		--build-arg NVIDIA_CTK_VERSION=$(NVIDIA_CTK_VERSION) \
-		--build-arg CVE_UPDATES="$(CVE_UPDATES)" \
 		--build-arg GOPROXY="$(GOPROXY)" \
 		-f $(DOCKERFILE) \
 		$(CURDIR)

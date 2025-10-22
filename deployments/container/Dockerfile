@@ -48,13 +48,6 @@ ARG VERSION="N/A"
 ARG GIT_COMMIT="unknown"
 RUN make PREFIX=/artifacts cmds
 
-# Install the nvidia-ctk binary as a go executable
-# TODO: Once we can consume a golang API from reconfigure.sh we can remove this.
-ARG NVIDIA_CTK_VERSION=main
-RUN go install -ldflags "-extldflags=-Wl,-z,lazy -s -w" \
-    github.com/NVIDIA/nvidia-container-toolkit/cmd/nvidia-ctk@${NVIDIA_CTK_VERSION} \
-    && cp ${GOPATH}/bin/nvidia-ctk /artifacts/nvidia-ctk
-
 FROM nvcr.io/nvidia/distroless/go:v3.1.13-dev
 
 USER 0:0
@@ -67,7 +60,6 @@ RUN ln -s /busybox/sh /bin/sh && \
 
 COPY --from=build /artifacts/nvidia-mig-parted  /usr/bin/nvidia-mig-parted
 COPY --from=build /artifacts/nvidia-mig-manager /usr/bin/nvidia-mig-manager
-COPY --from=build /artifacts/nvidia-ctk         /usr/bin/nvidia-ctk
 
 ENV NVIDIA_DISABLE_REQUIRE="true"
 ENV NVIDIA_VISIBLE_DEVICES=all
