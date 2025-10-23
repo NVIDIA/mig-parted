@@ -17,13 +17,14 @@
 package export
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/sirupsen/logrus"
-	cli "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 
@@ -50,7 +51,7 @@ type Flags struct {
 }
 
 type Context struct {
-	*cli.Context
+	*cli.Command
 	Flags *Flags
 	Nvml  nvml.Interface
 }
@@ -63,7 +64,7 @@ func BuildCommand() *cli.Command {
 	export := cli.Command{}
 	export.Name = "export"
 	export.Usage = "Export the MIG configuration from all GPUs in a compatible format"
-	export.Action = func(c *cli.Context) error {
+	export.Action = func(_ context.Context, c *cli.Command) error {
 		return exportWrapper(c, &exportFlags)
 	}
 
@@ -75,7 +76,7 @@ func BuildCommand() *cli.Command {
 			Usage:       "Format for the output [json | yaml]",
 			Destination: &exportFlags.OutputFormat,
 			Value:       YAMLFormat,
-			EnvVars:     []string{"MIG_PARTED_OUTPUT_FORMAT"},
+			Sources:     cli.EnvVars("MIG_PARTED_OUTPUT_FORMAT"),
 		},
 		&cli.StringFlag{
 			Name:        "config-label",
@@ -83,14 +84,14 @@ func BuildCommand() *cli.Command {
 			Usage:       "Label to apply to the exported config",
 			Destination: &exportFlags.ConfigLabel,
 			Value:       DefaultConfigLabel,
-			EnvVars:     []string{"MIG_PARTED_CONFIG_LABEL"},
+			Sources:     cli.EnvVars("MIG_PARTED_CONFIG_LABEL"),
 		},
 	}
 
 	return &export
 }
 
-func exportWrapper(c *cli.Context, f *Flags) error {
+func exportWrapper(c *cli.Command, f *Flags) error {
 	err := CheckFlags(f)
 	if err != nil {
 		_ = cli.ShowSubcommandHelp(c)
@@ -98,7 +99,7 @@ func exportWrapper(c *cli.Context, f *Flags) error {
 	}
 
 	context := Context{
-		Context: c,
+		Command: c,
 		Flags:   f,
 		Nvml:    nvml.New(),
 	}

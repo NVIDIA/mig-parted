@@ -17,12 +17,13 @@
 package apply
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"reflect"
 
 	"github.com/sirupsen/logrus"
-	cli "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 
@@ -68,7 +69,7 @@ func BuildCommand() *cli.Command {
 	apply := cli.Command{}
 	apply.Name = "apply"
 	apply.Usage = "Apply changes (if necessary) for a specific MIG configuration from a configuration file"
-	apply.Action = func(c *cli.Context) error {
+	apply.Action = func(_ context.Context, c *cli.Command) error {
 		return applyWrapper(c, &applyFlags)
 	}
 
@@ -79,35 +80,35 @@ func BuildCommand() *cli.Command {
 			Aliases:     []string{"f"},
 			Usage:       "Path to the configuration file",
 			Destination: &applyFlags.ConfigFile,
-			EnvVars:     []string{"MIG_PARTED_CONFIG_FILE"},
+			Sources:     cli.EnvVars("MIG_PARTED_CONFIG_FILE"),
 		},
 		&cli.StringFlag{
 			Name:        "selected-config",
 			Aliases:     []string{"c"},
 			Usage:       "The label of the mig-config from the config file to apply to the node",
 			Destination: &applyFlags.SelectedConfig,
-			EnvVars:     []string{"MIG_PARTED_SELECTED_CONFIG"},
+			Sources:     cli.EnvVars("MIG_PARTED_SELECTED_CONFIG"),
 		},
 		&cli.StringFlag{
 			Name:        "hooks-file",
 			Aliases:     []string{"k"},
 			Usage:       "Path to the hooks file",
 			Destination: &applyFlags.HooksFile,
-			EnvVars:     []string{"MIG_PARTED_HOOKS_FILE"},
+			Sources:     cli.EnvVars("MIG_PARTED_HOOKS_FILE"),
 		},
 		&cli.BoolFlag{
 			Name:        "skip-reset",
 			Aliases:     []string{"s"},
 			Usage:       "Skip the GPU reset operation after applying the desired MIG mode to all GPUs",
 			Destination: &applyFlags.SkipReset,
-			EnvVars:     []string{"MIG_PARTED_SKIP_RESET"},
+			Sources:     cli.EnvVars("MIG_PARTED_SKIP_RESET"),
 		},
 		&cli.BoolFlag{
 			Name:        "mode-only",
 			Aliases:     []string{"m"},
 			Usage:       "Only change the MIG enabled setting from the config, not configure any MIG devices",
 			Destination: &applyFlags.ModeOnly,
-			EnvVars:     []string{"MIG_PARTED_MODE_CHANGE_ONLY"},
+			Sources:     cli.EnvVars("MIG_PARTED_MODE_CHANGE_ONLY"),
 		},
 	}
 
@@ -140,9 +141,9 @@ func ParseHooksFile(hooksFile string) (*hooks.Spec, error) {
 
 // GetHooksEnvsMap builds a 'hooks.EnvsMap' from the set of environment variables set when the CLI was envoked by the user.
 // These environment variables are then made available to all hooks when thex are executed later on.
-func GetHooksEnvsMap(c *cli.Context) hooks.EnvsMap {
+func GetHooksEnvsMap(c *cli.Command) hooks.EnvsMap {
 	envs := make(hooks.EnvsMap)
-	for _, flag := range c.Command.Flags {
+	for _, flag := range c.Flags {
 		fv := reflect.ValueOf(flag)
 		for fv.Kind() == reflect.Ptr {
 			fv = reflect.Indirect(fv)
@@ -182,7 +183,7 @@ func (c *Context) ApplyMigConfig() error {
 	return ApplyMigConfig(c)
 }
 
-func applyWrapper(c *cli.Context, f *Flags) error {
+func applyWrapper(c *cli.Command, f *Flags) error {
 	err := CheckFlags(f)
 	if err != nil {
 		_ = cli.ShowSubcommandHelp(c)
@@ -215,7 +216,7 @@ func applyWrapper(c *cli.Context, f *Flags) error {
 	context := Context{
 		Flags: f,
 		Context: assert.Context{
-			Context:   c,
+			Command:   c,
 			Flags:     &f.Flags,
 			MigConfig: migConfig,
 			Nvml:      nvml.New(),
@@ -233,7 +234,7 @@ func applyWrapper(c *cli.Context, f *Flags) error {
 
 // ApplyMigConfigWithHooks orchestrates the calls of a 'MigConfigApplier' between a set of 'ApplyHooks' to the set MIG configuration of a node.
 // If 'modeOnly' is 'true', then only the MIG mode settings embedded in the 'Context' are applied.
-func ApplyMigConfigWithHooks(logger *logrus.Logger, context *cli.Context, modeOnly bool, hooks ApplyHooks, applier MigConfigApplier) (rerr error) {
+func ApplyMigConfigWithHooks(logger *logrus.Logger, context *cli.Command, modeOnly bool, hooks ApplyHooks, applier MigConfigApplier) (rerr error) {
 	logger.Debugf("Running apply-start hook")
 	err := hooks.ApplyStart(GetHooksEnvsMap(context), context.Bool("debug"))
 	if err != nil {

@@ -25,7 +25,8 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
+
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -117,7 +118,7 @@ func (m *SyncableMigConfig) Get() string {
 }
 
 func main() {
-	c := cli.NewApp()
+	c := cli.Command{}
 	c.Before = validateFlags
 	c.Action = start
 	c.Version = info.GetVersionString()
@@ -128,7 +129,7 @@ func main() {
 			Value:       "",
 			Usage:       "absolute path to the kubeconfig file",
 			Destination: &kubeconfigFlag,
-			EnvVars:     []string{"KUBECONFIG"},
+			Sources:     cli.EnvVars("KUBECONFIG"),
 		},
 		&cli.StringFlag{
 			Name:        "node-name",
@@ -136,7 +137,7 @@ func main() {
 			Value:       "",
 			Usage:       "the name of the node to watch for label changes on",
 			Destination: &nodeNameFlag,
-			EnvVars:     []string{"NODE_NAME"},
+			Sources:     cli.EnvVars("NODE_NAME"),
 		},
 		&cli.StringFlag{
 			Name:        "config-file",
@@ -144,7 +145,7 @@ func main() {
 			Value:       "",
 			Usage:       "the path to the MIG parted configuration file",
 			Destination: &configFileFlag,
-			EnvVars:     []string{"CONFIG_FILE"},
+			Sources:     cli.EnvVars("CONFIG_FILE"),
 		},
 		&cli.StringFlag{
 			Name:        "reconfigure-script",
@@ -152,7 +153,7 @@ func main() {
 			Value:       DefaultReconfigureScript,
 			Usage:       "script to run to do the actual MIG reconfiguration",
 			Destination: &reconfigureScriptFlag,
-			EnvVars:     []string{"RECONFIGURE_SCRIPT"},
+			Sources:     cli.EnvVars("RECONFIGURE_SCRIPT"),
 		},
 		&cli.StringFlag{
 			Name:        "host-root-mount",
@@ -160,7 +161,7 @@ func main() {
 			Value:       DefaultHostRootMount,
 			Usage:       "container path where host root directory is mounted",
 			Destination: &hostRootMountFlag,
-			EnvVars:     []string{"HOST_ROOT_MOUNT"},
+			Sources:     cli.EnvVars("HOST_ROOT_MOUNT"),
 		},
 		&cli.StringFlag{
 			Name:        "host-nvidia-dir",
@@ -168,7 +169,7 @@ func main() {
 			Value:       DefaultHostNvidiaDir,
 			Usage:       "host path of the directory where NVIDIA managed software directory is typically located",
 			Destination: &hostNvidiaDirFlag,
-			EnvVars:     []string{"HOST_NVIDIA_DIR"},
+			Sources:     cli.EnvVars("HOST_NVIDIA_DIR"),
 		},
 		&cli.StringFlag{
 			Name:        "host-mig-manager-state-file",
@@ -176,7 +177,7 @@ func main() {
 			Value:       DefaultHostMigManagerStateFile,
 			Usage:       "host path where the host's systemd mig-manager state file is located",
 			Destination: &hostMigManagerStateFileFlag,
-			EnvVars:     []string{"HOST_MIG_MANAGER_STATE_FILE"},
+			Sources:     cli.EnvVars("HOST_MIG_MANAGER_STATE_FILE"),
 		},
 		&cli.StringFlag{
 			Name:        "host-kubelet-systemd-service",
@@ -184,7 +185,7 @@ func main() {
 			Value:       DefaultHostKubeletSystemdService,
 			Usage:       "name of the host's 'kubelet' systemd service which may need to be shutdown/restarted across a MIG mode reconfiguration",
 			Destination: &hostKubeletSystemdServiceFlag,
-			EnvVars:     []string{"HOST_KUBELET_SYSTEMD_SERVICE"},
+			Sources:     cli.EnvVars("HOST_KUBELET_SYSTEMD_SERVICE"),
 		},
 		&cli.StringFlag{
 			Name:        "gpu-clients-file",
@@ -192,7 +193,7 @@ func main() {
 			Value:       "",
 			Usage:       "the path to the file listing the GPU clients that need to be shutdown across a MIG configuration",
 			Destination: &gpuClientsFileFlag,
-			EnvVars:     []string{"GPU_CLIENTS_FILE"},
+			Sources:     cli.EnvVars("GPU_CLIENTS_FILE"),
 		},
 		&cli.BoolFlag{
 			Name:        "with-reboot",
@@ -200,7 +201,7 @@ func main() {
 			Value:       false,
 			Usage:       "reboot the node if changing the MIG mode fails for any reason",
 			Destination: &withRebootFlag,
-			EnvVars:     []string{"WITH_REBOOT"},
+			Sources:     cli.EnvVars("WITH_REBOOT"),
 		},
 		&cli.BoolFlag{
 			Name:        "with-shutdown-host-gpu-clients",
@@ -208,7 +209,7 @@ func main() {
 			Value:       false,
 			Usage:       "shutdown/restart any required host GPU clients across a MIG configuration",
 			Destination: &withShutdownHostGPUClientsFlag,
-			EnvVars:     []string{"WITH_SHUTDOWN_HOST_GPU_CLIENTS"},
+			Sources:     cli.EnvVars("WITH_SHUTDOWN_HOST_GPU_CLIENTS"),
 		},
 		&cli.StringFlag{
 			Name:        "default-gpu-clients-namespace",
@@ -216,7 +217,7 @@ func main() {
 			Value:       DefaultGPUClientsNamespace,
 			Usage:       "Default name of the Kubernetes namespace in which the GPU client Pods are installed in",
 			Destination: &defaultGPUClientsNamespaceFlag,
-			EnvVars:     []string{"DEFAULT_GPU_CLIENTS_NAMESPACE"},
+			Sources:     cli.EnvVars("DEFAULT_GPU_CLIENTS_NAMESPACE"),
 		},
 		&cli.StringFlag{
 			Name:        "nvidia-driver-root",
@@ -224,7 +225,7 @@ func main() {
 			Value:       DefaultNvidiaDriverRoot,
 			Usage:       "Root path to the NVIDIA driver installation. Only used if --cdi-enabled is set.",
 			Destination: &driverRoot,
-			EnvVars:     []string{"NVIDIA_DRIVER_ROOT", "DRIVER_ROOT"},
+			Sources:     cli.EnvVars("NVIDIA_DRIVER_ROOT", "DRIVER_ROOT"),
 		},
 		&cli.StringFlag{
 			Name:        "driver-root-ctr-path",
@@ -232,13 +233,13 @@ func main() {
 			Value:       DefaultDriverRootCtrPath,
 			Usage:       "Root path to the NVIDIA driver installation mounted in the container. Only used if --cdi-enabled is set.",
 			Destination: &driverRootCtrPath,
-			EnvVars:     []string{"DRIVER_ROOT_CTR_PATH"},
+			Sources:     cli.EnvVars("DRIVER_ROOT_CTR_PATH"),
 		},
 		&cli.BoolFlag{
 			Name:        "cdi-enabled",
 			Usage:       "Enable CDI support",
 			Destination: &cdiEnabledFlag,
-			EnvVars:     []string{"CDI_ENABLED"},
+			Sources:     cli.EnvVars("CDI_ENABLED"),
 		},
 		&cli.StringFlag{
 			Name:        "dev-root",
@@ -246,7 +247,7 @@ func main() {
 			Value:       "",
 			Usage:       "Root path to the NVIDIA device nodes. Only used if --cdi-enabled is set.",
 			Destination: &devRoot,
-			EnvVars:     []string{"NVIDIA_DEV_ROOT"},
+			Sources:     cli.EnvVars("NVIDIA_DEV_ROOT"),
 		},
 		&cli.StringFlag{
 			Name:        "dev-root-ctr-path",
@@ -254,18 +255,18 @@ func main() {
 			Value:       "",
 			Usage:       "Root path to the NVIDIA device nodes mounted in the container. Only used if --cdi-enabled is set.",
 			Destination: &devRootCtrPath,
-			EnvVars:     []string{"DEV_ROOT_CTR_PATH"},
+			Sources:     cli.EnvVars("DEV_ROOT_CTR_PATH"),
 		},
 		&cli.StringFlag{
 			Name:        "nvidia-cdi-hook-path",
 			Value:       DefaultNvidiaCDIHookPath,
 			Usage:       "Path to nvidia-cdi-hook binary on the host.",
 			Destination: &nvidiaCDIHookPath,
-			EnvVars:     []string{"NVIDIA_CDI_HOOK_PATH"},
+			Sources:     cli.EnvVars("NVIDIA_CDI_HOOK_PATH"),
 		},
 	}
 
-	err := c.Run(os.Args)
+	err := c.Run(context.Background(), os.Args)
 	if err != nil {
 		log.SetOutput(os.Stderr)
 		log.Printf("Error: %v", err)
@@ -273,11 +274,11 @@ func main() {
 	}
 }
 
-func validateFlags(c *cli.Context) error {
+func validateFlags(ctx context.Context, c *cli.Command) (context.Context, error) {
 	if nodeNameFlag == "" {
-		return fmt.Errorf("invalid -n <node-name> flag: must not be empty string")
+		return ctx, fmt.Errorf("invalid -n <node-name> flag: must not be empty string")
 	}
-	return nil
+	return ctx, nil
 }
 
 func createNodeConfigMap(ctx context.Context, clientset *kubernetes.Clientset, nodeName string, configYAML []byte) error {
@@ -386,7 +387,7 @@ func setupMigConfig(ctx context.Context, clientset *kubernetes.Clientset) (strin
 	return DefaultGeneratedConfigFile, nil
 }
 
-func start(c *cli.Context) error {
+func start(ctx context.Context, c *cli.Command) error {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigFlag)
 	if err != nil {
 		return fmt.Errorf("error building kubernetes clientcmd config: %w", err)
@@ -398,7 +399,7 @@ func start(c *cli.Context) error {
 	}
 
 	// Setup MIG configuration (generate from hardware or use custom config)
-	configPath, err := setupMigConfig(c.Context, clientset)
+	configPath, err := setupMigConfig(ctx, clientset)
 	if err != nil {
 		return fmt.Errorf("failed to setup MIG config: %w", err)
 	}
@@ -420,7 +421,7 @@ func start(c *cli.Context) error {
 		log.Infof("Waiting for change to '%s' label", MigConfigLabel)
 		value := migConfig.Get()
 		log.Infof("Updating to MIG config: %s", value)
-		err := migReconfigure(c.Context, value, clientset, driverLibraryPath, nvidiaSMIPath)
+		err := migReconfigure(ctx, value, clientset, driverLibraryPath, nvidiaSMIPath)
 		if err != nil {
 			log.Errorf("Error: %s", err)
 			continue
