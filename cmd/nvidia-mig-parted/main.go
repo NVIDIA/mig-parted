@@ -17,10 +17,11 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	log "github.com/sirupsen/logrus"
-	cli "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/apply"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/assert"
@@ -42,9 +43,9 @@ func main() {
 	flags := Flags{}
 
 	// Create the top-level CLI
-	c := cli.NewApp()
+	c := cli.Command{}
 	c.UseShortOptionHandling = true
-	c.EnableBashCompletion = true
+	c.EnableShellCompletion = true
 	c.Usage = "Manage MIG partitions across the full set of NVIDIA GPUs on a node"
 	c.Version = info.GetVersionString()
 
@@ -55,7 +56,7 @@ func main() {
 			Aliases:     []string{"d"},
 			Usage:       "Enable debug-level logging",
 			Destination: &flags.Debug,
-			EnvVars:     []string{"MIG_PARTED_DEBUG"},
+			Sources:     cli.EnvVars("MIG_PARTED_DEBUG"),
 		},
 	}
 
@@ -70,7 +71,7 @@ func main() {
 	}
 
 	// Set log-level for all subcommands
-	c.Before = func(c *cli.Context) error {
+	c.Before = func(ctx context.Context, c *cli.Command) (context.Context, error) {
 		logLevel := log.InfoLevel
 		if flags.Debug {
 			logLevel = log.DebugLevel
@@ -87,11 +88,11 @@ func main() {
 		checkpointLog.SetLevel(logLevel)
 		restoreLog := export.GetLogger()
 		restoreLog.SetLevel(logLevel)
-		return nil
+		return ctx, nil
 	}
 
 	// Run the CLI
-	err := c.Run(os.Args)
+	err := c.Run(context.Background(), os.Args)
 	if err != nil {
 		log.Fatal(util.Capitalize(err.Error()))
 	}

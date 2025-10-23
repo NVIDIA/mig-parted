@@ -17,6 +17,7 @@
 package restore
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -24,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	cli "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 
@@ -48,7 +49,7 @@ type Flags struct {
 }
 
 type Context struct {
-	*cli.Context
+	*cli.Command
 	Flags           *Flags
 	Hooks           apply.ApplyHooks
 	MigState        *types.MigState
@@ -63,7 +64,7 @@ func BuildCommand() *cli.Command {
 	restore := cli.Command{}
 	restore.Name = "restore"
 	restore.Usage = "Restore MIG state from a checkpoint file"
-	restore.Action = func(c *cli.Context) error {
+	restore.Action = func(_ context.Context, c *cli.Command) error {
 		return restoreWrapper(c, &restoreFlags)
 	}
 
@@ -74,21 +75,21 @@ func BuildCommand() *cli.Command {
 			Aliases:     []string{"f"},
 			Usage:       "Path to the checkpoint file",
 			Destination: &restoreFlags.CheckpointFile,
-			EnvVars:     []string{"MIG_PARTED_CHECKPOINT_FILE"},
+			Sources:     cli.EnvVars("MIG_PARTED_CHECKPOINT_FILE"),
 		},
 		&cli.StringFlag{
 			Name:        "hooks-file",
 			Aliases:     []string{"k"},
 			Usage:       "Path to the hooks file",
 			Destination: &restoreFlags.HooksFile,
-			EnvVars:     []string{"MIG_PARTED_HOOKS_FILE"},
+			Sources:     cli.EnvVars("MIG_PARTED_HOOKS_FILE"),
 		},
 		&cli.BoolFlag{
 			Name:        "mode-only",
 			Aliases:     []string{"m"},
 			Usage:       "Only change the MIG enabled setting from the checkpoint file, not configure any MIG devices",
 			Destination: &restoreFlags.ModeOnly,
-			EnvVars:     []string{"MIG_PARTED_MODE_CHANGE_ONLY"},
+			Sources:     cli.EnvVars("MIG_PARTED_MODE_CHANGE_ONLY"),
 		},
 	}
 
@@ -154,7 +155,7 @@ func (c *Context) ApplyMigConfig() error {
 	return c.MigStateManager.RestoreConfig(c.MigState)
 }
 
-func restoreWrapper(c *cli.Context, f *Flags) error {
+func restoreWrapper(c *cli.Command, f *Flags) error {
 	err := CheckFlags(f)
 	if err != nil {
 		_ = cli.ShowSubcommandHelp(c)
@@ -177,7 +178,7 @@ func restoreWrapper(c *cli.Context, f *Flags) error {
 	}
 
 	context := Context{
-		Context:         c,
+		Command:         c,
 		Flags:           f,
 		Hooks:           apply.NewApplyHooks(hooksSpec.Hooks),
 		MigState:        &checkpoint.MigState,
