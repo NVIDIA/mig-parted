@@ -18,12 +18,13 @@ package assert
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	cli "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 
@@ -49,7 +50,7 @@ type Flags struct {
 }
 
 type Context struct {
-	*cli.Context
+	*cli.Command
 	Flags     *Flags
 	MigConfig v1.MigConfigSpecSlice
 	Nvml      nvml.Interface
@@ -63,7 +64,7 @@ func BuildCommand() *cli.Command {
 	assert := cli.Command{}
 	assert.Name = "assert"
 	assert.Usage = "Assert that a specific MIG configuration is currently applied to the node"
-	assert.Action = func(c *cli.Context) error {
+	assert.Action = func(_ context.Context, c *cli.Command) error {
 		return assertWrapper(c, &assertFlags)
 	}
 
@@ -74,35 +75,35 @@ func BuildCommand() *cli.Command {
 			Aliases:     []string{"f"},
 			Usage:       "Path to the configuration file",
 			Destination: &assertFlags.ConfigFile,
-			EnvVars:     []string{"MIG_PARTED_CONFIG_FILE"},
+			Sources:     cli.EnvVars("MIG_PARTED_CONFIG_FILE"),
 		},
 		&cli.StringFlag{
 			Name:        "selected-config",
 			Aliases:     []string{"c"},
 			Usage:       "The label of the mig-config from the config file to assert is applied to the node",
 			Destination: &assertFlags.SelectedConfig,
-			EnvVars:     []string{"MIG_PARTED_SELECTED_CONFIG"},
+			Sources:     cli.EnvVars("MIG_PARTED_SELECTED_CONFIG"),
 		},
 		&cli.BoolFlag{
 			Name:        "mode-only",
 			Aliases:     []string{"m"},
 			Usage:       "Only assert the MIG mode setting from the selected config, not the configured MIG devices",
 			Destination: &assertFlags.ModeOnly,
-			EnvVars:     []string{"MIG_PARTED_MODE_CHANGE_ONLY"},
+			Sources:     cli.EnvVars("MIG_PARTED_MODE_CHANGE_ONLY"),
 		},
 		&cli.BoolFlag{
 			Name:        "valid-config",
 			Aliases:     []string{"a"},
 			Usage:       "Only assert that the config file is valid and the selected config is present in it",
 			Destination: &assertFlags.ValidConfig,
-			EnvVars:     []string{"MIG_PARTED_VALID_CONFIG"},
+			Sources:     cli.EnvVars("MIG_PARTED_VALID_CONFIG"),
 		},
 	}
 
 	return &assert
 }
 
-func assertWrapper(c *cli.Context, f *Flags) error {
+func assertWrapper(c *cli.Command, f *Flags) error {
 	err := CheckFlags(f)
 	if err != nil {
 		_ = cli.ShowSubcommandHelp(c)
@@ -127,7 +128,7 @@ func assertWrapper(c *cli.Context, f *Flags) error {
 	}
 
 	context := Context{
-		Context:   c,
+		Command:   c,
 		Flags:     f,
 		MigConfig: migConfig,
 		Nvml:      nvml.New(),
