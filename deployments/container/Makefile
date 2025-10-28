@@ -14,10 +14,6 @@
 
 BUILD_MULTI_ARCH_IMAGES ?= no
 DOCKER ?= docker
-BUILDX  =
-ifeq ($(BUILD_MULTI_ARCH_IMAGES),true)
-BUILDX = buildx
-endif
 MKDIR    ?= mkdir
 DIST_DIR ?= $(CURDIR)/dist
 
@@ -45,11 +41,12 @@ GOPROXY ?= https://proxy.golang.org,direct
 DEFAULT_PUSH_TARGET := image
 DISTRIBUTIONS := $(DEFAULT_PUSH_TARGET)
 
+IMAGE_TARGETS := $(patsubst %,image-%,$(DISTRIBUTIONS))
 BUILD_TARGETS := $(patsubst %,build-%,$(DISTRIBUTIONS))
 PUSH_TARGETS := $(patsubst %,push-%,$(DISTRIBUTIONS))
 TEST_TARGETS := $(patsubst %,test-%, $(DISTRIBUTIONS))
 
-.PHONY: $(DISTRIBUTIONS) $(PUSH_TARGETS) $(BUILD_TARGETS) $(TEST_TARGETS)
+.PHONY: $(DISTRIBUTIONS) $(PUSH_TARGETS) $(BUILD_TARGETS) $(TEST_TARGETS) $(IMAGE_TARGETS)
 
 ifneq ($(BUILD_MULTI_ARCH_IMAGES),true)
 include $(CURDIR)/deployments/container/native-only.mk
@@ -59,10 +56,9 @@ endif
 
 DOCKERFILE = $(CURDIR)/deployments/container/Dockerfile
 
-# Use a generic build target to build the relevant images
-$(BUILD_TARGETS): build-%: $(ARTIFACTS_ROOT)
-	DOCKER_BUILDKIT=1 \
-		$(DOCKER) $(BUILDX) build --pull \
+# Use a generic image target to build the relevant images
+$(IMAGE_TARGETS): image-%: $(ARTIFACTS_ROOT)
+	$(DOCKER) build --pull \
 		$(DOCKER_BUILD_OPTIONS) \
 		$(DOCKER_BUILD_PLATFORM_OPTIONS) \
 		--tag $(IMAGE) \
@@ -74,3 +70,8 @@ $(BUILD_TARGETS): build-%: $(ARTIFACTS_ROOT)
 		--build-arg GOPROXY="$(GOPROXY)" \
 		-f $(DOCKERFILE) \
 		$(CURDIR)
+
+# Handle the default build target.
+.PHONY: build
+build: $(DEFAULT_PUSH_TARGET)
+$(DEFAULT_PUSH_TARGET): build-$(DEFAULT_PUSH_TARGET)
