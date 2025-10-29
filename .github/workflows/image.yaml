@@ -23,7 +23,7 @@ on:
       - release-*
 
 jobs:
-  build:
+  image:
     strategy:
       matrix:
         arch:
@@ -76,7 +76,7 @@ jobs:
           make -f deployments/container/Makefile build
 
   create-manifest:
-    needs: [ build ]
+    needs: [ image ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

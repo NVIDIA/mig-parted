@@ -48,11 +48,9 @@ tarball-%: DOCKERFILE = $(CURDIR)/deployments/systemd/packages/Dockerfile.tarbal
 ##### Public rules #####
 
 TARGETS = tarball deb rpm
-$(TARGETS): %: %-amd64 %-arm64
 
 AMD64_TARGETS = $(patsubst %,%-amd64,$(TARGETS))
 ARM64_TARGETS = $(patsubst %,%-arm64,$(TARGETS))
-
 
 $(AMD64_TARGETS): ARCH = amd64
 $(ARM64_TARGETS): ARCH = arm64
@@ -65,7 +63,6 @@ all: $(VALID_TARGETS)
 $(VALID_TARGETS): %:
 	@echo "Building for $(TARGET_PLATFORM)"
 	docker pull --platform=linux/$(ARCH) $(BASE_IMAGE)
-	DOCKER_BUILDKIT=1 \
 	$(DOCKER) build --pull \
 		--platform=linux/$(ARCH) \
 		--build-arg BASE_IMAGE=$(BASE_IMAGE) \
