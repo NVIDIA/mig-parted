@@ -12,7 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-DOCKER_BUILD_PLATFORM_OPTIONS = --platform=linux/amd64
+PUSH_ON_BUILD ?= false
+DOCKER_BUILD_PLATFORM_OPTIONS ?= --platform=linux/amd64
+
+ifeq ($(PUSH_ON_BUILD),true)
+$(BUILD_TARGETS): build-%: image-%
+	$(DOCKER) push "$(IMAGE)"
+else
+$(BUILD_TARGETS): build-%: image-%
+endif
 
 $(PUSH_TARGETS): push-%:
 	$(DOCKER) tag "$(IMAGE)" "$(OUT_IMAGE)"
