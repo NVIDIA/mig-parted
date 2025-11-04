@@ -55,7 +55,7 @@ RUN go install -ldflags "-extldflags=-Wl,-z,lazy -s -w" \
     github.com/NVIDIA/nvidia-container-toolkit/cmd/nvidia-ctk@${NVIDIA_CTK_VERSION} \
     && cp ${GOPATH}/bin/nvidia-ctk /artifacts/nvidia-ctk
 
-FROM nvcr.io/nvidia/distroless/go:v3.2.0-dev
+FROM nvcr.io/nvidia/distroless/go:v3.2.1-dev
 
 USER 0:0
 SHELL ["/busybox/sh", "-c"]
