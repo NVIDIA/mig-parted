@@ -10,13 +10,13 @@ require (
 require (
 	github.com/NVIDIA/go-nvlib v0.8.1 // indirect
 	github.com/NVIDIA/go-nvml v0.13.0-1 // indirect
-	github.com/cyphar/filepath-securejoin v0.5.0 // indirect
+	github.com/cyphar/filepath-securejoin v0.5.1 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/moby/sys/reexec v0.1.0 // indirect
 	github.com/moby/sys/symlink v0.3.0 // indirect
-	github.com/opencontainers/runc v1.3.2 // indirect
+	github.com/opencontainers/runc v1.3.3 // indirect
 	github.com/opencontainers/runtime-spec v1.2.1 // indirect
 	github.com/opencontainers/runtime-tools v0.9.1-0.20221107090550-2e043c6bd626 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
