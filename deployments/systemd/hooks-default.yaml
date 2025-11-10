@@ -7,11 +7,14 @@ hooks:
     pre-apply-mode:
     - workdir: "/etc/nvidia-mig-manager"
       command: "/bin/bash"
-      args: ["-x", "-c", "source hooks.sh; stop-services-for-mode"]
+      args: ["-x", "-c", "source hooks.sh; stop-services"]
+    - workdir: "/etc/nvidia-mig-manager"
+      command: "/bin/bash"
+      args: ["-x", "-c", "source hooks.sh; stop_driver_services"]
     pre-apply-config:
     - workdir: "/etc/nvidia-mig-manager"
       command: "/bin/bash"
-      args: ["-x", "-c", "source hooks.sh; stop-services-for-config"]
+      args: ["-x", "-c", "source hooks.sh; stop-services"]
     apply-exit:
     - workdir: "/etc/nvidia-mig-manager"
       command: "/bin/bash"

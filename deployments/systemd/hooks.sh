@@ -46,28 +46,9 @@ function persist-config() {
 	return 0
 }
 
-# stop-services-for-mode stops all GPU-dependent services (K8s workloads
-# and driver services) before applying MIG mode changes that require a
-# GPU reset.
-function stop-services-for-mode() {
-	stop_k8s_services
-	if [ "${?}" != "0" ]; then
-		return 1
-	fi
-	stop_k8s_pods
-	if [ "${?}" != "0" ]; then
-		return 1
-	fi
-	stop_driver_services
-	if [ "${?}" != "0" ]; then
-		return 1
-	fi
-	return 0
-}
-
-# stop-services-for-config stops Kubernetes services and pods before
-# applying MIG device configuration changes (no GPU reset required).
-function stop-services-for-config() {
+# stop-services stops Kubernetes services and pods before applying
+# MIG configuration changes.
+function stop-services() {
 	stop_k8s_services
 	if [ "${?}" != "0" ]; then
 		return 1
