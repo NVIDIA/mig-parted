@@ -3,16 +3,16 @@ hooks:
     apply-start:
     - workdir: "/etc/nvidia-mig-manager"
       command: "/bin/bash"
-      args: ["-x", "-c", "source hooks.sh; apply-start ${MIG_PARTED_SELECTED_CONFIG}"]
+      args: ["-x", "-c", "source hooks.sh; persist-config ${MIG_PARTED_SELECTED_CONFIG}"]
     pre-apply-mode:
     - workdir: "/etc/nvidia-mig-manager"
       command: "/bin/bash"
-      args: ["-x", "-c", "source hooks.sh; pre-apply-mode"]
+      args: ["-x", "-c", "source hooks.sh; stop-services-for-mode"]
     pre-apply-config:
     - workdir: "/etc/nvidia-mig-manager"
       command: "/bin/bash"
-      args: ["-x", "-c", "source hooks.sh; pre-apply-config"]
+      args: ["-x", "-c", "source hooks.sh; stop-services-for-config"]
     apply-exit:
     - workdir: "/etc/nvidia-mig-manager"
       command: "/bin/bash"
-      args: ["-x", "-c", "source hooks.sh; apply-exit"]
+      args: ["-x", "-c", "source hooks.sh; start-services"]
