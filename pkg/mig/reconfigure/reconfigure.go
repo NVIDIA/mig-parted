@@ -18,6 +18,7 @@ package reconfigure
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -27,6 +28,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 
@@ -573,20 +575,16 @@ func (r *Reconfigure) setNodeLabel(key, value string) error {
 }
 
 func (r *Reconfigure) setNodeLabels(labels map[string]string) error {
-	node, err := r.clientset.CoreV1().Nodes().Get(r.ctx, r.opts.NodeName, metav1.GetOptions{})
+	patchData, err := json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"labels": labels,
+		},
+	})
 	if err != nil {
-		return fmt.Errorf("failed to get node: %w", err)
+		return fmt.Errorf("failed to marshal patch data: %w", err)
 	}
 
-	if node.Labels == nil {
-		node.Labels = make(map[string]string)
-	}
-
-	for key, value := range labels {
-		node.Labels[key] = value
-	}
-
-	_, err = r.clientset.CoreV1().Nodes().Update(r.ctx, node, metav1.UpdateOptions{})
+	_, err = r.clientset.CoreV1().Nodes().Patch(r.ctx, r.opts.NodeName, types.MergePatchType, patchData, metav1.PatchOptions{})
 	return err
 }
 
