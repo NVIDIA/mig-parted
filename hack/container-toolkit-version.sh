@@ -18,6 +18,6 @@ SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DEVEL_ROOT=${SCRIPTS_DIR}/../deployments/devel
 
 COMPONENT=github.com/NVIDIA/nvidia-container-toolkit
-VERSION=$(grep -E "^\s+${COMPONENT}\s+.*$" ${DEVEL_ROOT}/go.mod | sed "s#.*${COMPONENT}##g" | grep -oE "v?[0-9\.]+(-rc\.([0-9]+))?" )
+VERSION=$(grep -E "^\s+${COMPONENT}\s+.*$" ${DEVEL_ROOT}/go.mod | sed "s#.*${COMPONENT}##g" )
 
 echo $VERSION
