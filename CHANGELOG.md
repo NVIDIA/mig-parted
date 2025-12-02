@@ -1,5 +1,12 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.13.1
+- Update k8s-mig-manager to use PATCH instead of UPDATE when updating node labels
+- Bump NVIDIA Container Toolkit to v1.18.1
+- Bump distroless base image to v3.2.1-dev
+- Bump golang version to 1.25.4
+- Bump k8s golang dependencies to 0.34.2
+
 ## v0.13.0
 - Fix device-filter for all-1g.24gb mig-parted config
 - Port reconfigure-mig.sh to Go
