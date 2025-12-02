@@ -3,7 +3,7 @@ module devel
 go 1.25.0
 
 require (
-	github.com/NVIDIA/nvidia-container-toolkit v1.18.1-0.20251121085546-d2b964a78210
+	github.com/NVIDIA/nvidia-container-toolkit v1.18.1
 	github.com/matryer/moq v0.5.3
 )
 
