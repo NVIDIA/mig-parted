@@ -20,7 +20,6 @@ source ${CURRDIR}/utils.sh
 
 driver_services=(
 	nvsm.service
-	dcgm.service
 	nvidia-dcgm.service
 )
 
