@@ -37,7 +37,7 @@ jobs:
       fail-fast: false
     runs-on: linux-${{ matrix.arch }}-cpu4
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         name: Check out code
         with:
           fetch-tags: true
