@@ -118,7 +118,6 @@ data:
       - nvsm-notifier.service
       - nv_peer_mem.service
       - nvidia-dcgm.service
-      - dcgm.service
       - dcgm-exporter.service
 ---
 apiVersion: v1
