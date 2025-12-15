@@ -31,8 +31,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"tags.cncf.io/container-device-interface/pkg/cdi"
 
 	"github.com/NVIDIA/mig-parted/internal/systemd"
+	"github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi"
+	transformroot "github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi/transform/root"
 )
 
 const (
@@ -121,7 +124,6 @@ func New(ctx context.Context, clientset *kubernetes.Clientset, migPartedBinary [
 
 // Run executes the complete MIG reconfiguration process
 func (r *Reconfigure) Run() error {
-
 	// Ensure systemd managers are cleaned up
 	defer r.cleanup()
 
@@ -321,7 +323,7 @@ Environment="MIG_PARTED_SELECTED_CONFIG=%s"
 	stateFilePath := filepath.Join(r.opts.HostRootMount, r.opts.HostMigManagerStateFile)
 
 	// Write config to file
-	if err := os.WriteFile(stateFilePath, []byte(config), 0600); err != nil {
+	if err := os.WriteFile(stateFilePath, []byte(config), 0o600); err != nil {
 		return fmt.Errorf("failed to write config to state file: %w", err)
 	}
 
@@ -468,7 +470,6 @@ func (r *Reconfigure) applyMigConfig() error {
 
 // handleCDI handles CDI operations if enabled
 func (r *Reconfigure) handleCDI() error {
-
 	log.Info("Creating NVIDIA control device nodes")
 	// TODO: Instead of shelling out, we need to invoke the method via Go. The Toolkit code needs to be refactored first.
 	cmd := exec.Command("nvidia-ctk", "system", "create-device-nodes", "--control-devices", "--dev-root="+r.opts.DevRootCtrPath)
@@ -520,7 +521,6 @@ func (r *Reconfigure) restartValidatorPod() error {
 
 // setState sets the final state and exits
 func (r *Reconfigure) setState(state string) error {
-
 	if r.opts.WithShutdownHostGPUClients && !NoRestartHostSystemdServicesOnExit {
 		log.Info("Restarting any GPU clients previously shutdown on the host by restarting their systemd services")
 		if err := r.hostStartSystemdServices(); err != nil {
@@ -637,61 +637,38 @@ func (r *Reconfigure) runNvidiaSMI() error {
 }
 
 func (r *Reconfigure) createCDISpec() error {
-	log.Info("Creating management CDI spec (simplified implementation)")
-
-	cdiGenerateCommand := exec.Command("nvidia-ctk", "cdi", "generate",
-		"--driver-root="+r.opts.DriverRootCtrPath,
-		"--dev-root="+r.opts.DevRootCtrPath,
-		"--vendor=management.nvidia.com",
-		"--class=gpu",
-		"--nvidia-cdi-hook-path="+r.opts.NvidiaCDIHookPath,
+	cdilib, err := nvcdi.New(
+		nvcdi.WithMode(nvcdi.ModeManagement),
+		nvcdi.WithDriverRoot(r.opts.DriverRootCtrPath),
+		nvcdi.WithDevRoot(r.opts.DevRoot),
+		nvcdi.WithNVIDIACDIHookPath(r.opts.NvidiaCDIHookPath),
+		nvcdi.WithClass("gpu"),
 	)
-
-	stdout1, err := cdiGenerateCommand.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("failed to get stdout pipe for the nvidia-ctk command: %w", err)
+		return fmt.Errorf("failed to create CDI library for reconfigure containers: %v", err)
 	}
 
-	cdiTransformDriverRootCommand := exec.Command("nvidia-ctk", "cdi", "transform", "root",
-		"--from="+r.opts.DriverRootCtrPath,
-		"--to="+r.opts.DriverRoot,
-		"--input=-")
-	cdiTransformDriverRootCommand.Stdin = stdout1
-
-	stdout2, err := cdiTransformDriverRootCommand.StdoutPipe()
+	spec, err := cdilib.GetSpec()
 	if err != nil {
-		return fmt.Errorf("failed to get stdout pipe for the cdiTransformDriverRootCommand: %w", err)
+		return fmt.Errorf("failed to generate CDI spec for reconfigure containers: %v", err)
+	}
+	transformer := transformroot.NewDriverTransformer(
+		transformroot.WithDriverRoot(r.opts.DriverRootCtrPath),
+		transformroot.WithTargetDriverRoot(r.opts.DriverRoot),
+		transformroot.WithDevRoot(r.opts.DevRootCtrPath),
+		transformroot.WithTargetDevRoot(r.opts.DevRoot),
+	)
+	if err := transformer.Transform(spec.Raw()); err != nil {
+		return fmt.Errorf("failed to transform driver root in CDI spec: %v", err)
 	}
 
-	cdiTransformDevRootCommand := exec.Command("nvidia-ctk", "cdi", "transform", "root",
-		"--from="+r.opts.DevRootCtrPath,
-		"--to="+r.opts.DevRoot,
-		"--input=-",
-		"--output=/var/run/cdi/management.nvidia.com-gpu.yaml")
-
-	cdiTransformDevRootCommand.Stdin = stdout2
-
-	err = cdiGenerateCommand.Start()
+	name, err := cdi.GenerateNameForSpec(spec.Raw())
 	if err != nil {
-		return fmt.Errorf("cmd.Start error for cdiGenerateCommand: %w", err)
+		return fmt.Errorf("failed to generate CDI name for reconfigure containers: %v", err)
 	}
-	err = cdiTransformDriverRootCommand.Start()
+	err = spec.Save(filepath.Join("/var/run/cdi/", name))
 	if err != nil {
-		return fmt.Errorf("cmd.Start error for cdiTransformDriverRootCommand: %w", err)
-	}
-	err = cdiTransformDevRootCommand.Start()
-	if err != nil {
-		return fmt.Errorf("cmd.Start error for running cdiTransformDevRootCommand: %w", err)
-	}
-
-	if err = cdiGenerateCommand.Wait(); err != nil {
-		return fmt.Errorf("cmd.Wait error for cdiGenerateCommand: %w", err)
-	}
-	if err = cdiTransformDriverRootCommand.Wait(); err != nil {
-		return fmt.Errorf("cmd.Wait error for cdiTransformDriverRootCommand: %w", err)
-	}
-	if err = cdiTransformDevRootCommand.Wait(); err != nil {
-		return fmt.Errorf("cmd.Wait error for cdiTransformDevRootCommand: %w", err)
+		return fmt.Errorf("failed to save CDI spec for reconfigure containers: %v", err)
 	}
 
 	return nil
