@@ -18,7 +18,24 @@ CURRDIR="$(cd "$( dirname $(readlink -f "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 &
 
 source ${CURRDIR}/utils.sh
 
-: "${MIG_PARTED_CONFIG_FILE:=${CURRDIR}/config.yaml}"
+CONFIG_FILE="${CURRDIR}/config.yaml"
+
+if nvidia-mig-parted generate-config -f "${CONFIG_FILE}.tmp"; then
+	{
+		echo "# DO NOT EDIT: Auto-generated from hardware on every boot."
+		echo "# To use a custom config, set MIG_PARTED_CONFIG_FILE."
+		echo ""
+		cat "${CONFIG_FILE}.tmp"
+	} > "${CONFIG_FILE}"
+	rm -f "${CONFIG_FILE}.tmp"
+elif [ -f "${CONFIG_FILE}" ]; then
+	echo "Warning: Config generation failed, using existing ${CONFIG_FILE}" >&2
+else
+	echo "Error: No config available and generation failed" >&2
+	exit 1
+fi
+
+: "${MIG_PARTED_CONFIG_FILE:=${CONFIG_FILE}}"
 : "${MIG_PARTED_SELECTED_CONFIG:?Environment variable must be set before calling this script}"
 
 export MIG_PARTED_CONFIG_FILE
