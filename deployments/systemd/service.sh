@@ -18,7 +18,43 @@ CURRDIR="$(cd "$( dirname $(readlink -f "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 &
 
 source ${CURRDIR}/utils.sh
 
-: "${MIG_PARTED_CONFIG_FILE:=${CURRDIR}/config.yaml}"
+# Always generate fresh config from hardware
+CONFIG_FILE="${CURRDIR}/config.yaml"
+echo "Generating MIG configuration from hardware..."
+nvidia-mig-parted generate-config -o "${CONFIG_FILE}.tmp"
+
+if [ "${?}" = 0 ]; then
+	# Add DO NOT EDIT header to the generated config
+	{
+		echo "# DO NOT EDIT: This file is auto-generated from hardware on every boot."
+		echo "# To use a custom config, create a separate file and set MIG_PARTED_CONFIG_FILE."
+		echo ""
+		cat "${CONFIG_FILE}.tmp"
+	} > "${CONFIG_FILE}"
+	rm -f "${CONFIG_FILE}.tmp"
+	echo "Successfully generated config.yaml from hardware"
+	echo "Generated config contents:"
+	cat "${CONFIG_FILE}"
+else
+	echo "Warning: Failed to generate config from hardware"
+	echo "This may indicate that:"
+	echo "  - No MIG-capable GPUs are present"
+	echo "  - NVIDIA driver is not loaded"
+	echo "  - NVML is not accessible"
+
+	# Use previously generated config as fallback
+	if [ -f "${CONFIG_FILE}" ]; then
+		echo "Using previously generated config.yaml as fallback"
+		echo "Fallback config contents:"
+		cat "${CONFIG_FILE}"
+	else
+		echo "Error: No config.yaml available and generation failed"
+		echo "Cannot proceed without a configuration file"
+		exit 1
+	fi
+fi
+
+: "${MIG_PARTED_CONFIG_FILE:=${CONFIG_FILE}}"
 : "${MIG_PARTED_SELECTED_CONFIG:?Environment variable must be set before calling this script}"
 
 export MIG_PARTED_CONFIG_FILE

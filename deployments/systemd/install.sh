@@ -69,7 +69,6 @@ cp utils.sh              ${CONFIG_DIR}
 cp hooks.sh              ${CONFIG_DIR}
 cp hooks-default.yaml    ${CONFIG_DIR}
 cp hooks-minimal.yaml    ${CONFIG_DIR}
-cp config-default.yaml    ${CONFIG_DIR}
 
 chmod a+r ${SYSTEMD_DIR}/${SERVICE_NAME}
 chmod a+r ${SYSTEMD_DIR}/${GPU_TARGET_NAME}
@@ -80,7 +79,6 @@ chmod a+r ${CONFIG_DIR}/utils.sh
 chmod a+r ${CONFIG_DIR}/hooks.sh
 chmod a+r ${CONFIG_DIR}/hooks-default.yaml
 chmod a+r ${CONFIG_DIR}/hooks-minimal.yaml
-chmod a+r ${CONFIG_DIR}/config-default.yaml
 
 chmod ug+x ${CONFIG_DIR}/service.sh
 
@@ -105,12 +103,4 @@ function maybe_add_hooks_symlink() {
   fi
 }
 
-function maybe_add_config_symlink() {
-  if [ -e ${CONFIG_DIR}/config.yaml ]; then
-    return
-  fi
-  ln -s config-default.yaml ${CONFIG_DIR}/config.yaml
-}
-
 maybe_add_hooks_symlink
-maybe_add_config_symlink
