@@ -19,6 +19,7 @@ package generateconfig
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	nvdev "github.com/NVIDIA/go-nvlib/pkg/nvlib/device"
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
@@ -39,6 +40,13 @@ type DeviceProfileInfo struct {
 type ProfileWithCount struct {
 	Profile  nvdev.MigProfile
 	MaxCount int
+}
+
+// normalizeProfileName converts profile names to config-friendly format
+// Replaces '+' with '.' for attributes like +me, +gfx, +me.all
+// Examples: "1g.24gb+me" -> "1g.24gb.me", "4g.96gb+gfx" -> "4g.96gb.gfx"
+func normalizeProfileName(profileStr string) string {
+	return strings.ReplaceAll(profileStr, "+", ".")
 }
 
 // GenerateMigConfigSpec discovers MIG profiles on all GPUs and generates a config spec
@@ -106,6 +114,16 @@ func GenerateMigConfigSpec(c *Context) (*v1.Spec, error) {
 		for _, profile := range profiles {
 			profileInfo := profile.GetInfo()
 			profileStr := profile.String()
+
+			// Skip Compute Instance (CI) profiles - we only want GPU Instance (GI) profiles
+			// CI profiles have the format like "1c.2g.20gb" where 'c' indicates compute instance
+			// GI profiles have the format like "1g.5gb", "2g.10gb", "7g.80gb"
+			// The profileInfo.C field represents the compute slice count
+			// If C > 0 and C < G, it's a CI profile (subdivided GPU instance)
+			if profileInfo.C > 0 && profileInfo.C < profileInfo.G {
+				log.Infof("Skipping Compute Instance profile %s (C=%d, G=%d)", profileStr, profileInfo.C, profileInfo.G)
+				continue
+			}
 
 			// Query the GPU instance profile info to get the max instance count
 			giProfileInfo, ret := nvmlDevice.GetGpuInstanceProfileInfo(profileInfo.GIProfileID)
@@ -178,6 +196,21 @@ func buildMigConfigSpec(profilesByDevice map[int]map[string]ProfileWithCount, de
 	// Create config entries
 	configs := map[string]v1.MigConfigSpecSlice{}
 
+	// Add base configs that should always be present
+	configs["all-disabled"] = v1.MigConfigSpecSlice{
+		{
+			Devices:    "all",
+			MigEnabled: false,
+		},
+	}
+	configs["all-enabled"] = v1.MigConfigSpecSlice{
+		{
+			Devices:    "all",
+			MigEnabled: true,
+			MigDevices: types.MigConfig{},
+		},
+	}
+
 	// Get sorted profile names for consistent output
 	profileNames := make([]string, 0, len(profileGroups))
 	for profileStr := range profileGroups {
@@ -202,13 +235,15 @@ func buildMigConfigSpec(profilesByDevice map[int]map[string]ProfileWithCount, de
 		}
 		sort.Ints(counts)
 
-		configName := fmt.Sprintf("all-%s", profileStr)
+		// Normalize profile name for config (replace + with .)
+		normalizedProfile := normalizeProfileName(profileStr)
+		configName := fmt.Sprintf("all-%s", normalizedProfile)
 		configSpecs := make(v1.MigConfigSpecSlice, 0)
 
 		// Create a spec for each unique count
 		for _, maxCount := range counts {
-			deviceIDStrs := countToDevices[maxCount]
-			sort.Strings(deviceIDStrs)
+			deviceIDs := countToDevices[maxCount]
+			sort.Strings(deviceIDs)
 
 			// Create types.MigConfig for mig-devices field
 			migDevices := types.MigConfig{profileStr: maxCount}
@@ -223,14 +258,14 @@ func buildMigConfigSpec(profilesByDevice map[int]map[string]ProfileWithCount, de
 			// Add device-filter if:
 			// 1. Multiple unique device types exist in the system, OR
 			// 2. Not all devices support this profile (partial support)
-			if len(allDeviceIDs) > 1 || len(deviceIDStrs) < len(allDeviceIDs) {
-				spec.DeviceFilter = deviceIDStrs
+			if len(allDeviceIDs) > 1 || len(deviceIDs) < len(allDeviceIDs) {
+				spec.DeviceFilter = deviceIDs
 			}
 
 			configSpecs = append(configSpecs, spec)
 
 			log.Infof("Generated config '%s' for profile '%s' with max count %d (devices: %v)",
-				configName, profileStr, maxCount, deviceIDStrs)
+				configName, profileStr, maxCount, deviceIDs)
 		}
 
 		configs[configName] = configSpecs
