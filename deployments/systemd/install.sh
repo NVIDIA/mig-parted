@@ -56,7 +56,7 @@ ${DOCKER} run --rm \
 	-v ${BINARY_DIR}:/dest \
 	golang${GOLANG_VERSION:+":${GOLANG_VERSION}"} \
 	sh -c "
-	go install $MIG_PARTED_GO_GET_PATH@latest
+	go install $MIG_PARTED_GO_GET_PATH@dynamic-mig-config
 	mv /go/bin/nvidia-mig-parted /dest/nvidia-mig-parted
 	"
 
