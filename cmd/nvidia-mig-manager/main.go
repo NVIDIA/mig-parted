@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -28,6 +29,7 @@ import (
 	cli "github.com/urfave/cli/v2"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -36,6 +38,8 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/NVIDIA/mig-parted/internal/info"
+	"github.com/NVIDIA/mig-parted/pkg/mig/builder"
+	"github.com/NVIDIA/mig-parted/pkg/mig/discovery"
 	"github.com/NVIDIA/mig-parted/pkg/mig/reconfigure"
 )
 
@@ -52,6 +56,8 @@ const (
 	DefaultNvidiaDriverRoot          = "/run/nvidia/driver"
 	DefaultDriverRootCtrPath         = "/run/nvidia/driver"
 	DefaultNvidiaCDIHookPath         = "/usr/local/nvidia/toolkit/nvidia-cdi-hook"
+	DefaultGeneratedConfigFile       = "/etc/nvidia-mig-manager/generated-config.yaml"
+	DefaultGeneratedConfigDir        = "/etc/nvidia-mig-manager"
 )
 
 var (
@@ -274,10 +280,183 @@ func validateFlags(c *cli.Context) error {
 	if nodeNameFlag == "" {
 		return fmt.Errorf("invalid -n <node-name> flag: must not be empty string")
 	}
-	if configFileFlag == "" {
-		return fmt.Errorf("invalid -f <config-file> flag: must not be empty string")
-	}
+	// configFileFlag is now optional - mig-manager will generate config if not provided
 	return nil
+}
+
+// fileExists checks if file exists
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// generateAndWriteConfig generates MIG config from hardware
+func generateAndWriteConfig(outputPath string) error {
+	dir := filepath.Dir(outputPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	// Discover profiles using shared discovery package
+	deviceProfiles, err := discovery.DiscoverMIGProfiles()
+	if err != nil {
+		return fmt.Errorf("failed to discover MIG profiles: %w", err)
+	}
+
+	// Build config spec using shared builder
+	spec, err := builder.BuildMigConfigSpec(deviceProfiles)
+	if err != nil {
+		return fmt.Errorf("failed to build config spec: %w", err)
+	}
+
+	// Marshal to YAML
+	yamlData, err := yaml.Marshal(spec)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(outputPath, yamlData, 0644); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	log.Infof("Successfully generated config at: %s", outputPath)
+	return nil
+}
+
+// buildProfilesYAML aggregates profiles and returns YAML
+func buildProfilesYAML(profiles discovery.DeviceProfiles) string {
+	profileCounts := make(map[string]int)
+	for _, deviceProfiles := range profiles {
+		for _, p := range deviceProfiles {
+			if existing, found := profileCounts[p.Name]; !found || p.MaxCount > existing {
+				profileCounts[p.Name] = p.MaxCount
+			}
+		}
+	}
+
+	var builder strings.Builder
+	builder.WriteString("# Auto-generated MIG profiles discovered on this node\n")
+	builder.WriteString("# Format: profile-name: max-instance-count\n")
+	builder.WriteString("# NOTE: Count represents maximum across all GPUs\n")
+
+	names := make([]string, 0, len(profileCounts))
+	for name := range profileCounts {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		builder.WriteString(fmt.Sprintf("%s: %d\n", name, profileCounts[name]))
+	}
+
+	return builder.String()
+}
+
+// createNodeProfilesConfigMap creates per-node ConfigMap
+func createNodeProfilesConfigMap(clientset *kubernetes.Clientset, nodeName string, profiles discovery.DeviceProfiles) error {
+	namespace := os.Getenv("POD_NAMESPACE")
+	if namespace == "" {
+		return fmt.Errorf("POD_NAMESPACE environment variable not set")
+	}
+
+	podName := os.Getenv("POD_NAME")
+	if podName == "" {
+		return fmt.Errorf("POD_NAME environment variable not set")
+	}
+
+	configMapName := fmt.Sprintf("%s-mig-profiles", nodeName)
+	profilesYAML := buildProfilesYAML(profiles)
+
+	// Get current pod for ownerReference
+	pod, err := clientset.CoreV1().Pods(namespace).Get(context.Background(), podName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get current pod: %w", err)
+	}
+
+	configMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      configMapName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/component": "mig-manager",
+				"nvidia.com/node-name":        nodeName,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "v1",
+					Kind:       "Pod",
+					Name:       pod.Name,
+					UID:        pod.UID,
+				},
+			},
+		},
+		Data: map[string]string{
+			"profiles.yaml": profilesYAML,
+		},
+	}
+
+	// Create or update
+	_, err = clientset.CoreV1().ConfigMaps(namespace).Create(context.Background(), configMap, metav1.CreateOptions{})
+	if err != nil {
+		_, err = clientset.CoreV1().ConfigMaps(namespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create/update ConfigMap: %w", err)
+		}
+	}
+
+	log.Infof("Created/updated ConfigMap: %s/%s", namespace, configMapName)
+	return nil
+}
+
+// setupMigConfig generates or selects the MIG configuration file to use.
+// It attempts to generate config from hardware and create per-node ConfigMap,
+// then determines whether to use a custom config supplied by the user or the generated one.
+// Returns the path to the config file to use.
+func setupMigConfig(clientset *kubernetes.Clientset) (string, error) {
+	// STEP 1: Always attempt to generate config from hardware
+	log.Info("Generating MIG configuration from hardware...")
+	profiles, genErr := discovery.DiscoverMIGProfiles()
+
+	if genErr == nil {
+		// Write generated config
+		if err := generateAndWriteConfig(DefaultGeneratedConfigFile); err != nil {
+			log.Warnf("Failed to write generated config: %v", err)
+			genErr = err
+		} else {
+			log.Infof("Successfully generated config at: %s", DefaultGeneratedConfigFile)
+
+			// Create per-node ConfigMap (non-fatal if fails)
+			if err := createNodeProfilesConfigMap(clientset, nodeNameFlag, profiles); err != nil {
+				log.Warnf("Failed to create node profiles ConfigMap: %v", err)
+			}
+		}
+	} else {
+		log.Warnf("Failed to discover MIG profiles: %v", genErr)
+	}
+
+	// STEP 2: Determine which config file to use
+	var finalConfigPath string
+
+	if configFileFlag != "" {
+		// CONFIG_FILE env var is set (custom config from controller)
+		if fileExists(configFileFlag) {
+			log.Infof("Using custom config from CONFIG_FILE: %s", configFileFlag)
+			finalConfigPath = configFileFlag
+		} else {
+			return "", fmt.Errorf("CONFIG_FILE specified but does not exist: %s", configFileFlag)
+		}
+	} else {
+		// CONFIG_FILE not set - use generated config
+		if genErr != nil || !fileExists(DefaultGeneratedConfigFile) {
+			return "", fmt.Errorf("no custom config provided and generation failed: %v", genErr)
+		}
+		log.Infof("Using generated config: %s", DefaultGeneratedConfigFile)
+		finalConfigPath = DefaultGeneratedConfigFile
+	}
+
+	log.Infof("MIG configuration file: %s", finalConfigPath)
+	return finalConfigPath, nil
 }
 
 func start(c *cli.Context) error {
@@ -290,6 +469,15 @@ func start(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("error building kubernetes clientset from config: %s", err)
 	}
+
+	// Setup MIG configuration (generate from hardware or use custom config)
+	configPath, err := setupMigConfig(clientset)
+	if err != nil {
+		return fmt.Errorf("failed to setup MIG config: %w", err)
+	}
+
+	// Update configFileFlag for rest of mig-manager code
+	configFileFlag = configPath
 
 	driverLibraryPath, nvidiaSMIPath, err := getPathsForCDI()
 	if err != nil {
