@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 
 	migspec "github.com/NVIDIA/mig-parted/api/spec/v1"
 	"github.com/NVIDIA/mig-parted/pkg/mig/discovery"
@@ -35,10 +36,9 @@ func normalizeProfileName(profileStr string) string {
 	return strings.ReplaceAll(profileStr, "+", ".")
 }
 
-// BuildMigConfigSpec creates a v1.Spec from discovered profiles
-// This is the shared logic used by both nvidia-mig-parted generate-config
-// and nvidia-mig-manager for consistent config generation.
-func BuildMigConfigSpec(deviceProfiles discovery.DeviceProfiles) (*migspec.Spec, error) {
+// buildMigConfigSpec creates a v1.Spec from discovered profiles.
+// This is an internal function - use GenerateConfigSpec() instead.
+func buildMigConfigSpec(deviceProfiles discovery.DeviceProfiles) (*migspec.Spec, error) {
 	// Group profiles by profile name across all devices
 	// map[profileName]map[deviceID]discovery.ProfileInfo
 	profileGroups := make(map[string]map[string]discovery.ProfileInfo)
@@ -142,3 +142,30 @@ func BuildMigConfigSpec(deviceProfiles discovery.DeviceProfiles) (*migspec.Spec,
 	}, nil
 }
 
+// GenerateConfigSpec discovers MIG profiles from hardware and builds a config spec.
+func GenerateConfigSpec() (*migspec.Spec, error) {
+	// Discover profiles from hardware
+	deviceProfiles, err := discovery.DiscoverMIGProfiles()
+	if err != nil {
+		return nil, fmt.Errorf("failed to discover MIG profiles: %w", err)
+	}
+
+	// Build spec from discovered profiles
+	return buildMigConfigSpec(deviceProfiles)
+}
+
+// GenerateConfigYAML discovers MIG profiles and generates the full config as YAML bytes.
+// Use this when you only need the YAML output.
+func GenerateConfigYAML() ([]byte, error) {
+	spec, err := GenerateConfigSpec()
+	if err != nil {
+		return nil, err
+	}
+
+	yamlData, err := yaml.Marshal(spec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal config to YAML: %w", err)
+	}
+
+	return yamlData, nil
+}

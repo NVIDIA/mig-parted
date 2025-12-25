@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,9 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
-	v1 "github.com/NVIDIA/mig-parted/api/spec/v1"
-
-	yaml "gopkg.in/yaml.v2"
+	"github.com/NVIDIA/mig-parted/pkg/mig/builder"
 )
 
 var log = logrus.New()
@@ -37,20 +35,13 @@ func GetLogger() *logrus.Logger {
 }
 
 const (
-	JSONFormat         = "json"
-	YAMLFormat         = "yaml"
-	DefaultConfigLabel = "discovered"
+	JSONFormat = "json"
+	YAMLFormat = "yaml"
 )
 
 type Flags struct {
 	OutputFile   string
 	OutputFormat string
-	ConfigLabel  string
-}
-
-type Context struct {
-	*cli.Context
-	Flags *Flags
 }
 
 func BuildCommand() *cli.Command {
@@ -62,14 +53,14 @@ func BuildCommand() *cli.Command {
 	generateConfig.Name = "generate-config"
 	generateConfig.Usage = "Generate MIG configuration by discovering available MIG profiles on the system"
 	generateConfig.Action = func(c *cli.Context) error {
-		return generateConfigWrapper(c, &generateConfigFlags)
+		return runGenerateConfig(c, &generateConfigFlags)
 	}
 
 	// Setup the flags for this command
 	generateConfig.Flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:        "output-file",
-			Aliases:     []string{"o"},
+			Aliases:     []string{"f"},
 			Usage:       "Output file path (default: stdout)",
 			Destination: &generateConfigFlags.OutputFile,
 			Value:       "",
@@ -77,39 +68,21 @@ func BuildCommand() *cli.Command {
 		},
 		&cli.StringFlag{
 			Name:        "output-format",
-			Aliases:     []string{"f"},
+			Aliases:     []string{"o"},
 			Usage:       "Format for the output [json | yaml]",
 			Destination: &generateConfigFlags.OutputFormat,
 			Value:       YAMLFormat,
 			EnvVars:     []string{"MIG_PARTED_OUTPUT_FORMAT"},
-		},
-		&cli.StringFlag{
-			Name:        "config-label",
-			Aliases:     []string{"l"},
-			Usage:       "Label prefix to apply to generated configs",
-			Destination: &generateConfigFlags.ConfigLabel,
-			Value:       DefaultConfigLabel,
-			EnvVars:     []string{"MIG_PARTED_CONFIG_LABEL"},
 		},
 	}
 
 	return &generateConfig
 }
 
-func generateConfigWrapper(c *cli.Context, f *Flags) error {
-	err := CheckFlags(f)
+func runGenerateConfig(c *cli.Context, f *Flags) error {
+	err := checkFlags(f)
 	if err != nil {
 		_ = cli.ShowSubcommandHelp(c)
-		return err
-	}
-
-	context := Context{
-		Context: c,
-		Flags:   f,
-	}
-
-	spec, err := GenerateMigConfigSpec(&context)
-	if err != nil {
 		return err
 	}
 
@@ -124,42 +97,40 @@ func generateConfigWrapper(c *cli.Context, f *Flags) error {
 		writer = file
 	}
 
-	err = WriteOutput(writer, spec, f)
-	if err != nil {
-		return err
+	// Generate and write output based on format
+	var output []byte
+	switch f.OutputFormat {
+	case YAMLFormat:
+		// Use GenerateConfigYAML directly - no duplicate marshaling
+		output, err = builder.GenerateConfigYAML()
+		if err != nil {
+			return fmt.Errorf("error generating MIG config: %v", err)
+		}
+	case JSONFormat:
+		// Need the spec object to marshal to JSON
+		spec, err := builder.GenerateConfigSpec()
+		if err != nil {
+			return fmt.Errorf("error generating MIG config: %v", err)
+		}
+		output, err = json.MarshalIndent(spec, "", "  ")
+		if err != nil {
+			return fmt.Errorf("error marshaling MIG config to JSON: %v", err)
+		}
+	}
+
+	if _, err := writer.Write(output); err != nil {
+		return fmt.Errorf("error writing output: %w", err)
 	}
 
 	return nil
 }
 
-func CheckFlags(f *Flags) error {
+func checkFlags(f *Flags) error {
 	switch f.OutputFormat {
 	case JSONFormat:
 	case YAMLFormat:
 	default:
 		return fmt.Errorf("unrecognized 'output-format': %v", f.OutputFormat)
-	}
-	return nil
-}
-
-func WriteOutput(w io.Writer, spec *v1.Spec, f *Flags) error {
-	switch f.OutputFormat {
-	case YAMLFormat:
-		output, err := yaml.Marshal(spec)
-		if err != nil {
-			return fmt.Errorf("error marshaling MIG config to YAML: %v", err)
-		}
-		if _, err := w.Write(output); err != nil {
-			return fmt.Errorf("error writing YAML output: %w", err)
-		}
-	case JSONFormat:
-		output, err := json.MarshalIndent(spec, "", "  ")
-		if err != nil {
-			return fmt.Errorf("error marshaling MIG config to JSON: %v", err)
-		}
-		if _, err := w.Write(output); err != nil {
-			return fmt.Errorf("error writing JSON output: %w", err)
-		}
 	}
 	return nil
 }

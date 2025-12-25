@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 
@@ -39,7 +38,6 @@ import (
 
 	"github.com/NVIDIA/mig-parted/internal/info"
 	"github.com/NVIDIA/mig-parted/pkg/mig/builder"
-	"github.com/NVIDIA/mig-parted/pkg/mig/discovery"
 	"github.com/NVIDIA/mig-parted/pkg/mig/reconfigure"
 )
 
@@ -290,71 +288,8 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
-// generateAndWriteConfig generates MIG config from hardware
-func generateAndWriteConfig(outputPath string) error {
-	dir := filepath.Dir(outputPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
-	}
-
-	// Discover profiles using shared discovery package
-	deviceProfiles, err := discovery.DiscoverMIGProfiles()
-	if err != nil {
-		return fmt.Errorf("failed to discover MIG profiles: %w", err)
-	}
-
-	// Build config spec using shared builder
-	spec, err := builder.BuildMigConfigSpec(deviceProfiles)
-	if err != nil {
-		return fmt.Errorf("failed to build config spec: %w", err)
-	}
-
-	// Marshal to YAML
-	yamlData, err := yaml.Marshal(spec)
-	if err != nil {
-		return fmt.Errorf("failed to marshal config: %w", err)
-	}
-
-	// Write to file
-	if err := os.WriteFile(outputPath, yamlData, 0644); err != nil {
-		return fmt.Errorf("failed to write config file: %w", err)
-	}
-
-	log.Infof("Successfully generated config at: %s", outputPath)
-	return nil
-}
-
-// buildProfilesYAML aggregates profiles and returns YAML
-func buildProfilesYAML(profiles discovery.DeviceProfiles) string {
-	profileCounts := make(map[string]int)
-	for _, deviceProfiles := range profiles {
-		for _, p := range deviceProfiles {
-			if existing, found := profileCounts[p.Name]; !found || p.MaxCount > existing {
-				profileCounts[p.Name] = p.MaxCount
-			}
-		}
-	}
-
-	var builder strings.Builder
-	builder.WriteString("# Auto-generated MIG profiles discovered on this node\n")
-	builder.WriteString("# Format: profile-name: max-instance-count\n")
-	builder.WriteString("# NOTE: Count represents maximum across all GPUs\n")
-
-	names := make([]string, 0, len(profileCounts))
-	for name := range profileCounts {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	for _, name := range names {
-		builder.WriteString(fmt.Sprintf("%s: %d\n", name, profileCounts[name]))
-	}
-
-	return builder.String()
-}
-
-// createNodeProfilesConfigMap creates per-node ConfigMap
-func createNodeProfilesConfigMap(clientset *kubernetes.Clientset, nodeName string, profiles discovery.DeviceProfiles) error {
+// createNodeConfigMap creates per-node ConfigMap with the generated MIG config YAML
+func createNodeConfigMap(clientset *kubernetes.Clientset, nodeName string, configYAML []byte) error {
 	namespace := os.Getenv("POD_NAMESPACE")
 	if namespace == "" {
 		return fmt.Errorf("POD_NAMESPACE environment variable not set")
@@ -365,8 +300,7 @@ func createNodeProfilesConfigMap(clientset *kubernetes.Clientset, nodeName strin
 		return fmt.Errorf("POD_NAME environment variable not set")
 	}
 
-	configMapName := fmt.Sprintf("%s-mig-profiles", nodeName)
-	profilesYAML := buildProfilesYAML(profiles)
+	configMapName := fmt.Sprintf("%s-mig-config", nodeName)
 
 	// Get current pod for ownerReference
 	pod, err := clientset.CoreV1().Pods(namespace).Get(context.Background(), podName, metav1.GetOptions{})
@@ -392,7 +326,7 @@ func createNodeProfilesConfigMap(clientset *kubernetes.Clientset, nodeName strin
 			},
 		},
 		Data: map[string]string{
-			"profiles.yaml": profilesYAML,
+			"config.yaml": string(configYAML),
 		},
 	}
 
@@ -416,23 +350,30 @@ func createNodeProfilesConfigMap(clientset *kubernetes.Clientset, nodeName strin
 func setupMigConfig(clientset *kubernetes.Clientset) (string, error) {
 	// STEP 1: Always attempt to generate config from hardware
 	log.Info("Generating MIG configuration from hardware...")
-	profiles, genErr := discovery.DiscoverMIGProfiles()
+	configYAML, genErr := builder.GenerateConfigYAML()
 
 	if genErr == nil {
-		// Write generated config
-		if err := generateAndWriteConfig(DefaultGeneratedConfigFile); err != nil {
-			log.Warnf("Failed to write generated config: %v", err)
+		// Ensure config directory exists
+		dir := filepath.Dir(DefaultGeneratedConfigFile)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			log.Warnf("Failed to create config directory: %v", err)
 			genErr = err
 		} else {
-			log.Infof("Successfully generated config at: %s", DefaultGeneratedConfigFile)
+			// Write generated config to file
+			if err := os.WriteFile(DefaultGeneratedConfigFile, configYAML, 0644); err != nil {
+				log.Warnf("Failed to write generated config: %v", err)
+				genErr = err
+			} else {
+				log.Infof("Successfully generated config at: %s", DefaultGeneratedConfigFile)
 
-			// Create per-node ConfigMap (non-fatal if fails)
-			if err := createNodeProfilesConfigMap(clientset, nodeNameFlag, profiles); err != nil {
-				log.Warnf("Failed to create node profiles ConfigMap: %v", err)
+				// Create per-node ConfigMap with full config YAML (non-fatal if fails)
+				if err := createNodeConfigMap(clientset, nodeNameFlag, configYAML); err != nil {
+					log.Warnf("Failed to create node config ConfigMap: %v", err)
+				}
 			}
 		}
 	} else {
-		log.Warnf("Failed to discover MIG profiles: %v", genErr)
+		log.Warnf("Failed to generate MIG config: %v", genErr)
 	}
 
 	// STEP 2: Determine which config file to use

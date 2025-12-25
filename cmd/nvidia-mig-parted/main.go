@@ -26,7 +26,7 @@ import (
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/assert"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/checkpoint"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/export"
-	generateconfig "github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/generate-config"
+	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/generateconfig"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/restore"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/util"
 	"github.com/NVIDIA/mig-parted/internal/info"
