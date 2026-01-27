@@ -15,7 +15,9 @@
 PUSH_ON_BUILD ?= false
 ATTACH_ATTESTATIONS ?= false
 DOCKER_BUILD_OPTIONS = --output=type=image,push=$(PUSH_ON_BUILD) --provenance=$(ATTACH_ATTESTATIONS) --sbom=$(ATTACH_ATTESTATIONS)
-DOCKER_BUILD_PLATFORM_OPTIONS ?= --platform=linux/amd64
+# Build for native platform by default (avoids "exec format error" on ARM64 when
+# building). Override with e.g. DOCKER_BUILD_PLATFORM_OPTIONS=--platform=linux/amd64 if needed.
+DOCKER_BUILD_PLATFORM_OPTIONS ?=
 
 ifeq ($(PUSH_ON_BUILD),true)
 $(BUILD_TARGETS): build-%: image-%

@@ -346,8 +346,8 @@ func (d *device) VisitMigProfiles(visit func(MigProfile) error) error {
 			return fmt.Errorf("error getting GPU Instance profile info: %v", ret)
 		}
 
-		for j := 0; j < nvml.COMPUTE_INSTANCE_PROFILE_COUNT; j++ {
-			for k := 0; k < nvml.COMPUTE_INSTANCE_ENGINE_PROFILE_COUNT; k++ {
+		for j := nvml.COMPUTE_INSTANCE_PROFILE_COUNT - 1; j >= 0; j-- {
+			for k := nvml.COMPUTE_INSTANCE_ENGINE_PROFILE_COUNT - 1; k >= 0; k-- {
 				p, err := d.lib.NewMigProfile(i, j, k, giProfileInfo.MemorySizeMB, memory.Total)
 				if err != nil {
 					return fmt.Errorf("error creating MIG profile: %v", err)
