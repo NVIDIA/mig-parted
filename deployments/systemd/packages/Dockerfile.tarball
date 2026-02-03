@@ -79,7 +79,6 @@ ENV DESTDIR=/${PACKAGE_NAME}-${PACKAGE_VERSION_STRING}
 COPY ./LICENSE .
 COPY --from=go-build /artifacts/nvidia-mig-parted .
 COPY ./deployments/systemd/packages/tarball/install.sh ${DESTDIR}
-COPY ./deployments/systemd/config-default.yaml ${DESTDIR}
 COPY ./deployments/systemd/hooks.sh ${DESTDIR}
 COPY ./deployments/systemd/hooks-default.yaml ${DESTDIR}
 COPY ./deployments/systemd/hooks-minimal.yaml ${DESTDIR}
