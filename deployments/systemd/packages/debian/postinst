@@ -23,17 +23,9 @@ function maybe_add_hooks_symlink() {
   fi
 }
 
-function maybe_add_config_symlink() {
-  if [ -e /etc/nvidia-mig-manager/config.yaml ]; then
-    return
-  fi
-  ln -s config-default.yaml /etc/nvidia-mig-manager/config.yaml
-}
-
 case "${1}" in
   configure)
     maybe_add_hooks_symlink
-    maybe_add_config_symlink
   ;;
 
   abort-upgrade|abort-remove|abort-deconfigure)
