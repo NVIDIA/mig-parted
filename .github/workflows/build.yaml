@@ -20,6 +20,7 @@ on:
     branches:
       - main
       - release-*
+      - "pull-request/[0-9]+"
 
 jobs:
   packages:
@@ -32,8 +33,6 @@ jobs:
           - deb
           - rpm
           - tarball
-        ispr:
-          - ${{github.event_name == 'pull_request'}}
       fail-fast: false
     runs-on: linux-${{ matrix.arch }}-cpu4
     steps:
@@ -48,6 +47,7 @@ jobs:
           echo "Building packages"
           make -f deployments/systemd/packages/Makefile ${{ matrix.package }}-${{ matrix.arch }}
       - name: 'Upload Artifacts'
+        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release-') }}
         uses: actions/upload-artifact@v5
         with:
           compression-level: 0
