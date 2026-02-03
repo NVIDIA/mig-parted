@@ -58,10 +58,13 @@ The following files will be added as part of this installation:
 * `/etc/nvidia-mig-manager/hooks.yaml`
 * `/etc/nvidia-mig-manager/config.yaml`
 
-Users should only need to customize the `config.yaml` (to add any user-specific
-MIG configurations they would like to apply) and the `hooks.sh` and
-`hooks.yaml` files (to add any user specific services that need to be shutdown
-and restarted when applying a MIG configuration).
+The `config.yaml` file is auto-generated from GPU hardware on every boot. Users who
+want to provide a custom MIG configuration can set the `MIG_PARTED_CONFIG_FILE`
+environment variable to point to their own config file.
+
+Users may also need to customize the `hooks.sh` and `hooks.yaml` files to add
+any user-specific services that need to be shutdown and restarted when applying
+a MIG configuration.
 
 Once installed, new MIG configurations can be applied at any time by running
 `nvidia-mig-parted apply` and pointing it at the `config.yaml` and `hooks.yaml`
