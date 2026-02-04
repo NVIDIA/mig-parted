@@ -34,7 +34,9 @@ k8s_pod_images=(
 	dcgm-exporter
 )
 
-function apply-start() {
+# persist-config saves the selected MIG configuration to ensure it is
+# automatically reapplied after a system reboot.
+function persist-config() {
 	local selected_config="${1}"
 	nvidia-mig-manager::service::persist_config_across_reboot ${selected_config}
 	if [ "${?}" != "0" ]; then
@@ -43,23 +45,9 @@ function apply-start() {
 	return 0
 }
 
-function pre-apply-mode() {
-	stop_k8s_services
-	if [ "${?}" != "0" ]; then
-		return 1
-	fi
-	stop_k8s_pods
-	if [ "${?}" != "0" ]; then
-		return 1
-	fi
-	stop_driver_services
-	if [ "${?}" != "0" ]; then
-		return 1
-	fi
-	return 0
-}
-
-function pre-apply-config() {
+# stop-services stops Kubernetes services and pods before applying
+# MIG configuration changes.
+function stop-services() {
 	stop_k8s_services
 	if [ "${?}" != "0" ]; then
 		return 1
@@ -71,7 +59,9 @@ function pre-apply-config() {
 	return 0
 }
 
-function apply-exit() {
+# start-services restarts all previously stopped services (driver and K8s)
+# after MIG configuration changes have been successfully applied.
+function start-services() {
 	start_driver_services
 	if [ "${?}" != "0" ]; then
 		return 1
