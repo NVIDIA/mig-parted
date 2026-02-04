@@ -346,7 +346,7 @@ func (d *device) VisitMigProfiles(visit func(MigProfile) error) error {
 			return fmt.Errorf("error getting GPU Instance profile info: %v", ret)
 		}
 
-		for j := 0; j < nvml.COMPUTE_INSTANCE_PROFILE_COUNT; j++ {
+		for j := nvml.COMPUTE_INSTANCE_PROFILE_COUNT - 1; j >= 0; j-- {
 			for k := 0; k < nvml.COMPUTE_INSTANCE_ENGINE_PROFILE_COUNT; k++ {
 				p, err := d.lib.NewMigProfile(i, j, k, giProfileInfo.MemorySizeMB, memory.Total)
 				if err != nil {
@@ -484,20 +484,24 @@ func (d *devicelib) VisitMigDevices(visit func(int, Device, int, MigDevice) erro
 }
 
 // VisitMigProfiles walks a top-level device and invokes a callback function for each unique MIG profile found on them.
+// When multiple profiles have the same string representation, the one with the lowest GIProfileID and CIProfileID is kept.
 func (d *devicelib) VisitMigProfiles(visit func(MigProfile) error) error {
-	visited := make(map[string]bool)
+	profilesByString := make(map[string]MigProfile)
 	err := d.VisitDevices(func(i int, dev Device) error {
 		err := dev.VisitMigProfiles(func(p MigProfile) error {
-			if visited[p.String()] {
-				return nil
+			key := p.String()
+			existing, exists := profilesByString[key]
+			if !exists {
+				profilesByString[key] = p
+			} else {
+				pInfo := p.GetInfo()
+				existingInfo := existing.GetInfo()
+				if pInfo.GIProfileID < existingInfo.GIProfileID {
+					profilesByString[key] = p
+				} else if pInfo.GIProfileID == existingInfo.GIProfileID && pInfo.CIProfileID < existingInfo.CIProfileID {
+					profilesByString[key] = p
+				}
 			}
-
-			err := visit(p)
-			if err != nil {
-				return fmt.Errorf("error visiting MIG profile: %v", err)
-			}
-
-			visited[p.String()] = true
 			return nil
 		})
 		if err != nil {
@@ -507,6 +511,12 @@ func (d *devicelib) VisitMigProfiles(visit func(MigProfile) error) error {
 	})
 	if err != nil {
 		return fmt.Errorf("error visiting devices: %v", err)
+	}
+	for _, p := range profilesByString {
+		err := visit(p)
+		if err != nil {
+			return fmt.Errorf("error visiting MIG profile: %v", err)
+		}
 	}
 	return nil
 }
