@@ -147,7 +147,10 @@ and distribute them as assets with every release. Please see our release page
 [here](https://github.com/NVIDIA/mig-parted/releases) to download them and
 install them.
 
-To build from source, please follow one of the methods below.
+In order to build the program from its source code, you will need to download 
+and install the most recent version of the Go programming language. You can 
+obtain it from the official website at https://go.dev/. Once you have 
+installed Go, please proceed with one of the methods described below.
 
 #### Use `docker` with `go install`:
 ```
