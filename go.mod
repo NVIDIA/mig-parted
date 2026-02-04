@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/NVIDIA/go-nvlib v0.8.1
 	github.com/NVIDIA/go-nvml v0.13.0-1
-	github.com/coreos/go-systemd/v22 v22.6.0
+	github.com/coreos/go-systemd/v22 v22.7.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v2 v2.27.7
