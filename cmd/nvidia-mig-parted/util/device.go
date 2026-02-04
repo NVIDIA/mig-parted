@@ -150,6 +150,12 @@ func nvmlResetAllGPUs() (string, error) {
 		return "No GPUs to reset...", nil
 	}
 
+	// Unload nvidia_drm module and its dependencies before reset to release GPU references
+	modprobeCmd := exec.Command("modprobe", "-r", "nvidia_drm") //nolint:gosec
+	if modprobeOutput, modErr := modprobeCmd.CombinedOutput(); modErr != nil {
+		fmt.Printf("Warning: failed to unload nvidia_drm: %s (%v)\n", string(modprobeOutput), modErr)
+	}
+
 	cmd := exec.Command("nvidia-smi", "-r", "-i", strings.Join(pciBusIDs, ",")) //nolint:gosec
 	output, err := cmd.CombinedOutput()
 	return string(output), err
