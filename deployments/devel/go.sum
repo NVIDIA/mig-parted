@@ -4,8 +4,8 @@ github.com/NVIDIA/go-nvlib v0.9.1-0.20251202135446-d0f42ba016dd h1:MC1w/VYuo9Zt0
 github.com/NVIDIA/go-nvlib v0.9.1-0.20251202135446-d0f42ba016dd/go.mod h1:7mzx9FSdO9fXWP9NKuZmWkCwhkEcSWQFe2tmFwtLb9c=
 github.com/NVIDIA/go-nvml v0.13.0-1 h1:OLX8Jq3dONuPOQPC7rndB6+iDmDakw0XTYgzMxObkEw=
 github.com/NVIDIA/go-nvml v0.13.0-1/go.mod h1:+KNA7c7gIBH7SKSJ1ntlwkfN80zdx8ovl4hrK3LmPt4=
-github.com/NVIDIA/nvidia-container-toolkit v1.19.0-rc.2 h1:wCuh6FqHYg/kpeC/4FKM1G2mdxHBqG25TtwKajb8lxA=
-github.com/NVIDIA/nvidia-container-toolkit v1.19.0-rc.2/go.mod h1:gLhT7ExXR+ydPUG8lMS/efs5zrm00Hw4nZPAUlZdweY=
+github.com/NVIDIA/nvidia-container-toolkit v1.19.0-rc.3 h1:4vQorSW5y9no0F3LaPn1Qp+oRw9de2fw3iCFa8Hw8n8=
+github.com/NVIDIA/nvidia-container-toolkit v1.19.0-rc.3/go.mod h1:gLhT7ExXR+ydPUG8lMS/efs5zrm00Hw4nZPAUlZdweY=
 github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM=
 github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
 github.com/cyphar/filepath-securejoin v0.6.1 h1:5CeZ1jPXEiYt3+Z6zqprSAgSWiggmpVyciv8syjIpVE=
