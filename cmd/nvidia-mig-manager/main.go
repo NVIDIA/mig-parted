@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,6 +39,7 @@ import (
 
 	"github.com/NVIDIA/mig-parted/internal/info"
 	"github.com/NVIDIA/mig-parted/pkg/mig/builder"
+	"github.com/NVIDIA/mig-parted/pkg/mig/discovery"
 	"github.com/NVIDIA/mig-parted/pkg/mig/reconfigure"
 )
 
@@ -361,6 +363,7 @@ func writeGeneratedConfig() ([]byte, error) {
 }
 
 // setupMigConfig uses custom config if provided, otherwise generates MIG config from hardware.
+// If dynamic generation fails with ErrNoProfilesDiscovered, falls back to DEFAULT_CONFIG_FILE.
 func setupMigConfig(ctx context.Context, clientset *kubernetes.Clientset) (string, error) {
 	// Use custom config if provided
 	if configFileFlag != "" {
@@ -375,6 +378,19 @@ func setupMigConfig(ctx context.Context, clientset *kubernetes.Clientset) (strin
 	log.Info("Generating MIG configuration from hardware...")
 	configYAML, err := writeGeneratedConfig()
 	if err != nil {
+		if errors.Is(err, discovery.ErrNoProfilesDiscovered) {
+			log.Warn("No MIG profiles discovered. Checking for default config")
+			defaultPath := os.Getenv("DEFAULT_CONFIG_FILE")
+			if defaultPath != "" {
+				var statErr error
+				if _, statErr = os.Stat(defaultPath); statErr == nil { //nolint:gosec // path from trusted env var set by operator
+					log.Infof("Using default config: %s", defaultPath)
+					return defaultPath, nil
+				}
+				log.Warnf("Default config file %s not found: %v", defaultPath, statErr)
+			}
+			return "", fmt.Errorf("dynamic generation failed and no default config available: %w", err)
+		}
 		return "", fmt.Errorf("failed to generate MIG config: %w", err)
 	}
 
@@ -622,7 +638,7 @@ func copyFile(src, dst string) error {
 	}
 
 	// Explicitly set permissions on the destination file (in case OpenFile didn't fully apply them)
-	err = os.Chmod(dst, sourceInfo.Mode().Perm())
+	err = os.Chmod(dst, sourceInfo.Mode().Perm()) //nolint:gosec // dst is from internal callers with known paths
 	if err != nil {
 		return err
 	}

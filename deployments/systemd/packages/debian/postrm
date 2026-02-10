@@ -18,6 +18,8 @@ function maybe_remove_hooks_symlink() {
 case "${1}" in
   purge)
     maybe_remove_hooks_symlink
+    # Remove runtime-generated config (not tracked by dpkg)
+    rm -f /etc/nvidia-mig-manager/config.yaml
   ;;
 
   remove|upgrade|disappear)
