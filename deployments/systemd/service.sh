@@ -19,6 +19,13 @@ CURRDIR="$(cd "$( dirname $(readlink -f "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 &
 source ${CURRDIR}/utils.sh
 
 CONFIG_FILE="${CURRDIR}/config.yaml"
+DEFAULT_CONFIG_FILE="${CURRDIR}/config-default.yaml"
+
+# Remove legacy symlink (older packages created config.yaml -> config-default.yaml).
+# Writing to a symlink on successful config generation would overwrite config-default.yaml.
+if [ -L "${CONFIG_FILE}" ]; then
+	rm -f "${CONFIG_FILE}"
+fi
 
 if nvidia-mig-parted generate-config -f "${CONFIG_FILE}.tmp"; then
 	{
@@ -27,13 +34,16 @@ if nvidia-mig-parted generate-config -f "${CONFIG_FILE}.tmp"; then
 		echo ""
 		cat "${CONFIG_FILE}.tmp"
 	} > "${CONFIG_FILE}"
-	rm -f "${CONFIG_FILE}.tmp"
 elif [ -f "${CONFIG_FILE}" ]; then
 	echo "Warning: Config generation failed, using existing ${CONFIG_FILE}" >&2
+elif [ -f "${DEFAULT_CONFIG_FILE}" ]; then
+	echo "Warning: Config generation failed, using fallback ${DEFAULT_CONFIG_FILE}" >&2
+	cp "${DEFAULT_CONFIG_FILE}" "${CONFIG_FILE}"
 else
 	echo "Error: No config available and generation failed" >&2
 	exit 1
 fi
+rm -f "${CONFIG_FILE}.tmp"
 
 : "${MIG_PARTED_CONFIG_FILE:=${CONFIG_FILE}}"
 : "${MIG_PARTED_SELECTED_CONFIG:?Environment variable must be set before calling this script}"
