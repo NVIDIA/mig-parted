@@ -23,7 +23,8 @@ SOURCE6 = utils.sh
 SOURCE7 = hooks.sh
 SOURCE8 = hooks-default.yaml
 SOURCE9 = hooks-minimal.yaml
-SOURCE10 = nvidia-gpu-reset.target
+SOURCE10 = config-default.yaml
+SOURCE11 = nvidia-gpu-reset.target
 
 build:
 
@@ -44,4 +45,5 @@ install:
 	install -m 644 -t $(DESTDIR)/etc/nvidia-mig-manager $(SOURCE7)
 	install -m 644 -t $(DESTDIR)/etc/nvidia-mig-manager $(SOURCE8)
 	install -m 644 -t $(DESTDIR)/etc/nvidia-mig-manager $(SOURCE9)
-	install -m 644 -t $(DESTDIR)/lib/systemd/system $(SOURCE10)
+	install -m 644 -t $(DESTDIR)/etc/nvidia-mig-manager $(SOURCE10)
+	install -m 644 -t $(DESTDIR)/lib/systemd/system $(SOURCE11)
