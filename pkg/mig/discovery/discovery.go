@@ -17,6 +17,7 @@
 package discovery
 
 import (
+	"errors"
 	"fmt"
 
 	nvdev "github.com/NVIDIA/go-nvlib/pkg/nvlib/device"
@@ -26,6 +27,10 @@ import (
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/util"
 	"github.com/NVIDIA/mig-parted/pkg/types"
 )
+
+// ErrNoProfilesDiscovered indicates MIG-capable GPUs were found but no profiles
+// could be discovered.
+var ErrNoProfilesDiscovered = errors.New("no MIG profiles discovered for MIG-capable GPUs")
 
 const (
 	// deviceIDA30 is the PCI device ID for A30-24GB GPUs.
@@ -104,6 +109,7 @@ func DiscoverMIGProfiles() (DeviceProfiles, error) {
 // discoverProfiles performs the actual discovery using injected dependencies.
 func (d *discoverer) discoverProfiles() (DeviceProfiles, error) {
 	result := make(DeviceProfiles)
+	migCapableCount := 0
 
 	err := d.deviceLib.VisitDevices(func(i int, dev nvdev.Device) error {
 		deviceID, err := getDeviceID(dev)
@@ -120,6 +126,8 @@ func (d *discoverer) discoverProfiles() (DeviceProfiles, error) {
 			log.Infof("Device %d (DeviceID: %s) is not MIG-capable, skipping", i, deviceID.String())
 			return nil
 		}
+
+		migCapableCount++
 
 		// Check for A30 - use hardcoded profiles due to NVML bug where
 		// GetGpuInstanceProfileInfo returns incorrect InstanceCount values.
@@ -195,8 +203,16 @@ func (d *discoverer) discoverProfiles() (DeviceProfiles, error) {
 		return nil, err
 	}
 
-	if len(result) == 0 {
+	if migCapableCount == 0 {
 		return nil, fmt.Errorf("no MIG-capable devices found on the system")
+	}
+
+	if len(result) == 0 {
+		// MIG-capable devices found but no profiles discovered.
+		// This typically happens on older drivers (e.g., 535) that don't support
+		// querying MIG profiles when MIG mode is disabled.
+		log.Warnf("Found %d MIG-capable device(s) but no profiles could be discovered", migCapableCount)
+		return nil, ErrNoProfilesDiscovered
 	}
 
 	return result, nil
