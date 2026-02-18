@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM nvcr.io/nvidia/cuda:13.0.2-base-ubi9 as build
+FROM nvcr.io/nvidia/cuda:13.1.1-base-ubi9 as build
 
 SHELL ["/bin/bash", "-c"]
 
