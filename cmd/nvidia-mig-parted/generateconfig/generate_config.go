@@ -17,12 +17,13 @@
 package generateconfig
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/NVIDIA/mig-parted/pkg/mig/builder"
 )
@@ -49,8 +50,8 @@ func BuildCommand() *cli.Command {
 	generateConfig := cli.Command{}
 	generateConfig.Name = "generate-config"
 	generateConfig.Usage = "Generate MIG configuration by discovering available MIG profiles on the system"
-	generateConfig.Action = func(c *cli.Context) error {
-		return runGenerateConfig(c, &generateConfigFlags)
+	generateConfig.Action = func(ctx context.Context, c *cli.Command) error {
+		return runGenerateConfig(ctx, c, &generateConfigFlags)
 	}
 
 	generateConfig.Flags = []cli.Flag{
@@ -60,7 +61,7 @@ func BuildCommand() *cli.Command {
 			Usage:       "Output file path (default: stdout)",
 			Destination: &generateConfigFlags.OutputFile,
 			Value:       "",
-			EnvVars:     []string{"MIG_PARTED_OUTPUT_FILE"},
+			Sources:     cli.EnvVars("MIG_PARTED_OUTPUT_FILE"),
 		},
 		&cli.StringFlag{
 			Name:        "output-format",
@@ -68,14 +69,14 @@ func BuildCommand() *cli.Command {
 			Usage:       "Format for the output [json | yaml]",
 			Destination: &generateConfigFlags.OutputFormat,
 			Value:       YAMLFormat,
-			EnvVars:     []string{"MIG_PARTED_OUTPUT_FORMAT"},
+			Sources:     cli.EnvVars("MIG_PARTED_OUTPUT_FORMAT"),
 		},
 	}
 
 	return &generateConfig
 }
 
-func runGenerateConfig(c *cli.Context, f *Flags) error {
+func runGenerateConfig(_ context.Context, c *cli.Command, f *Flags) error {
 	err := checkFlags(f)
 	if err != nil {
 		_ = cli.ShowSubcommandHelp(c)
