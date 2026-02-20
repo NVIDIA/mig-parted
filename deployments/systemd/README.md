@@ -88,6 +88,19 @@ nvidia-mig-parted apply -f /etc/nvidia-mig-manager/config.yaml -k /etc/nvidia-mi
 ```
 (An alternative is to ensure that the required environment variables are passed to `sudo` by using `sudo -E` instead)
 
+**NOTE:** When running the nvidia-mig-parted, if a message appears that is similar to
+
+```
+WARNING: unable to get device name: [failed to find device with id '22a3']
+```
+
+this indicates the pci-id list is most likely not current. In order to update the pci-id list,
+run the following command.
+
+```
+sudo update-pciids
+```
+
 As noted above, these hooks do everything they can to ensure that the services
 are started and stopped so that the new configuration is applied cleanly. If
 for some reason the config just won't seem to apply (because the full set of
