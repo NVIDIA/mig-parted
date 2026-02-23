@@ -48,7 +48,7 @@ jobs:
           make -f deployments/systemd/packages/Makefile ${{ matrix.package }}-${{ matrix.arch }}
       - name: 'Upload Artifacts'
         if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release-') }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           compression-level: 0
           name: mig-parted-${{ matrix.package }}-${{ matrix.arch }}-${{ github.run_id }}
