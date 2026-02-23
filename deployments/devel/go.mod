@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.19.0-rc.4
-	github.com/matryer/moq v0.5.3
+	github.com/matryer/moq v0.6.0
 )
 
 require (
