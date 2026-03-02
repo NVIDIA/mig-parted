@@ -46,9 +46,11 @@ fi
 rm -f "${CONFIG_FILE}.tmp"
 
 : "${MIG_PARTED_CONFIG_FILE:=${CONFIG_FILE}}"
+: "${MIG_PARTED_HOOKS_FILE:=${CURRDIR}/hooks.yaml}"
 : "${MIG_PARTED_SELECTED_CONFIG:?Environment variable must be set before calling this script}"
 
 export MIG_PARTED_CONFIG_FILE
+export MIG_PARTED_HOOKS_FILE
 export MIG_PARTED_SELECTED_CONFIG
 
 set -x
