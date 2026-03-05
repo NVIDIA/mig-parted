@@ -640,6 +640,7 @@ func (r *Reconfigure) createCDISpec() error {
 	log.Info("Creating management CDI spec (simplified implementation)")
 
 	cdiGenerateCommand := exec.Command("nvidia-ctk", "cdi", "generate",
+		"--mode=management",
 		"--driver-root="+r.opts.DriverRootCtrPath,
 		"--dev-root="+r.opts.DevRootCtrPath,
 		"--vendor=management.nvidia.com",
