@@ -19,8 +19,6 @@ package mode
 import (
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
@@ -30,28 +28,11 @@ type nvmlMigModeManager struct {
 
 var _ Manager = (*nvmlMigModeManager)(nil)
 
-func tryNvmlShutdown(nvmlLib nvml.Interface) {
-	ret := nvmlLib.Shutdown()
-	if ret != nvml.SUCCESS {
-		log.Warnf("error shutting down NVML: %v", ret)
-	}
-}
-
-func NewNvmlMigModeManager() Manager {
-	return &nvmlMigModeManager{nvml.New()}
-}
-
-func NewMockNvmlMigModeManager(nvml nvml.Interface) Manager {
+func NewNvmlMigModeManager(nvml nvml.Interface) Manager {
 	return &nvmlMigModeManager{nvml}
 }
 
 func (m *nvmlMigModeManager) IsMigCapable(gpu int) (bool, error) {
-	ret := m.nvml.Init()
-	if ret != nvml.SUCCESS {
-		return false, fmt.Errorf("error initializing NVML: %v", ret)
-	}
-	defer tryNvmlShutdown(m.nvml)
-
 	device, ret := m.nvml.DeviceGetHandleByIndex(gpu)
 	if ret != nvml.SUCCESS {
 		return false, fmt.Errorf("error getting device handle: %v", ret)
@@ -69,12 +50,6 @@ func (m *nvmlMigModeManager) IsMigCapable(gpu int) (bool, error) {
 }
 
 func (m *nvmlMigModeManager) GetMigMode(gpu int) (MigMode, error) {
-	ret := m.nvml.Init()
-	if ret != nvml.SUCCESS {
-		return -1, fmt.Errorf("error initializing NVML: %v", ret)
-	}
-	defer tryNvmlShutdown(m.nvml)
-
 	device, ret := m.nvml.DeviceGetHandleByIndex(gpu)
 	if ret != nvml.SUCCESS {
 		return -1, fmt.Errorf("error getting device handle: %v", ret)
@@ -96,12 +71,6 @@ func (m *nvmlMigModeManager) GetMigMode(gpu int) (MigMode, error) {
 }
 
 func (m *nvmlMigModeManager) SetMigMode(gpu int, mode MigMode) error {
-	ret := m.nvml.Init()
-	if ret != nvml.SUCCESS {
-		return fmt.Errorf("error initializing NVML: %v", ret)
-	}
-	defer tryNvmlShutdown(m.nvml)
-
 	device, ret := m.nvml.DeviceGetHandleByIndex(gpu)
 	if ret != nvml.SUCCESS {
 		return fmt.Errorf("error getting device handle: %v", ret)
@@ -123,12 +92,6 @@ func (m *nvmlMigModeManager) SetMigMode(gpu int, mode MigMode) error {
 }
 
 func (m *nvmlMigModeManager) IsMigModeChangePending(gpu int) (bool, error) {
-	ret := m.nvml.Init()
-	if ret != nvml.SUCCESS {
-		return false, fmt.Errorf("error initializing NVML: %v", ret)
-	}
-	defer tryNvmlShutdown(m.nvml)
-
 	device, ret := m.nvml.DeviceGetHandleByIndex(gpu)
 	if ret != nvml.SUCCESS {
 		return false, fmt.Errorf("error getting device handle: %v", ret)

@@ -32,7 +32,7 @@ import (
 
 func newMockMigStateManagerOnLunaServer() *migStateManager {
 	nvml := dgxa100.New()
-	return NewMockMigStateManager(nvml).(*migStateManager)
+	return NewMigStateManager(nvml).(*migStateManager)
 }
 
 func TestFetchRestore(t *testing.T) {

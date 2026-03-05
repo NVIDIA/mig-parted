@@ -94,7 +94,7 @@ func checkpointWrapper(c *cli.Context, f *Flags) error {
 	}
 	defer util.TryNvmlShutdown(nvml)
 
-	migState, err := state.NewMigStateManager().Fetch()
+	migState, err := state.NewMigStateManager(nvml).Fetch()
 	if err != nil {
 		return fmt.Errorf("error fetching MIG state: %v", err)
 	}
