@@ -19,11 +19,13 @@ package util
 import (
 	"fmt"
 
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
+
 	"github.com/NVIDIA/mig-parted/pkg/mig/config"
 	"github.com/NVIDIA/mig-parted/pkg/mig/mode"
 )
 
-func NewMigModeManager() (mode.Manager, error) {
+func NewMigModeManager(nvmlLib nvml.Interface) (mode.Manager, error) {
 	nvidiaModuleLoaded, err := IsNvidiaModuleLoaded()
 	if err != nil {
 		return nil, fmt.Errorf("error checking if nvidia module loaded: %v", err)
@@ -32,7 +34,7 @@ func NewMigModeManager() (mode.Manager, error) {
 		return mode.NewPciMigModeManager(), nil
 	}
 
-	nvmlSupported, err := IsNVMLVersionSupported()
+	nvmlSupported, err := IsNVMLVersionSupported(nvmlLib)
 	if err != nil {
 		return nil, fmt.Errorf("error checking NVML version: %v", err)
 	}
@@ -40,10 +42,10 @@ func NewMigModeManager() (mode.Manager, error) {
 		return mode.NewPciMigModeManager(), nil
 	}
 
-	return mode.NewNvmlMigModeManager(), nil
+	return mode.NewNvmlMigModeManager(nvmlLib), nil
 }
 
-func NewMigConfigManager() (config.Manager, error) {
+func NewMigConfigManager(nvmlLib nvml.Interface) (config.Manager, error) {
 	nvidiaModuleLoaded, err := IsNvidiaModuleLoaded()
 	if err != nil {
 		return nil, fmt.Errorf("error checking if nvidia module loaded: %v", err)
@@ -52,7 +54,7 @@ func NewMigConfigManager() (config.Manager, error) {
 		return nil, fmt.Errorf("nvidia module not loaded")
 	}
 
-	nvmlSupported, err := IsNVMLVersionSupported()
+	nvmlSupported, err := IsNVMLVersionSupported(nvmlLib)
 	if err != nil {
 		return nil, fmt.Errorf("error checking NVML version: %v", err)
 	}
@@ -60,5 +62,5 @@ func NewMigConfigManager() (config.Manager, error) {
 		return nil, fmt.Errorf("NVML version unsupported for performing MIG operations")
 	}
 
-	return config.NewNvmlMigConfigManager(), nil
+	return config.NewNvmlMigConfigManager(nvmlLib), nil
 }
