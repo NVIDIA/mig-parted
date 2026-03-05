@@ -23,5 +23,3 @@ BUILDIMAGE_TAG ?= devel-go$(GOLANG_VERSION)
 BUILDIMAGE ?=  k8s-mig-manager:$(BUILDIMAGE_TAG)
 
 GIT_COMMIT ?= $(shell git describe --match="" --dirty --long --always --abbrev=40 2> /dev/null || echo "")
-
-NVIDIA_CTK_VERSION := $(shell ./hack/container-toolkit-version.sh)
