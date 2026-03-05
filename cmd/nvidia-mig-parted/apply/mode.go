@@ -45,6 +45,13 @@ func ApplyMigMode(c *Context) error {
 		return fmt.Errorf("error enumerating GPUs: %v", err)
 	}
 
+	modeManager, err := util.NewMigModeManager(c.Nvml)
+	if err != nil {
+		return fmt.Errorf("error creating MIG mode Manager: %v", err)
+	}
+
+	configManager := config.NewNvmlMigConfigManager(c.Nvml)
+
 	pending := make([]bool, len(deviceIDs))
 	err = assert.WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
 		desiredMode := mode.Disabled
@@ -52,12 +59,7 @@ func ApplyMigMode(c *Context) error {
 			desiredMode = mode.Enabled
 		}
 
-		manager, err := util.NewMigModeManager()
-		if err != nil {
-			return fmt.Errorf("error creating MIG mode Manager: %v", err)
-		}
-
-		capable, err := manager.IsMigCapable(i)
+		capable, err := modeManager.IsMigCapable(i)
 		if err != nil {
 			return fmt.Errorf("error checking MIG capable: %v", err)
 		}
@@ -77,7 +79,7 @@ func ApplyMigMode(c *Context) error {
 			return fmt.Errorf("cannot set MIG mode on non MIG-capable GPU")
 		}
 
-		currentMode, err := manager.GetMigMode(i)
+		currentMode, err := modeManager.GetMigMode(i)
 		if err != nil {
 			return fmt.Errorf("error getting MIG mode: %v", err)
 		}
@@ -85,20 +87,19 @@ func ApplyMigMode(c *Context) error {
 
 		if nvidiaModuleLoaded && currentMode != mode.Disabled {
 			log.Debugf("    Clearing existing MIG configuration")
-			manager := config.NewNvmlMigConfigManager()
-			err := manager.ClearMigConfig(i)
+			err := configManager.ClearMigConfig(i)
 			if err != nil {
 				return fmt.Errorf("error clearing existing MIG configurations: %v", err)
 			}
 		}
 
 		log.Debugf("    Updating MIG mode: %v", desiredMode)
-		err = manager.SetMigMode(i, desiredMode)
+		err = modeManager.SetMigMode(i, desiredMode)
 		if err != nil {
 			return fmt.Errorf("error setting MIG mode: %v", err)
 		}
 
-		pending[i], err = manager.IsMigModeChangePending(i)
+		pending[i], err = modeManager.IsMigModeChangePending(i)
 		if err != nil {
 			return fmt.Errorf("error checking pending MIG mode change: %v", err)
 		}

@@ -41,28 +41,11 @@ type nvmlMigConfigManager struct {
 
 var _ Manager = (*nvmlMigConfigManager)(nil)
 
-func tryNvmlShutdown(nvmlLib nvml.Interface) {
-	ret := nvmlLib.Shutdown()
-	if ret != nvml.SUCCESS {
-		log.Warnf("Error shutting down NVML: %v", ret)
-	}
-}
-
-func NewNvmlMigConfigManager() Manager {
-	return &nvmlMigConfigManager{nvml.New(), nvlib.New()}
-}
-
-func NewMockNvmlMigConfigManager(nvml nvml.Interface) Manager {
+func NewNvmlMigConfigManager(nvml nvml.Interface) Manager {
 	return &nvmlMigConfigManager{nvml, nvlib.NewMock(nvml)}
 }
 
 func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
-	ret := m.nvml.Init()
-	if ret != nvml.SUCCESS {
-		return nil, fmt.Errorf("error initializing NVML: %v", ret)
-	}
-	defer tryNvmlShutdown(m.nvml)
-
 	device, ret := m.nvml.DeviceGetHandleByIndex(gpu)
 	if ret != nvml.SUCCESS {
 		return nil, fmt.Errorf("error getting device handle: %v", ret)
@@ -101,12 +84,6 @@ func (m *nvmlMigConfigManager) GetMigConfig(gpu int) (types.MigConfig, error) {
 }
 
 func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) error {
-	ret := m.nvml.Init()
-	if ret != nvml.SUCCESS {
-		return fmt.Errorf("error initializing NVML: %v", ret)
-	}
-	defer tryNvmlShutdown(m.nvml)
-
 	device, ret := m.nvml.DeviceGetHandleByIndex(gpu)
 	if ret != nvml.SUCCESS {
 		return fmt.Errorf("error getting device handle: %v", ret)
@@ -213,12 +190,6 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 }
 
 func (m *nvmlMigConfigManager) ClearMigConfig(gpu int) error {
-	ret := m.nvml.Init()
-	if ret != nvml.SUCCESS {
-		return fmt.Errorf("error initializing NVML: %v", ret)
-	}
-	defer tryNvmlShutdown(m.nvml)
-
 	device, ret := m.nvml.DeviceGetHandleByIndex(gpu)
 	if ret != nvml.SUCCESS {
 		return fmt.Errorf("error getting device handle: %v", ret)

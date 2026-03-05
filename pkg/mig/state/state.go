@@ -53,22 +53,12 @@ func tryNvmlShutdown(nvmlLib nvml.Interface) {
 }
 
 // NewMigStateManager creates a new MIG state Manager.
-func NewMigStateManager() Manager {
-	return &migStateManager{
-		nvml.New(),
-		nvlib.New(),
-		mode.NewNvmlMigModeManager(),
-		config.NewNvmlMigConfigManager(),
-	}
-}
-
-// NewMockMigStateManager creates a MIG state Manager using 'nvml' as the underlying NVML library to mock out its calls.
-func NewMockMigStateManager(nvml nvml.Interface) Manager {
+func NewMigStateManager(nvml nvml.Interface) Manager {
 	return &migStateManager{
 		nvml,
 		nvlib.NewMock(nvml),
-		mode.NewMockNvmlMigModeManager(nvml),
-		config.NewMockNvmlMigConfigManager(nvml),
+		mode.NewNvmlMigModeManager(nvml),
+		config.NewNvmlMigConfigManager(nvml),
 	}
 }
 

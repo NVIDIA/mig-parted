@@ -37,13 +37,18 @@ func AssertMigConfig(c *Context) error {
 		return fmt.Errorf("error enumerating GPUs: %v", err)
 	}
 
+	modeManager, err := util.NewMigModeManager(c.Nvml)
+	if err != nil {
+		return fmt.Errorf("error creating MIG Mode Manager: %v", err)
+	}
+
+	configManager, err := util.NewMigConfigManager(c.Nvml)
+	if err != nil {
+		return fmt.Errorf("error creating MIG Config Manager: %v", err)
+	}
+
 	matched := make([]bool, len(deviceIDs))
 	err = WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
-		modeManager, err := util.NewMigModeManager()
-		if err != nil {
-			return fmt.Errorf("error creating MIG Mode Manager: %v", err)
-		}
-
 		capable, err := modeManager.IsMigCapable(i)
 		if err != nil {
 			return fmt.Errorf("error checking MIG capable: %v", err)
@@ -62,11 +67,6 @@ func AssertMigConfig(c *Context) error {
 		if !mc.MigEnabled && m == mode.Disabled {
 			matched[i] = true
 			return nil
-		}
-
-		configManager, err := util.NewMigConfigManager()
-		if err != nil {
-			return fmt.Errorf("error creating MIG Config Manager: %v", err)
 		}
 
 		current, err := configManager.GetMigConfig(i)
