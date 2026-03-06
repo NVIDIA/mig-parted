@@ -57,7 +57,7 @@ jobs:
 
           echo "PUSH_ON_BUILD=${GENERATE_ARTIFACTS}" >> $GITHUB_ENV
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -99,7 +99,7 @@ jobs:
           echo "GENERATE_ARTIFACTS=${GENERATE_ARTIFACTS}" >> $GITHUB_ENV
       - name: Login to GitHub Container Registry
         if: ${{ env.GENERATE_ARTIFACTS == 'true' }}
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
