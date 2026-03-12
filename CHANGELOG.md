@@ -1,5 +1,17 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.14.0
+- Remove references to deprecated dcgm.service
+- Add support for dynamic MIG config generation
+- Extend the functionality of apply-exit to refresh CDI config
+- Bump distroless base image version to v4.0.2-dev
+- Bump CUDA base image version 13.1.1-base-ubi9
+- Fix hooks not running when invoked via systemd service
+- Fix to use management mode when generating CDI spec
+- Bump NVIDIA Container Toolkit version to v1.19.0
+- Bump k8s golang dependencies to v0.35.2
+- Bump golang version to 1.26.1
+
 ## v0.13.1
 - Update k8s-mig-manager to use PATCH instead of UPDATE when updating node labels
 - Bump NVIDIA Container Toolkit to v1.18.1
