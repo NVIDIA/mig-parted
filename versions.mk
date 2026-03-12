@@ -13,7 +13,7 @@
 # limitations under the License.
 
 MODULE := github.com/NVIDIA/mig-parted
-VERSION ?= v0.13.1
+VERSION ?= v0.14.0
 
 vVERSION := v$(VERSION:v%=%)
 
