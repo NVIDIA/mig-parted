@@ -38,14 +38,19 @@ func ExportMigConfigs(c *Context) (*v1.Spec, error) {
 		return nil, fmt.Errorf("error enumerating GPUs: %v", err)
 	}
 
+	modeManager, err := util.NewMigModeManager(c.Nvml)
+	if err != nil {
+		return nil, fmt.Errorf("error creating MIG Mode Manager: %v", err)
+	}
+
+	configManager, err := util.NewMigConfigManager(c.Nvml)
+	if err != nil {
+		return nil, fmt.Errorf("error creating MIG Config Manager: %v", err)
+	}
+
 	configSpecs := make(v1.MigConfigSpecSlice, len(deviceIDs))
 	for i, deviceID := range deviceIDs {
 		deviceFilter := deviceID.String()
-
-		modeManager, err := util.NewMigModeManager()
-		if err != nil {
-			return nil, fmt.Errorf("error creating MIG Mode Manager: %v", err)
-		}
 
 		enabled := false
 		capable, err := modeManager.IsMigCapable(i)
@@ -62,11 +67,6 @@ func ExportMigConfigs(c *Context) (*v1.Spec, error) {
 
 		migDevices := types.MigConfig{}
 		if enabled {
-			configManager, err := util.NewMigConfigManager()
-			if err != nil {
-				return nil, fmt.Errorf("error creating MIG Config Manager: %v", err)
-			}
-
 			migDevices, err = configManager.GetMigConfig(i)
 			if err != nil {
 				return nil, fmt.Errorf("error getting MIGConfig: %v", err)
