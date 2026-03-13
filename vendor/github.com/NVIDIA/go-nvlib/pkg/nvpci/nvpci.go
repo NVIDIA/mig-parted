@@ -112,6 +112,8 @@ type NvidiaPCIDevice struct {
 	Class      uint32
 	ClassName  string
 	Device     uint16
+	SubsystemVendor uint16
+	SubsystemDevice uint16
 	DeviceName string
 	Driver     string
 	IommuGroup int
@@ -282,6 +284,20 @@ func (p *nvpci) getGPUByPciBusID(address string, cache map[string]*NvidiaPCIDevi
 		return nil, fmt.Errorf("unable to convert device string to uint16: %v", deviceStr)
 	}
 
+	subVendor, err := os.ReadFile(path.Join(devicePath, "subsystem_vendor"))
+	var subVendorID uint64
+	if err == nil {
+		subVendorStr := strings.TrimSpace(string(subVendor))
+		subVendorID, _ = strconv.ParseUint(subVendorStr, 0, 16)
+	}
+
+	subDevice, err := os.ReadFile(path.Join(devicePath, "subsystem_device"))
+	var subDeviceID uint64
+	if err == nil {
+		subDeviceStr := strings.TrimSpace(string(subDevice))
+		subDeviceID, _ = strconv.ParseUint(subDeviceStr, 0, 16)
+	}
+
 	driver, err := getDriver(devicePath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to detect driver for %s: %w", address, err)
@@ -374,6 +390,8 @@ func (p *nvpci) getGPUByPciBusID(address string, cache map[string]*NvidiaPCIDevi
 		Vendor:     uint16(vendorID),
 		Class:      uint32(classID),
 		Device:     uint16(deviceID),
+		SubsystemVendor: uint16(subVendorID),
+		SubsystemDevice: uint16(subDeviceID),
 		Driver:     driver,
 		IommuGroup: int(iommuGroup),
 		NumaNode:   int(numaNode),
