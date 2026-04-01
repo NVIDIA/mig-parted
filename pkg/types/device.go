@@ -18,6 +18,7 @@ package types
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -53,24 +54,41 @@ func NewDeviceIDWithSubsystem(device, vendor, subDevice, subVendor uint16) Devic
 // NewDeviceIDFromString constructs a 'DeviceID' from its string representation.
 func NewDeviceIDFromString(str string) (DeviceID, error) {
 	parts := strings.Split(str, ":")
-	
-	deviceIDRaw, err := strconv.ParseInt(parts[0], 0, 32)
+	if len(parts) > 2 {
+		return DeviceID{}, fmt.Errorf(
+			"invalid DeviceID format '%v': expected '<devicevendor>' or '<devicevendor>:<subdevicevendor>'",
+			str,
+		)
+	}
+
+	deviceIDRaw, err := strconv.ParseUint(parts[0], 0, 32)
+	if err != nil {
+		return DeviceID{}, fmt.Errorf("unable to create DeviceID from string '%v': %v", str, err)
+	}
+
+	device, vendor, err := splitRawDeviceID(deviceIDRaw)
 	if err != nil {
 		return DeviceID{}, fmt.Errorf("unable to create DeviceID from string '%v': %v", str, err)
 	}
 
 	deviceID := DeviceID{
-		Device: uint16(deviceIDRaw >> 16),
-		Vendor: uint16(deviceIDRaw),
+		Device: device,
+		Vendor: vendor,
 	}
 
 	if len(parts) == 2 {
-		subIDRaw, err := strconv.ParseInt(parts[1], 0, 32)
+		subIDRaw, err := strconv.ParseUint(parts[1], 0, 32)
 		if err != nil {
 			return DeviceID{}, fmt.Errorf("unable to create Subsystem from string '%v': %v", str, err)
 		}
-		deviceID.SubsystemDevice = uint16(subIDRaw >> 16)
-		deviceID.SubsystemVendor = uint16(subIDRaw)
+
+		subsystemDevice, subsystemVendor, err := splitRawDeviceID(subIDRaw)
+		if err != nil {
+			return DeviceID{}, fmt.Errorf("unable to create Subsystem from string '%v': %v", str, err)
+		}
+
+		deviceID.SubsystemDevice = subsystemDevice
+		deviceID.SubsystemVendor = subsystemVendor
 		deviceID.HasSubsystem = true
 	}
 
@@ -103,12 +121,22 @@ func (filter DeviceID) Matches(hardware DeviceID) bool {
 	if filter.Device != hardware.Device || filter.Vendor != hardware.Vendor {
 		return false
 	}
-	
+
 	if filter.HasSubsystem {
 		if filter.SubsystemDevice != hardware.SubsystemDevice || filter.SubsystemVendor != hardware.SubsystemVendor {
 			return false
 		}
 	}
-	
+
 	return true
+}
+
+func splitRawDeviceID(raw uint64) (uint16, uint16, error) {
+	device := raw >> 16
+	vendor := raw & math.MaxUint16
+	if device > math.MaxUint16 || vendor > math.MaxUint16 {
+		return 0, 0, fmt.Errorf("value 0x%X is out of range for a PCI device ID", raw)
+	}
+
+	return uint16(device), uint16(vendor), nil
 }

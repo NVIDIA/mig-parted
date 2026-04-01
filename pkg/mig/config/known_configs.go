@@ -23,8 +23,8 @@ import (
 	"github.com/NVIDIA/mig-parted/pkg/types"
 )
 
-const (
-	A100_SXM4_40GB types.DeviceID = 0x20B010DE
+var (
+	A100_SXM4_40GB = types.NewDeviceID(0x20B0, 0x10DE)
 )
 
 type LoopControl int

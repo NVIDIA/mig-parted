@@ -32,10 +32,10 @@ import (
 // could be discovered.
 var ErrNoProfilesDiscovered = errors.New("no MIG profiles discovered for MIG-capable GPUs")
 
-const (
+var (
 	// deviceIDA30 is the PCI device ID for A30-24GB GPUs.
 	// NVML has a bug that reports incorrect profiles for this GPU.
-	deviceIDA30 = 0x20B710DE
+	deviceIDA30 = types.NewDeviceID(0x20B7, 0x10DE)
 )
 
 // ProfileInfo represents a discovered MIG profile with its metadata
@@ -65,9 +65,9 @@ func isCIProfile(c, g int) bool {
 func getDeviceID(dev nvdev.Device) (types.DeviceID, error) {
 	pciInfo, ret := nvml.Device(dev).GetPciInfo()
 	if ret != nvml.SUCCESS {
-		return 0, fmt.Errorf("failed to get PCI info: %v", ret)
+		return types.DeviceID{}, fmt.Errorf("failed to get PCI info: %v", ret)
 	}
-	return types.DeviceID(pciInfo.PciDeviceId), nil
+	return types.NewDeviceID(uint16(pciInfo.PciDeviceId>>16), uint16(pciInfo.PciDeviceId)), nil
 }
 
 // getHardcodedA30Profiles returns hardcoded MIG profiles for A30 GPUs.
@@ -132,7 +132,7 @@ func (d *discoverer) discoverProfiles() (DeviceProfiles, error) {
 		// Check for A30 - use hardcoded profiles due to NVML bug where
 		// GetGpuInstanceProfileInfo returns incorrect InstanceCount values.
 		// The hardcoded values match the A30 MIG profiles from nvidia-smi.
-		if uint32(deviceID) == deviceIDA30 {
+		if deviceIDA30.Matches(deviceID) {
 			log.Infof("Device %d is A30 (DeviceID: %s), using hardcoded profiles due to NVML bug",
 				i, deviceID.String())
 			result[i] = getHardcodedA30Profiles(deviceID)
