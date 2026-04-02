@@ -272,4 +272,14 @@ EOF
   if the `nvidia_drm` kernel module is loaded. On systems where the `nvidia_drm` kernel module is loaded, one must
   unload it before applying a MIG configuration and load it again after the configuration change has been applied.
   See https://github.com/NVIDIA/mig-parted/issues/181
+
+- When running `nvidia-mig-parted`, if a message appears that is similar to
+  ```
+  WARNING: unable to get device name: [failed to find device with id '22a3']
+  ```
+  this indicates the PCI ID list is most likely not current. In order to update the PCI ID list,
+  run the following command:
+  ```
+  sudo update-pciids
+  ```
   
