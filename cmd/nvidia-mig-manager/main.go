@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -540,8 +541,14 @@ func migReconfigure(ctx context.Context, migConfigValue string, clientset *kuber
 		if err != nil {
 			return fmt.Errorf("failed to copy nvidia-mig-parted to host: %w", err)
 		}
-		migPartedBinary = strings.Split(hostMigPartedBinary, " ")
-		opts.MigConfigFile = filepath.Join(hostNvidiaDirFlag, "mig-manager", "config.yaml")
+
+		hostMigPartedBinaryPath := filepath.Join(hostNvidiaDirFlag, "mig-manager", "nvidia-mig-parted")
+		if hostSupportsMigParted(hostRootMountFlag, hostMigPartedBinaryPath) {
+			migPartedBinary = strings.Split(hostMigPartedBinary, " ")
+			opts.MigConfigFile = filepath.Join(hostNvidiaDirFlag, "mig-manager", "config.yaml")
+		} else {
+			log.Warn("Host userspace is incompatible with the bundled nvidia-mig-parted binary, falling back to in-container execution")
+		}
 	}
 
 	rcfg, err := reconfigure.New(ctx, clientset, migPartedBinary, opts)
@@ -581,6 +588,11 @@ func ContinuouslySyncMigConfigChanges(clientset *kubernetes.Clientset, migConfig
 	stop := make(chan struct{})
 	go controller.Run(stop)
 	return stop
+}
+
+func hostSupportsMigParted(hostRootMount, hostMigPartedBinaryPath string) bool {
+	cmd := exec.Command("chroot", hostRootMount, hostMigPartedBinaryPath, "--help")
+	return cmd.Run() == nil
 }
 
 // copyMigPartedToHost copies the "nvidia-mig-parted" binary from the container's root filesystem over to that of the host's.
