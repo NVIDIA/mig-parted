@@ -14,6 +14,8 @@
 
 FROM nvcr.io/nvidia/cuda:13.2.0-base-ubi9 as build
 
+ENV CGO_ENABLED=0
+
 SHELL ["/bin/bash", "-c"]
 
 RUN yum install -y \
