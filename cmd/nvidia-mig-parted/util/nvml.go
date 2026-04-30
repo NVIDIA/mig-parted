@@ -45,20 +45,7 @@ func IsNvidiaModuleLoaded() (bool, error) {
 	return false, nil
 }
 
-func IsNVMLVersionSupported() (bool, error) {
-	nvmlLib := nvml.New()
-
-	ret := nvmlLib.Init()
-	if ret != nvml.SUCCESS {
-		return false, fmt.Errorf("error initializing NVML: %v", ret)
-	}
-	defer func() {
-		ret := nvmlLib.Shutdown()
-		if ret != nvml.SUCCESS {
-			log.Warnf("error shutting down NVML: %v", ret)
-		}
-	}()
-
+func IsNVMLVersionSupported(nvmlLib nvml.Interface) (bool, error) {
 	sversion, ret := nvmlLib.SystemGetNVMLVersion()
 	if ret != nvml.SUCCESS {
 		return false, fmt.Errorf("error getting getting version: %v", ret)

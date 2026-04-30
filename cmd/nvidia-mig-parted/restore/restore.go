@@ -26,6 +26,8 @@ import (
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
+
 	checkpoint "github.com/NVIDIA/mig-parted/api/checkpoint/v1"
 	hooks "github.com/NVIDIA/mig-parted/api/hooks/v1"
 	"github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted/apply"
@@ -179,7 +181,7 @@ func restoreWrapper(c *cli.Context, f *Flags) error {
 		Flags:           f,
 		Hooks:           apply.NewApplyHooks(hooksSpec.Hooks),
 		MigState:        &checkpoint.MigState,
-		MigStateManager: state.NewMigStateManager(),
+		MigStateManager: state.NewMigStateManager(nvml.New()),
 	}
 
 	err = apply.ApplyMigConfigWithHooks(log, c, f.ModeOnly, context.Hooks, &context)

@@ -33,12 +33,17 @@ func ApplyMigConfig(c *Context) error {
 	}
 	defer util.TryNvmlShutdown(c.Nvml)
 
-	return assert.WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
-		modeManager, err := util.NewMigModeManager()
-		if err != nil {
-			return fmt.Errorf("error creating MIG mode Manager: %v", err)
-		}
+	modeManager, err := util.NewMigModeManager(c.Nvml)
+	if err != nil {
+		return fmt.Errorf("error creating MIG mode Manager: %w", err)
+	}
 
+	configManager, err := util.NewMigConfigManager(c.Nvml)
+	if err != nil {
+		return fmt.Errorf("error creating MIG config Manager: %w", err)
+	}
+
+	return assert.WalkSelectedMigConfigForEachGPU(c.MigConfig, func(mc *v1.MigConfigSpec, i int, d types.DeviceID) error {
 		capable, err := modeManager.IsMigCapable(i)
 		if err != nil {
 			return fmt.Errorf("error checking MIG capable: %v", err)
@@ -75,11 +80,6 @@ func ApplyMigConfig(c *Context) error {
 		if !mc.MigEnabled {
 			log.Debugf("    Skipping MIG config -- MIG disabled")
 			return nil
-		}
-
-		configManager, err := util.NewMigConfigManager()
-		if err != nil {
-			return fmt.Errorf("error creating MIG config Manager: %v", err)
 		}
 
 		current, err := configManager.GetMigConfig(i)
