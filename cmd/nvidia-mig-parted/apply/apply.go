@@ -144,12 +144,12 @@ func GetHooksEnvsMap(c *cli.Context) hooks.EnvsMap {
 	envs := make(hooks.EnvsMap)
 	for _, flag := range c.Command.Flags {
 		fv := reflect.ValueOf(flag)
-		for fv.Kind() == reflect.Ptr {
+		for fv.Kind() == reflect.Pointer {
 			fv = reflect.Indirect(fv)
 		}
 
 		value := fv.FieldByName("Destination")
-		for value.Kind() == reflect.Ptr {
+		for value.Kind() == reflect.Pointer {
 			value = reflect.Indirect(value)
 		}
 
