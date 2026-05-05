@@ -1,5 +1,13 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.14.1
+- Reduce redundant NVML Init/Shutdown cycles
+- Switch build base image from ubi9 to ubi8 to fix glibc compatibility
+- Bump distroless base image version to v4.0.4-dev
+- Bump CUDA base image version to 13.2.1-base-ubi8
+- Bump k8s golang dependencies
+- Bump golang version to 1.26.2
+
 ## v0.14.0
 - Remove references to deprecated dcgm.service
 - Add support for dynamic MIG config generation
