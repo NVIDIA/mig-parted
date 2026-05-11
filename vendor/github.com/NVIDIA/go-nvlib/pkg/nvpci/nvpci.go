@@ -56,6 +56,7 @@ type Interface interface {
 	GetGPUs() ([]*NvidiaPCIDevice, error)
 	GetGPUByIndex(int) (*NvidiaPCIDevice, error)
 	GetGPUByPciBusID(string) (*NvidiaPCIDevice, error)
+	GetNvidiaDeviceByPciBusID(string) (*NvidiaPCIDevice, error)
 	GetNetworkControllers() ([]*NvidiaPCIDevice, error)
 	GetPciBridges() ([]*NvidiaPCIDevice, error)
 	GetDPUs() ([]*NvidiaPCIDevice, error)
@@ -115,6 +116,7 @@ type NvidiaPCIDevice struct {
 	DeviceName string
 	Driver     string
 	IommuGroup int
+	IommuFD    string
 	NumaNode   int
 	Config     *ConfigSpace
 	Resources  MemoryResources
@@ -210,7 +212,7 @@ func (p *nvpci) GetAllDevices() ([]*NvidiaPCIDevice, error) {
 	cache := make(map[string]*NvidiaPCIDevice)
 	for _, deviceDir := range deviceDirs {
 		deviceAddress := deviceDir.Name()
-		nvdevice, err := p.getGPUByPciBusID(deviceAddress, cache)
+		nvdevice, err := p.getNvidiaDeviceByPciBusID(deviceAddress, cache)
 		if err != nil {
 			return nil, fmt.Errorf("error constructing NVIDIA PCI device %s: %v", deviceAddress, err)
 		}
@@ -234,13 +236,27 @@ func (p *nvpci) GetAllDevices() ([]*NvidiaPCIDevice, error) {
 	return nvdevices, nil
 }
 
-// GetGPUByPciBusID constructs an NvidiaPCIDevice for the specified address (PCI Bus ID).
+// GetGPUByPciBusID returns an NvidiaPCIDevice for the specified address (PCI Bus ID)
+// only if the device is a GPU. Returns nil if the device exists but is not a GPU.
 func (p *nvpci) GetGPUByPciBusID(address string) (*NvidiaPCIDevice, error) {
-	// Pass nil as to force reading device information from sysfs.
-	return p.getGPUByPciBusID(address, nil)
+	dev, err := p.GetNvidiaDeviceByPciBusID(address)
+	if err != nil {
+		return nil, err
+	}
+	if dev == nil || !dev.IsGPU() {
+		return nil, nil
+	}
+	return dev, nil
 }
 
-func (p *nvpci) getGPUByPciBusID(address string, cache map[string]*NvidiaPCIDevice) (*NvidiaPCIDevice, error) {
+// GetNvidiaDeviceByPciBusID constructs an NvidiaPCIDevice for the specified
+// address (PCI Bus ID). This returns any NVIDIA PCI device at the given
+// address, including GPUs, NVSwitches, and other NVIDIA devices.
+func (p *nvpci) GetNvidiaDeviceByPciBusID(address string) (*NvidiaPCIDevice, error) {
+	return p.getNvidiaDeviceByPciBusID(address, nil)
+}
+
+func (p *nvpci) getNvidiaDeviceByPciBusID(address string, cache map[string]*NvidiaPCIDevice) (*NvidiaPCIDevice, error) {
 	if cache != nil {
 		if pciDevice, exists := cache[address]; exists {
 			return pciDevice, nil
@@ -290,6 +306,12 @@ func (p *nvpci) getGPUByPciBusID(address string, cache map[string]*NvidiaPCIDevi
 	iommuGroup, err := getIOMMUGroup(devicePath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to detect IOMMU group for %s: %w", address, err)
+	}
+
+	iommuFD, err := getIOMMUFD(devicePath)
+	if err != nil {
+		// log a warning, do not return an error as this host may not have iommufd configured/supported
+		p.logger.Warningf("unable to detect IOMMU FD for %s: %v", address, err)
 	}
 
 	numa, err := os.ReadFile(path.Join(devicePath, "numa_node"))
@@ -350,7 +372,7 @@ func (p *nvpci) getGPUByPciBusID(address string, cache map[string]*NvidiaPCIDevi
 	physFnAddress, err := filepath.EvalSymlinks(path.Join(devicePath, "physfn"))
 	switch {
 	case err == nil:
-		physFn, err := p.getGPUByPciBusID(filepath.Base(physFnAddress), cache)
+		physFn, err := p.getNvidiaDeviceByPciBusID(filepath.Base(physFnAddress), cache)
 		if err != nil {
 			return nil, fmt.Errorf("unable to detect physfn for %s: %v", address, err)
 		}
@@ -376,6 +398,7 @@ func (p *nvpci) getGPUByPciBusID(address string, cache map[string]*NvidiaPCIDevi
 		Device:     uint16(deviceID),
 		Driver:     driver,
 		IommuGroup: int(iommuGroup),
+		IommuFD:    iommuFD,
 		NumaNode:   int(numaNode),
 		Config:     config,
 		Resources:  resources,
@@ -521,6 +544,22 @@ func getDriver(devicePath string) (string, error) {
 		return filepath.Base(driver), nil
 	}
 	return "", err
+}
+
+func getIOMMUFD(devicePath string) (string, error) {
+	content, err := os.ReadDir(path.Join(devicePath, "vfio-dev"))
+	if err != nil {
+		return "", err
+	}
+	for _, c := range content {
+		if !c.IsDir() {
+			continue
+		}
+		if strings.HasPrefix(c.Name(), "vfio") {
+			return c.Name(), nil
+		}
+	}
+	return "", fmt.Errorf("no iommufd device found")
 }
 
 func getIOMMUGroup(devicePath string) (int64, error) {
