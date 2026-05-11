@@ -91,6 +91,56 @@ func TestGetSetMigConfig(t *testing.T) {
 	}
 }
 
+func TestSetMigConfigResolvesMigProfileOnTargetGPU(t *testing.T) {
+	types.SetMockNVdevlib()
+
+	server := dgxa100.New()
+	manager := &nvmlMigConfigManager{
+		nvml:  server,
+		nvlib: nvlib.NewMock(server),
+	}
+
+	gpu1 := server.Devices[1].(*dgxa100.Device)
+	originalGetGpuInstanceProfileInfo := gpu1.GetGpuInstanceProfileInfoFunc
+	gpu1.GetGpuInstanceProfileInfoFunc = func(giProfileID int) (nvml.GpuInstanceProfileInfo, nvml.Return) {
+		switch giProfileID {
+		case nvml.GPU_INSTANCE_PROFILE_1_SLICE:
+			info := dgxa100.MIGProfiles.GpuInstanceProfiles[nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV2]
+			info.Id = nvml.GPU_INSTANCE_PROFILE_1_SLICE
+			return info, nvml.SUCCESS
+		case nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV2:
+			return nvml.GpuInstanceProfileInfo{}, nvml.ERROR_NOT_SUPPORTED
+		default:
+			return originalGetGpuInstanceProfileInfo(giProfileID)
+		}
+	}
+
+	var createdGIProfileIDs []int
+	originalCreateGpuInstance := gpu1.CreateGpuInstanceFunc
+	gpu1.CreateGpuInstanceFunc = func(info *nvml.GpuInstanceProfileInfo) (nvml.GpuInstance, nvml.Return) {
+		createdGIProfileIDs = append(createdGIProfileIDs, int(info.Id))
+		return originalCreateGpuInstance(info)
+	}
+
+	config := types.MigConfig{"1g.10gb": 1}
+	flattened := config.Flatten()
+	require.Len(t, flattened, 1)
+	require.Equal(t, nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV2, flattened[0].GIProfileID)
+
+	r1, r2 := EnableMigMode(manager, 1)
+	require.Equal(t, nvml.SUCCESS, r1)
+	require.Equal(t, nvml.SUCCESS, r2)
+
+	err := manager.SetMigConfig(1, config)
+	require.NoError(t, err, "Unexpected failure from SetMigConfig")
+
+	require.Equal(t, []int{nvml.GPU_INSTANCE_PROFILE_1_SLICE}, createdGIProfileIDs)
+
+	actual, err := manager.GetMigConfig(1)
+	require.NoError(t, err, "Unexpected failure from GetMigConfig")
+	require.Equal(t, config, actual)
+}
+
 func TestClearMigConfig(t *testing.T) {
 	types.SetMockNVdevlib()
 	mcg := NewA100_SXM4_40GB_MigConfigGroup()
