@@ -22,6 +22,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	nvdevlib "github.com/NVIDIA/go-nvlib/pkg/nvlib/device"
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 
 	"github.com/NVIDIA/mig-parted/internal/nvlib"
@@ -40,6 +41,20 @@ type nvmlMigConfigManager struct {
 }
 
 var _ Manager = (*nvmlMigConfigManager)(nil)
+
+// resolveMigProfileOnDevice maps a logical MIG profile (from config / Flatten) to the
+// NVML GI/CI profile IDs for the given GPU. Global ParseMigProfile can pick IDs from
+// another GPU when names collide across devices.
+func resolveMigProfileOnDevice(profiles []nvdevlib.MigProfile, mp *types.MigProfile) (*types.MigProfile, error) {
+	key := mp.String()
+	for _, p := range profiles {
+		if p.Matches(key) {
+			info := p.GetInfo()
+			return &types.MigProfile{MigProfileInfo: info}, nil
+		}
+	}
+	return nil, fmt.Errorf("MIG profile %q not found on this GPU", key)
+}
 
 func NewNvmlMigConfigManager(nvml nvml.Interface) Manager {
 	return &nvmlMigConfigManager{nvml, nvlib.NewMock(nvml)}
@@ -98,6 +113,14 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 	if err != nil {
 		return fmt.Errorf("error asserting MIG enabled: %v", err)
 	}
+	nvdev, err := nvdevlib.New(m.nvml).NewDevice(device)
+	if err != nil {
+		return fmt.Errorf("error creating device wrapper: %w", err)
+	}
+	profiles, err := nvdev.GetMigProfiles()
+	if err != nil {
+		return fmt.Errorf("error listing MIG profiles on device: %w", err)
+	}
 
 	err = iteratePermutationsUntilSuccess(config, func(mps []*types.MigProfile) error {
 		clearAttempts := 0
@@ -127,28 +150,33 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 		var lastGIProfileID = -1
 		var gi nvml.GpuInstance = nil
 		for _, mp := range mps {
-			giProfileInfo, ret := device.GetGpuInstanceProfileInfo(mp.GIProfileID)
-			if ret != nvml.SUCCESS {
-				return fmt.Errorf("error getting GPU instance profile info for '%v': %v", mp, ret)
+			resolved, err := resolveMigProfileOnDevice(profiles, mp)
+			if err != nil {
+				return err
 			}
-			reuseGI := (gi != nil) && (lastGIProfileID == mp.GIProfileID)
-			lastGIProfileID = mp.GIProfileID
+
+			giProfileInfo, ret := device.GetGpuInstanceProfileInfo(resolved.GIProfileID)
+			if ret != nvml.SUCCESS {
+				return fmt.Errorf("error getting GPU instance profile info for '%v': %v", resolved, ret)
+			}
+			reuseGI := (gi != nil) && (lastGIProfileID == resolved.GIProfileID)
+			lastGIProfileID = resolved.GIProfileID
 
 			for {
 				if !reuseGI {
 					gi, ret = device.CreateGpuInstance(&giProfileInfo)
 					if ret != nvml.SUCCESS {
-						return fmt.Errorf("error creating GPU instance for '%v': %v", mp, ret)
+						return fmt.Errorf("error creating GPU instance for '%v': %v", resolved, ret)
 					}
 				}
 
-				ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(mp.CIProfileID, mp.CIEngProfileID)
+				ciProfileInfo, ret := gi.GetComputeInstanceProfileInfo(resolved.CIProfileID, resolved.CIEngProfileID)
 				if ret != nvml.SUCCESS {
 					if reuseGI {
 						reuseGI = false
 						continue
 					}
-					return fmt.Errorf("error getting Compute instance profile info for '%v': %v", mp, ret)
+					return fmt.Errorf("error getting Compute instance profile info for '%v': %v", resolved, ret)
 				}
 
 				_, ret = gi.CreateComputeInstance(&ciProfileInfo)
@@ -157,19 +185,19 @@ func (m *nvmlMigConfigManager) SetMigConfig(gpu int, config types.MigConfig) err
 						reuseGI = false
 						continue
 					}
-					return fmt.Errorf("error creating Compute instance for '%v': %v", mp, ret)
+					return fmt.Errorf("error creating Compute instance for '%v': %v", resolved, ret)
 				}
 
-				valid, err := types.NewMigProfile(mp.GIProfileID, mp.CIProfileID, mp.CIEngProfileID, giProfileInfo.MemorySizeMB, deviceMemory.Total)
+				valid, err := types.NewMigProfile(resolved.GIProfileID, resolved.CIProfileID, resolved.CIEngProfileID, giProfileInfo.MemorySizeMB, deviceMemory.Total)
 				if err != nil {
-					return fmt.Errorf("error creating new MIG profile for %v: %v", mp, err)
+					return fmt.Errorf("error creating new MIG profile for %v: %v", resolved, err)
 				}
-				if !mp.Equals(valid) {
+				if !resolved.Equals(valid) {
 					if reuseGI {
 						reuseGI = false
 						continue
 					}
-					return fmt.Errorf("unsupported MIG Device specified %v, expected %v instead", mp, valid)
+					return fmt.Errorf("unsupported MIG Device specified %v, expected %v instead", resolved, valid)
 				}
 
 				break

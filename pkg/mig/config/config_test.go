@@ -91,6 +91,78 @@ func TestGetSetMigConfig(t *testing.T) {
 	}
 }
 
+// TestSetMigConfigResolvesMigProfileOnTargetGPU models the scenario where the same
+// logical profile (e.g. "1g.10gb") can map to different NVML GIProfileID values on
+// different GPUs. SetMigConfig should resolve the profile specifically for the target
+// GPU, not use globally resolved IDs.
+//
+// For this test, the dgxa100 mock provides two GPUs. GPU 0 uses the default profile
+// table where "1g.10gb" maps to GPU_INSTANCE_PROFILE_1_SLICE_REV2. GPU 1 is overridden
+// so the same profile name maps to GPU_INSTANCE_PROFILE_1_SLICE instead, and REV2 is
+// rejected. Global Flatten() still yields REV2; SetMigConfig on GPU 1 must use SLICE.
+func TestSetMigConfigResolvesMigProfileOnTargetGPU(t *testing.T) {
+	types.SetMockNVdevlib()
+
+	// Mock server with 8 GPUs; we only customize GPU 1 to simulate heterogeneous profile IDs.
+	server := dgxa100.New()
+	manager := &nvmlMigConfigManager{
+		nvml:  server,
+		nvlib: nvlib.NewMock(server),
+	}
+
+	// GPU 0 (unchanged): "1g.10gb" -> GPU_INSTANCE_PROFILE_1_SLICE_REV2 (default mock).
+	// GPU 1 (below):     "1g.10gb" -> GPU_INSTANCE_PROFILE_1_SLICE only.
+	gpu1 := server.Devices[1].(*dgxa100.Device)
+	originalGetGpuInstanceProfileInfo := gpu1.GetGpuInstanceProfileInfoFunc
+	gpu1.GetGpuInstanceProfileInfoFunc = func(giProfileID int) (nvml.GpuInstanceProfileInfo, nvml.Return) {
+		switch giProfileID {
+		case nvml.GPU_INSTANCE_PROFILE_1_SLICE:
+			// GPU 1 accepts the 1-slice profile ID for "1g.10gb".
+			info := dgxa100.MIGProfiles.GpuInstanceProfiles[nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV2]
+			info.Id = nvml.GPU_INSTANCE_PROFILE_1_SLICE
+			return info, nvml.SUCCESS
+		case nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV2:
+			// GPU 1 does not support REV2; using it would reproduce the production error.
+			return nvml.GpuInstanceProfileInfo{}, nvml.ERROR_NOT_SUPPORTED
+		default:
+			return originalGetGpuInstanceProfileInfo(giProfileID)
+		}
+	}
+
+	// Record which GI profile ID SetMigConfig passes to CreateGpuInstance on GPU 1.
+	var createdGIProfileIDs []int
+	originalCreateGpuInstance := gpu1.CreateGpuInstanceFunc
+	gpu1.CreateGpuInstanceFunc = func(info *nvml.GpuInstanceProfileInfo) (nvml.GpuInstance, nvml.Return) {
+		createdGIProfileIDs = append(createdGIProfileIDs, int(info.Id))
+		return originalCreateGpuInstance(info)
+	}
+
+	config := types.MigConfig{"1g.10gb": 1}
+
+	// Flatten uses global ParseMigProfile, which matches GPU 0 first and picks REV2.
+	flattened := config.Flatten()
+	require.Len(t, flattened, 1)
+	require.Equal(t, nvml.GPU_INSTANCE_PROFILE_1_SLICE_REV2, flattened[0].GIProfileID,
+		"Flatten must still use globally resolved IDs (the bug we are guarding against)")
+
+	r1, r2 := EnableMigMode(manager, 1)
+	require.Equal(t, nvml.SUCCESS, r1)
+	require.Equal(t, nvml.SUCCESS, r2)
+
+	// Apply to GPU 1: resolveMigProfileOnDevice should swap REV2 -> SLICE before NVML calls.
+	err := manager.SetMigConfig(1, config)
+	require.NoError(t, err,
+		"SetMigConfig must succeed on GPU 1 despite global Flatten using REV2")
+
+	// Without per-GPU resolution, CreateGpuInstance would be called with REV2 and fail.
+	require.Equal(t, []int{nvml.GPU_INSTANCE_PROFILE_1_SLICE}, createdGIProfileIDs,
+		"GPU 1 must be configured with its own GI profile ID, not the globally resolved one")
+
+	actual, err := manager.GetMigConfig(1)
+	require.NoError(t, err, "Unexpected failure from GetMigConfig")
+	require.Equal(t, config, actual)
+}
+
 func TestClearMigConfig(t *testing.T) {
 	types.SetMockNVdevlib()
 	mcg := NewA100_SXM4_40GB_MigConfigGroup()
