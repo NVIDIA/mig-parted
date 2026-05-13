@@ -3,12 +3,12 @@ module devel
 go 1.26
 
 require (
-	github.com/NVIDIA/nvidia-container-toolkit v1.19.0
+	github.com/NVIDIA/nvidia-container-toolkit v1.19.1-0.20260512181421-f3d822e54693
 	github.com/matryer/moq v0.7.1
 )
 
 require (
-	cyphar.com/go-pathrs v0.2.1 // indirect
+	cyphar.com/go-pathrs v0.2.4 // indirect
 	github.com/NVIDIA/go-nvlib v0.9.1-0.20251202135446-d0f42ba016dd // indirect
 	github.com/NVIDIA/go-nvml v0.13.0-1.0.20260212130905-92cf8c963449 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
@@ -19,7 +19,7 @@ require (
 	github.com/moby/sys/reexec v0.1.0 // indirect
 	github.com/moby/sys/symlink v0.3.0 // indirect
 	github.com/opencontainers/cgroups v0.0.6 // indirect
-	github.com/opencontainers/runc v1.4.0 // indirect
+	github.com/opencontainers/runc v1.4.2 // indirect
 	github.com/opencontainers/runtime-spec v1.3.0 // indirect
 	github.com/opencontainers/runtime-tools v0.9.1-0.20251114084447-edf4cb3d2116 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
