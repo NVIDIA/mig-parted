@@ -81,6 +81,7 @@ var (
 	nvidiaCDIHookPath string
 
 	readonlyRootFS     bool
+	systemdUnavailable bool
 )
 
 type GPUClients struct {
@@ -272,6 +273,12 @@ func main() {
 			Usage:       "Indicate that the root FS on the host is read-only",
 			Destination: &readonlyRootFS,
 			EnvVars:     []string{"READONLY_ROOTFS"},
+		},
+		&cli.BoolFlag{
+			Name:        "systemd-unavailable",
+			Usage:       "Indicate that systemd is unavailable on the host",
+			Destination: &systemdUnavailable,
+			EnvVars:     []string{"SYSTEMD_UNAVAILABLE"},
 		},
 	}
 
@@ -529,6 +536,7 @@ func migReconfigure(ctx context.Context, migConfigValue string, clientset *kuber
 		DefaultGPUClientsNamespace: defaultGPUClientsNamespaceFlag,
 		WithReboot:                 withRebootFlag,
 		WithShutdownHostGPUClients: withShutdownHostGPUClientsFlag,
+		SystemdAvailable:           !systemdUnavailable,
 		ReadonlyHost:               readonlyRootFS,
 	}
 
