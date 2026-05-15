@@ -79,6 +79,8 @@ var (
 	devRoot           string
 	devRootCtrPath    string
 	nvidiaCDIHookPath string
+
+	readonlyRootFS     bool
 )
 
 type GPUClients struct {
@@ -264,6 +266,12 @@ func main() {
 			Usage:       "Path to nvidia-cdi-hook binary on the host.",
 			Destination: &nvidiaCDIHookPath,
 			EnvVars:     []string{"NVIDIA_CDI_HOOK_PATH"},
+		},
+		&cli.BoolFlag{
+			Name:        "readonly-rootfs",
+			Usage:       "Indicate that the root FS on the host is read-only",
+			Destination: &readonlyRootFS,
+			EnvVars:     []string{"READONLY_ROOTFS"},
 		},
 	}
 
@@ -521,6 +529,7 @@ func migReconfigure(ctx context.Context, migConfigValue string, clientset *kuber
 		DefaultGPUClientsNamespace: defaultGPUClientsNamespaceFlag,
 		WithReboot:                 withRebootFlag,
 		WithShutdownHostGPUClients: withShutdownHostGPUClientsFlag,
+		ReadonlyHost:               readonlyRootFS,
 	}
 
 	if cdiEnabledFlag {
@@ -535,7 +544,7 @@ func migReconfigure(ctx context.Context, migConfigValue string, clientset *kuber
 	}
 
 	migPartedBinary := []string{"nvidia-mig-parted"}
-	if withShutdownHostGPUClientsFlag {
+	if withShutdownHostGPUClientsFlag && !readonlyRootFS {
 		hostMigPartedBinary, err := copyMigPartedToHost(hostRootMountFlag, hostNvidiaDirFlag, configFileFlag)
 		if err != nil {
 			return fmt.Errorf("failed to copy nvidia-mig-parted to host: %w", err)

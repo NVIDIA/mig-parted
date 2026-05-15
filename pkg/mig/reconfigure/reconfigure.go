@@ -76,6 +76,7 @@ type Options struct {
 	DriverLibraryPath          string
 	NvidiaSMIPath              string
 	NvidiaCDIHookPath          string
+	ReadonlyHost               bool
 }
 
 // Reconfigure handles the MIG reconfiguration process
@@ -299,6 +300,11 @@ func (r *Reconfigure) isConfigAlreadyApplied() bool {
 
 // persistConfigIfNeeded persists the configuration if needed
 func (r *Reconfigure) persistConfigIfNeeded() error {
+	if r.opts.ReadonlyHost {
+		log.Info("Host root FS is mounted read-only, config cannot be persisted")
+		return nil
+	}
+
 	if r.opts.HostRootMount == "" || r.opts.HostMigManagerStateFile == "" {
 		return nil
 	}
