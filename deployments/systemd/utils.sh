@@ -75,10 +75,16 @@ function nvidia-mig-manager::service::clear_reboot_state() {
 
 function nvidia-mig-manager::service::persist_config_across_reboot() {
 	local selected_config="${1}"
-cat << EOF > /etc/systemd/system/nvidia-mig-manager.service.d/override.conf
-[Service]
-Environment="MIG_PARTED_SELECTED_CONFIG=${selected_config}"
-EOF
+	{
+		echo "[Service]"
+		if [ -n "${MIG_PARTED_CONFIG_FILE}" ]; then
+			echo "Environment=\"MIG_PARTED_CONFIG_FILE=${MIG_PARTED_CONFIG_FILE}\""
+		fi
+		if [ -n "${MIG_PARTED_HOOKS_FILE}" ]; then
+			echo "Environment=\"MIG_PARTED_HOOKS_FILE=${MIG_PARTED_HOOKS_FILE}\""
+		fi
+		echo "Environment=\"MIG_PARTED_SELECTED_CONFIG=${selected_config}\""
+	} > /etc/systemd/system/nvidia-mig-manager.service.d/override.conf
 	systemctl daemon-reload
 }
 
