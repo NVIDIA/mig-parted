@@ -17,13 +17,14 @@
 package checkpoint
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	cli "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 
@@ -50,7 +51,7 @@ func BuildCommand() *cli.Command {
 	checkpoint := cli.Command{}
 	checkpoint.Name = "checkpoint"
 	checkpoint.Usage = "Checkpoint MIG state to a checkpoint file"
-	checkpoint.Action = func(c *cli.Context) error {
+	checkpoint.Action = func(_ context.Context, c *cli.Command) error {
 		return checkpointWrapper(c, &checkpointFlags)
 	}
 
@@ -61,7 +62,7 @@ func BuildCommand() *cli.Command {
 			Aliases:     []string{"f"},
 			Usage:       "Path to the checkpoint file",
 			Destination: &checkpointFlags.CheckpointFile,
-			EnvVars:     []string{"MIG_PARTED_CHECKPOINT_FILE"},
+			Sources:     cli.EnvVars("MIG_PARTED_CHECKPOINT_FILE"),
 		},
 	}
 
@@ -80,7 +81,7 @@ func CheckFlags(f *Flags) error {
 	return nil
 }
 
-func checkpointWrapper(c *cli.Context, f *Flags) error {
+func checkpointWrapper(c *cli.Command, f *Flags) error {
 	err := CheckFlags(f)
 	if err != nil {
 		_ = cli.ShowSubcommandHelp(c)
