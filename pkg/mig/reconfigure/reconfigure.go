@@ -76,6 +76,8 @@ type Options struct {
 	DriverLibraryPath          string
 	NvidiaSMIPath              string
 	NvidiaCDIHookPath          string
+	SystemdAvailable           bool
+	ReadonlyHost               bool
 }
 
 // Reconfigure handles the MIG reconfiguration process
@@ -105,9 +107,15 @@ func New(ctx context.Context, clientset *kubernetes.Clientset, migPartedBinary [
 		_ = os.Setenv("DBUS_SYSTEM_BUS_ADDRESS", hostSystemBusAddress)
 	}
 
-	systemdManager, err := systemd.NewManager(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize systemd manager: %w", err)
+	var systemdManager *systemd.Manager = nil
+
+	if opts.SystemdAvailable {
+		mgr, err := systemd.NewManager(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize systemd manager: %w", err)
+		}
+
+		systemdManager = mgr
 	}
 
 	return &Reconfigure{
@@ -314,6 +322,11 @@ func (r *Reconfigure) persistConfigIfNeeded() error {
 
 // persistConfig persists the configuration to the state file
 func (r *Reconfigure) persistConfig() error {
+	if r.opts.ReadonlyHost {
+		log.Info("Host root FS is mounted read-only, config cannot be persisted")
+		return nil
+	}
+
 	config := fmt.Sprintf(`[Service]
 Environment="MIG_PARTED_SELECTED_CONFIG=%s"
 `, r.opts.SelectedMigConfig)
@@ -323,6 +336,10 @@ Environment="MIG_PARTED_SELECTED_CONFIG=%s"
 	// Write config to file
 	if err := os.WriteFile(stateFilePath, []byte(config), 0600); err != nil {
 		return fmt.Errorf("failed to write config to state file: %w", err)
+	}
+
+	if r.systemdManager == nil {
+		return nil
 	}
 
 	return r.systemdManager.ReloadDaemon()
@@ -414,6 +431,11 @@ func (r *Reconfigure) waitForPodsToBeDeleted() error {
 
 // shutdownHostGPUClients shuts down host GPU clients
 func (r *Reconfigure) shutdownHostGPUClients() error {
+	if r.systemdManager == nil {
+		log.Info("No systemd manager available, not shutting down GPU clients on the host")
+		return nil
+	}
+
 	log.Info("Shutting down all GPU clients on the host by stopping their systemd services")
 
 	services := strings.Split(r.opts.HostGPUClientServices, ",")
@@ -699,6 +721,11 @@ func (r *Reconfigure) createCDISpec() error {
 }
 
 func (r *Reconfigure) hostStartSystemdServices() error {
+	if r.systemdManager == nil {
+		log.Info("No systemd manager available, not starting anything via systemd")
+		return nil
+	}
+
 	services := r.stoppedServices
 	var restartServices []string
 	if len(services) == 0 {
