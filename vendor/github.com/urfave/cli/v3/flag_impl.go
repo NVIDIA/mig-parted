@@ -19,6 +19,20 @@ type boolFlag interface {
 	IsBoolFlag() bool
 }
 
+type multiValueParsingConfig struct {
+	// SliceFlagSeparator is used to customize the separator for SliceFlag, the default is ","
+	SliceFlagSeparator string
+	// DisableSliceFlagSeparator is used to disable SliceFlagSeparator, the default is false
+	DisableSliceFlagSeparator bool
+	// MapFlagKeyValueSeparator is used to customize the separator for MapFlag, the default is "="
+	MapFlagKeyValueSeparator string
+}
+
+type multiValueParsingConfigSetter interface {
+	// configuration of parsing
+	setMultiValueParsingConfig(c multiValueParsingConfig)
+}
+
 // ValueCreator is responsible for creating a flag.Value emulation
 // as well as custom formatting
 //
@@ -134,6 +148,14 @@ func (f *FlagBase[T, C, V]) PostParse() error {
 	return nil
 }
 
+// pass configuration of parsing to value
+func (f *FlagBase[T, C, V]) setMultiValueParsingConfig(c multiValueParsingConfig) {
+	tracef("setMultiValueParsingConfig %T, %+v", f.value, f.value)
+	if cf, ok := f.value.(multiValueParsingConfigSetter); ok {
+		cf.setMultiValueParsingConfig(c)
+	}
+}
+
 func (f *FlagBase[T, C, V]) PreParse() error {
 	newVal := f.Value
 
@@ -163,7 +185,7 @@ func (f *FlagBase[T, C, V]) Set(_ string, val string) error {
 	// lots of units tests prior to persistent flags assumed that the
 	// flag can be applied to different flag sets multiple times while still
 	// keeping the env set.
-	if !f.applied || f.Local {
+	if !f.applied {
 		if err := f.PreParse(); err != nil {
 			return err
 		}
