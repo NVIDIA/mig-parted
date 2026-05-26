@@ -1,5 +1,12 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.14.2
+- Persist MIG_PARTED_CONFIG_FILE and MIG_PARTED_HOOKS_FILE across reboots
+- Bump NVIDIA Container Toolkit version to v1.19.1
+- Bump golang.org/x/net to v0.54.0
+- Bump distroless base image version to v4.0.6-dev
+- Bump golang version to 1.26.3
+
 ## v0.14.1
 - Reduce redundant NVML Init/Shutdown cycles
 - Switch build base image from ubi9 to ubi8 to fix glibc compatibility
