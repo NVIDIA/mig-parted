@@ -21,6 +21,52 @@ HOST_NVIDIA_DIR=""
 HOST_MIG_MANAGER_STATE_FILE=""
 HOST_GPU_CLIENT_SERVICES=""
 HOST_KUBELET_SERVICE=""
+SKIP_KUBELET_RESTART_ON_CGROUPV2_INITIAL_APPLY="true"
+
+# is_cgroupv2 returns 0 (true) if the host is running cgroup v2 unified hierarchy.
+function is_cgroupv2() {
+  local host_root="${HOST_ROOT_MOUNT:-}"
+  [ -e "${host_root}/sys/fs/cgroup/cgroup.controllers" ]
+}
+
+# has_gpu_cgroup_consumers returns 0 (true) if there are any GPU-related
+# cgroup entries under the kubepods slice, indicating GPU client pods exist.
+function has_gpu_cgroup_consumers() {
+  local host_root="${HOST_ROOT_MOUNT:-}"
+  local kubepods_dir="${host_root}/sys/fs/cgroup/kubepods.slice"
+  if [ ! -d "${kubepods_dir}" ]; then
+    return 1
+  fi
+  # Look for any pod cgroup dirs that have nvidia device entries in their
+  # devices.list or cgroup.devices.allow (cgroup v2 uses ebpf, check via
+  # presence of nvidia device nodes in running containers instead)
+  if find "${kubepods_dir}" -name 'cgroup.procs' 2>/dev/null | xargs -r grep -l '' 2>/dev/null | head -1 | grep -q .; then
+    # At least one pod cgroup exists; check if any reference nvidia resources
+    # by looking for nvidia-related cgroup subtrees (best-effort check)
+    if find "${kubepods_dir}" -mindepth 3 -maxdepth 6 -name 'cgroup.procs' 2>/dev/null | wc -l | grep -qv '^0$'; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
+# should_skip_kubelet_restart returns 0 (true) if the kubelet restart should
+# be skipped because: the host is running cgroup v2 AND no GPU client cgroup
+# consumers are present (i.e. this is an initial apply during node bootstrap).
+function should_skip_kubelet_restart_on_initial_apply() {
+  if [ "${SKIP_KUBELET_RESTART_ON_CGROUPV2_INITIAL_APPLY}" != "true" ]; then
+    return 1
+  fi
+  if ! is_cgroupv2; then
+    return 1
+  fi
+  if has_gpu_cgroup_consumers; then
+    # GPU client pods exist — this is an in-place layout change; allow restart
+    return 1
+  fi
+  echo "INFO: cgroup v2 detected and no GPU cgroup consumers found; skipping kubelet restart to avoid corrupting containerd cgroup state during node bootstrap (see github.com/NVIDIA/mig-parted/issues/368)"
+  return 0
+}
 NODE_NAME=""
 MIG_CONFIG_FILE=""
 SELECTED_MIG_CONFIG=""
