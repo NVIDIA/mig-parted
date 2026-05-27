@@ -21,9 +21,45 @@ HOST_NVIDIA_DIR=""
 HOST_MIG_MANAGER_STATE_FILE=""
 HOST_GPU_CLIENT_SERVICES=""
 HOST_KUBELET_SERVICE=""
+SKIP_KUBELET_RESTART_ON_CGROUPV2="true"
 NODE_NAME=""
 MIG_CONFIG_FILE=""
 SELECTED_MIG_CONFIG=""
+
+# Detect whether the host is running cgroup v2 unified hierarchy.
+# On cgroup v2, unconditionally restarting kubelet during node bootstrap
+# corrupts containerd's cgroup tracking state, causing nodes to enter
+# an unrecoverable NotReady loop (see: https://github.com/NVIDIA/mig-parted/issues/368).
+function is_cgroupv2() {
+  # cgroup v2 unified hierarchy exposes cgroup.controllers at the root
+  if [ -f "/sys/fs/cgroup/cgroup.controllers" ]; then
+    return 0
+  fi
+  # Fallback: check filesystem type via stat
+  local fstype
+  fstype=$(stat -fc %T /sys/fs/cgroup 2>/dev/null || true)
+  if [ "${fstype}" = "cgroup2fs" ]; then
+    return 0
+  fi
+  return 1
+}
+
+# Restart a systemd service on the host, with a cgroup v2 guard for kubelet.
+# On cgroup v2, restarting kubelet mid-bootstrap corrupts containerd state.
+# Set SKIP_KUBELET_RESTART_ON_CGROUPV2=false to override this guard.
+function restart_host_service_with_cgroupv2_guard() {
+  local service="${1}"
+  if [ "${service}" = "${HOST_KUBELET_SERVICE}" ] && \
+     [ "${SKIP_KUBELET_RESTART_ON_CGROUPV2}" = "true" ] && \
+     is_cgroupv2; then
+    echo "WARNING: cgroup v2 unified hierarchy detected on this host."
+    echo "WARNING: Skipping kubelet restart for service '${service}' to prevent"
+    echo "WARNING: containerd cgroup state corruption (see https://github.com/NVIDIA/mig-parted/issues/368)."
+    echo "WARNING: Set SKIP_KUBELET_RESTART_ON_CGROUPV2=false to override this behavior."
+    return 0
+  fi
+  chroot "${HOST_ROOT_MOUNT}" systemctl restart "${service}"
+}
 DEFAULT_GPU_CLIENTS_NAMESPACE=""
 CDI_ENABLED="false"
 DRIVER_ROOT=""
