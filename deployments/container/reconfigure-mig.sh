@@ -24,6 +24,42 @@ HOST_KUBELET_SERVICE=""
 NODE_NAME=""
 MIG_CONFIG_FILE=""
 SELECTED_MIG_CONFIG=""
+
+# is_node_bootstrapping returns 0 (true) when the host is running cgroup v2
+# unified hierarchy AND cloud-init reports the node is still in early-boot.
+# On such nodes, restarting kubelet mid-bootstrap corrupts containerd's cgroup
+# tracking (single unified hierarchy; no per-controller isolation) and leaves
+# the node in a permanent NotReady loop.  We skip the kubelet restart in that
+# case.  On cgroup v1 hosts, or after cloud-init has finished, we return 1
+# (false) and preserve the existing behaviour.
+function is_node_bootstrapping() {
+    # Detect cgroup v2: the unified hierarchy exposes cgroup.controllers at root
+    local cgroup_root="${HOST_ROOT_MOUNT}/sys/fs/cgroup"
+    if [ ! -f "${cgroup_root}/cgroup.controllers" ]; then
+        # cgroup v1 — not affected
+        return 1
+    fi
+
+    # Detect cloud-init bootstrap phase.
+    # We call cloud-init inside the host mount (chroot-style) when HOST_ROOT_MOUNT
+    # is set, otherwise we call it directly.
+    local cloud_init_status
+    if [ -n "${HOST_ROOT_MOUNT}" ] && [ -x "${HOST_ROOT_MOUNT}/usr/bin/cloud-init" ]; then
+        cloud_init_status=$(chroot "${HOST_ROOT_MOUNT}" cloud-init status 2>/dev/null || true)
+    elif command -v cloud-init >/dev/null 2>&1; then
+        cloud_init_status=$(cloud-init status 2>/dev/null || true)
+    else
+        # No cloud-init binary available — cannot determine; assume steady-state
+        return 1
+    fi
+
+    # cloud-init outputs lines like "status: running" or "status: not started"
+    # during bootstrap and "status: done" / "status: error" afterwards.
+    if echo "${cloud_init_status}" | grep -qE 'status: (running|not started)'; then
+        return 0
+    fi
+    return 1
+}
 DEFAULT_GPU_CLIENTS_NAMESPACE=""
 CDI_ENABLED="false"
 DRIVER_ROOT=""
