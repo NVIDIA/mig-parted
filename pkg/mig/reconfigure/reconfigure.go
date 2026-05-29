@@ -19,11 +19,13 @@ package reconfigure
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -322,6 +324,10 @@ Environment="MIG_PARTED_SELECTED_CONFIG=%s"
 
 	// Write config to file
 	if err := os.WriteFile(stateFilePath, []byte(config), 0600); err != nil {
+		if errors.Is(err, syscall.EROFS) {
+			log.Warn("Cannot persist to readonly host")
+			return nil
+		}
 		return fmt.Errorf("failed to write config to state file: %w", err)
 	}
 
