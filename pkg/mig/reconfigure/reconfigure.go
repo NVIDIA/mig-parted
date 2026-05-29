@@ -78,6 +78,7 @@ type Options struct {
 	DriverLibraryPath          string
 	NvidiaSMIPath              string
 	NvidiaCDIHookPath          string
+	SystemdTimeout             float64
 }
 
 // Reconfigure handles the MIG reconfiguration process
@@ -107,9 +108,14 @@ func New(ctx context.Context, clientset *kubernetes.Clientset, migPartedBinary [
 		_ = os.Setenv("DBUS_SYSTEM_BUS_ADDRESS", hostSystemBusAddress)
 	}
 
-	systemdManager, err := systemd.NewManager(ctx)
+	systemdManager, err := systemd.NewManager(ctx, time.Duration(opts.SystemdTimeout)*time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize systemd manager: %w", err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Warn("connection to systemd timed out; skipping systemd-related tasks for this reconfiguration")
+			systemdManager = nil
+		} else {
+			return nil, fmt.Errorf("failed to initialize systemd manager: %w", err)
+		}
 	}
 
 	return &Reconfigure{
@@ -331,6 +337,10 @@ Environment="MIG_PARTED_SELECTED_CONFIG=%s"
 		return fmt.Errorf("failed to write config to state file: %w", err)
 	}
 
+	if r.systemdManager == nil {
+		return nil
+	}
+
 	return r.systemdManager.ReloadDaemon()
 }
 
@@ -420,6 +430,11 @@ func (r *Reconfigure) waitForPodsToBeDeleted() error {
 
 // shutdownHostGPUClients shuts down host GPU clients
 func (r *Reconfigure) shutdownHostGPUClients() error {
+	if r.systemdManager == nil {
+		log.Info("No systemd manager available, not shutting down GPU clients on the host")
+		return nil
+	}
+
 	log.Info("Shutting down all GPU clients on the host by stopping their systemd services")
 
 	services := strings.Split(r.opts.HostGPUClientServices, ",")
@@ -705,6 +720,11 @@ func (r *Reconfigure) createCDISpec() error {
 }
 
 func (r *Reconfigure) hostStartSystemdServices() error {
+	if r.systemdManager == nil {
+		log.Info("No systemd manager available, not starting anything via systemd")
+		return nil
+	}
+
 	services := r.stoppedServices
 	var restartServices []string
 	if len(services) == 0 {
