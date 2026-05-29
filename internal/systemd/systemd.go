@@ -35,10 +35,22 @@ type Manager struct {
 }
 
 // NewManager creates a new Manager instance
-func NewManager(ctx context.Context) (*Manager, error) {
-	conn, err := dbus.NewSystemConnectionContext(ctx)
+func NewManager(ctx context.Context, timeout time.Duration) (*Manager, error) {
+	deadline, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	conn, err := dbus.NewSystemConnectionContext(deadline)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to systemd D-Bus: %w", err)
+		err = fmt.Errorf("failed to connect to systemd D-Bus: %w", err)
+		if timeout := deadline.Err(); timeout == context.DeadlineExceeded {
+			err = errors.Join(err, timeout)
+		}
+		return nil, err
+	}
+
+	conn, err = dbus.NewSystemConnectionContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to recreate connection with no timeout")
 	}
 
 	return &Manager{
