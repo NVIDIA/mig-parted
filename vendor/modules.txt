@@ -1,5 +1,5 @@
-# github.com/NVIDIA/go-nvlib v0.10.0
-## explicit; go 1.20
+# github.com/NVIDIA/go-nvlib v0.11.0
+## explicit; go 1.25.0
 github.com/NVIDIA/go-nvlib/pkg/nvlib/device
 github.com/NVIDIA/go-nvlib/pkg/nvpci
 github.com/NVIDIA/go-nvlib/pkg/nvpci/bytes
@@ -108,7 +108,7 @@ golang.org/x/net/internal/httpsfv
 ## explicit; go 1.24.0
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sys v0.44.0
+# golang.org/x/sys v0.46.0
 ## explicit; go 1.25.0
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
