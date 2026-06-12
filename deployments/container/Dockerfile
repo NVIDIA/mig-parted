@@ -55,7 +55,22 @@ RUN go install -ldflags "-extldflags=-Wl,-z,lazy -s -w" \
     github.com/NVIDIA/nvidia-container-toolkit/cmd/nvidia-ctk@${NVIDIA_CTK_VERSION} \
     && cp ${GOPATH}/bin/nvidia-ctk /artifacts/nvidia-ctk
 
+<<<<<<< HEAD
 FROM nvcr.io/nvidia/distroless/go:v4.0.6-dev
+=======
+# Build a static busybox layout: one binary plus applet symlinks (sh, rm,
+# ln, sleep, cat, ...) so PATH-resolved commands in init-container wrappers
+# and lifecycle hooks keep working on the non-*-dev* distroless base.
+FROM debian:trixie-slim AS shell
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends busybox-static \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir /busybox \
+ && cp /bin/busybox /busybox/busybox \
+ && /busybox/busybox --install -s /busybox
+
+FROM nvcr.io/nvidia/distroless/go:v4.0.8
+>>>>>>> a7d4d7b0 (Bump nvidia/distroless/go in /deployments/container)
 
 USER 0:0
 SHELL ["/busybox/sh", "-c"]
