@@ -20,10 +20,7 @@ on:
   pull_request_target:
     types: [closed]
 
-permissions:
-  contents: write
-  pull-requests: write
-  issues: write
+permissions: {}
 
 jobs:
   add-labels:
@@ -33,7 +30,12 @@ jobs:
     if: |
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request && 
-      startsWith(github.event.comment.body, '/cherry-pick')
+      startsWith(github.event.comment.body, '/cherry-pick') &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     
     steps:
       - name: Checkout repository
@@ -62,6 +64,10 @@ jobs:
       github.event_name == 'pull_request_target' &&
       github.event.pull_request.merged == true &&
       contains(join(github.event.pull_request.labels.*.name, ','), 'cherry-pick/')
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     
     steps:
       - name: Checkout base branch repository
