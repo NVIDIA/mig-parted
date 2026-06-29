@@ -18,6 +18,11 @@ CURRDIR="$(cd "$( dirname $(readlink -f "${BASH_SOURCE[0]}"))" >/dev/null 2>&1 &
 
 source ${CURRDIR}/utils.sh
 
+# Select the appropriate hooks file now that the driver is loaded. The choice
+# made at package-install time can be wrong if the GPU was not queryable then
+# (e.g. during OS image builds).
+nvidia-mig-manager::service::select_hooks_file
+
 CONFIG_FILE="${CURRDIR}/config.yaml"
 DEFAULT_CONFIG_FILE="${CURRDIR}/config-default.yaml"
 
