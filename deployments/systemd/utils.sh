@@ -90,12 +90,13 @@ function nvidia-mig-manager::service::persist_config_across_reboot() {
 
 function nvidia-mig-manager::service::start_systemd_services() {
 	local -n __services="${1}"
+	local extra_args="${2:-}"
 	for s in ${__services[@]}; do
 		systemctl list-unit-files --state=enabled,generated | grep -F "${s}"
 		if [ "${?}" != "0" ]; then
 			continue
 		fi
-		systemctl start "${s}"
+		systemctl start ${extra_args} "${s}"
 		if [ "${?}" != "0" ]; then
 			return 1
 		fi
