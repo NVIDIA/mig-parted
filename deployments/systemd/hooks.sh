@@ -92,7 +92,21 @@ function stop_driver_services() {
 }
 
 function start_driver_services() {
-	nvidia-mig-manager::service::start_systemd_services driver_services
+	# Driver services are ordered After=nvidia-gpu-reset.target, and this
+	# service runs Before that target. During boot, starting them
+	# synchronously here deadlocks: this service waits on them while the
+	# target (and therefore those services) waits on this service to finish.
+	# While the system is still starting up, enqueue the start without
+	# waiting; systemd starts them once this service completes and the target
+	# is reached. Once the system is running, start synchronously as before so
+	# a runtime reconfigure still waits for the services and reports failures.
+	local start_args=""
+	local state
+	state="$(systemctl is-system-running 2>/dev/null)"
+	if [ "${state}" != "running" ] && [ "${state}" != "degraded" ]; then
+		start_args="--no-block"
+	fi
+	nvidia-mig-manager::service::start_systemd_services driver_services "${start_args}"
 	return ${?}
 }
 
