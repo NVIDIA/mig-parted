@@ -88,6 +88,48 @@ function nvidia-mig-manager::service::persist_config_across_reboot() {
 	systemctl daemon-reload
 }
 
+function nvidia-mig-manager::service::select_hooks_file() {
+	local config_dir="/etc/nvidia-mig-manager"
+	local link="${config_dir}/hooks.yaml"
+
+	# Only manage the symlink when it is missing or points at one of the
+	# shipped hooks files. A hooks.yaml the user pointed elsewhere is left
+	# untouched.
+	if [ -e "${link}" ]; then
+		local target
+		target="$(readlink -f "${link}")"
+		if [ "${target}" != "${config_dir}/hooks-minimal.yaml" ] && \
+		   [ "${target}" != "${config_dir}/hooks-default.yaml" ]; then
+			return 0
+		fi
+	fi
+
+	# nvidia-smi can be absent when the package is installed (e.g. during OS
+	# image builds), which leaves the symlink pointing at the fallback hooks
+	# file. The driver is loaded by the time this service runs, so re-evaluate
+	# the selection here. If nvidia-smi is still unavailable, keep the current
+	# symlink rather than guess.
+	if ! which nvidia-smi >/dev/null 2>&1; then
+		echo "Warning: nvidia-smi not available; keeping the current hooks file (${link})" >&2
+		return 0
+	fi
+
+	local compute_cap
+	compute_cap="$(nvidia-smi -i 0 --query-gpu=compute_cap --format=csv,noheader)"
+
+	local desired="hooks-default.yaml"
+	if [ "${compute_cap/./}" -ge "90" ] 2>/dev/null; then
+		desired="hooks-minimal.yaml"
+	fi
+
+	local current
+	current="$(readlink "${link}" 2>/dev/null)"
+	if [ "${current}" != "${desired}" ]; then
+		echo "Pointing ${link} at ${desired} (compute capability ${compute_cap})" >&2
+		ln -sf "${desired}" "${link}"
+	fi
+}
+
 function nvidia-mig-manager::service::start_systemd_services() {
 	local -n __services="${1}"
 	local extra_args="${2:-}"
