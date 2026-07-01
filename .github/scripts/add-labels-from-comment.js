@@ -17,8 +17,15 @@
 module.exports = async ({ github, context, core }) => {
   const commentBody = context.payload.comment.body;
   const prNumber = context.payload.issue.number;
+  const trustedAssociations = new Set(['OWNER', 'MEMBER']);
+  const authorAssociation = context.payload.comment.author_association;
 
   core.info(`Processing comment: ${commentBody}`);
+
+  if (!trustedAssociations.has(authorAssociation)) {
+    core.warning(`Ignoring /cherry-pick comment from ${authorAssociation || 'unknown'} author association`);
+    return { success: false, message: 'Unauthorized comment author' };
+  }
 
   // Parse comment for /cherry-pick branches
   const cherryPickPattern = /^\/cherry-pick\s+(.+)$/m;
@@ -107,4 +114,3 @@ module.exports = async ({ github, context, core }) => {
     };
   }
 };
-
