@@ -17,7 +17,7 @@
 module.exports = async ({ github, context, core }) => {
   const commentBody = context.payload.comment.body;
   const prNumber = context.payload.issue.number;
-  const trustedAssociations = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+  const trustedAssociations = new Set(['OWNER', 'MEMBER']);
   const authorAssociation = context.payload.comment.author_association;
 
   core.info(`Processing comment: ${commentBody}`);
