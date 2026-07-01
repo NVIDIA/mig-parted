@@ -1,5 +1,13 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.14.3
+- Select the hooks file at boot instead of at install time
+- Start driver services non-blocking during boot to avoid deadlock
+- Bump distroless base image version to v4.0.8-dev
+- Bump k8s golang dependencies to v0.36.2
+- Bump github.com/opencontainers/runc to v1.4.3
+- Bump golang version to 1.26.4
+
 ## v0.14.2
 - Persist MIG_PARTED_CONFIG_FILE and MIG_PARTED_HOOKS_FILE across reboots
 - Bump NVIDIA Container Toolkit version to v1.19.1
