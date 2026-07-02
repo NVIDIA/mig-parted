@@ -20,6 +20,7 @@ Before=nvidia-gpu-reset.target
 
 [Service]
 Type=oneshot
+TimeoutStartSec=900
 ExecStart=/bin/bash /etc/nvidia-mig-manager/service.sh
 
 [Install]
