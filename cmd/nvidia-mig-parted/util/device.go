@@ -67,7 +67,7 @@ func pciVisitGPUs(visit func(*nvpci.NvidiaPCIDevice) error) error {
 func pciGetGPUDeviceIDs() ([]types.DeviceID, error) {
 	var ids []types.DeviceID
 	err := pciVisitGPUs(func(gpu *nvpci.NvidiaPCIDevice) error {
-		ids = append(ids, types.NewDeviceID(gpu.Device, gpu.Vendor))
+		ids = append(ids, types.NewDeviceIDWithSubsystem(gpu.Device, gpu.Vendor, gpu.SubsystemDevice, gpu.SubsystemVendor))
 		return nil
 	})
 	if err != nil {
@@ -91,7 +91,7 @@ func nvmlGetGPUDeviceIDs() ([]types.DeviceID, error) {
 			return nil
 		}
 
-		ids = append(ids, types.NewDeviceID(gpu.Device, gpu.Vendor))
+		ids = append(ids, types.NewDeviceIDWithSubsystem(gpu.Device, gpu.Vendor, gpu.SubsystemDevice, gpu.SubsystemVendor))
 		return nil
 	})
 	if err != nil {
