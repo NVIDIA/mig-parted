@@ -72,6 +72,10 @@ USER 0:0
 
 COPY --from=shell /busybox /busybox
 RUN ["/busybox/ln", "-s", "/busybox/sh", "/bin/sh"]
+# nvidia-smi looks for the persistenced socket at /var/run/..., but the
+# container toolkit injects it at /run/... Symlink /var/run to /run so GPU
+# resets can use nvidia-persistenced.
+RUN ["/busybox/sh", "-c", "/busybox/rm -r /var/run && /busybox/ln -s /run /var/run"]
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/busybox
 
 COPY --from=build /artifacts/nvidia-mig-parted  /usr/bin/nvidia-mig-parted
