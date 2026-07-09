@@ -92,21 +92,16 @@ function stop_driver_services() {
 }
 
 function start_driver_services() {
-	# Driver services are ordered After=nvidia-gpu-reset.target, and this
-	# service runs Before that target. During boot, starting them
-	# synchronously here deadlocks: this service waits on them while the
-	# target (and therefore those services) waits on this service to finish.
-	# While the system is still starting up, enqueue the start without
-	# waiting; systemd starts them once this service completes and the target
-	# is reached. Once the system is running, start synchronously as before so
-	# a runtime reconfigure still waits for the services and reports failures.
-	local start_args=""
-	local state
-	state="$(systemctl is-system-running 2>/dev/null)"
-	if [ "${state}" != "running" ] && [ "${state}" != "degraded" ]; then
-		start_args="--no-block"
-	fi
-	nvidia-mig-manager::service::start_systemd_services driver_services "${start_args}"
+	# Driver services are Wants=/After=nvidia-gpu-reset.target and this
+	# service runs Before= that target, so a synchronous start from this hook
+	# can wait on a job that is itself waiting for this service to finish.
+	# This happens whenever the target is not yet active: during boot, during
+	# package installation, or on the first start after install. Never wait:
+	# enqueue the start and return; systemd runs the queued starts once this
+	# service completes and the target activates. Startup failures are
+	# reported by the started units themselves, not by this hook; a non-zero
+	# return here means systemd refused to enqueue the request.
+	nvidia-mig-manager::service::start_systemd_services driver_services "--no-block"
 	return ${?}
 }
 
@@ -120,7 +115,10 @@ function stop_k8s_services() {
 }
 
 function start_k8s_services() {
-	nvidia-mig-manager::service::start_systemd_services k8s_services
+	# Same policy as start_driver_services: never wait on a systemd job from
+	# inside this hook, in case any of these units is ordered (directly or
+	# transitively) after nvidia-gpu-reset.target.
+	nvidia-mig-manager::service::start_systemd_services k8s_services "--no-block"
 	return ${?}
 }
 
