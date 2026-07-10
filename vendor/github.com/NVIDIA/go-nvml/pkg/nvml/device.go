@@ -1460,6 +1460,18 @@ func (device nvmlDevice) GetAccountingBufferSize() (int, Return) {
 	return int(bufferSize), ret
 }
 
+// nvml.DeviceGetAccountingStats_v2()
+func (l *library) DeviceGetAccountingStats_v2(device Device, pid uint32) (AccountingStats_v2, Return) {
+	return device.GetAccountingStats_v2(pid)
+}
+
+func (device nvmlDevice) GetAccountingStats_v2(pid uint32) (AccountingStats_v2, Return) {
+	var stats AccountingStats_v2
+	stats.Pid = pid
+	ret := nvmlDeviceGetAccountingStats_v2(device, &stats)
+	return stats, ret
+}
+
 // nvml.DeviceGetRetiredPages()
 func (l *library) DeviceGetRetiredPages(device Device, cause PageRetirementCause) ([]uint64, Return) {
 	return device.GetRetiredPages(cause)
@@ -2269,7 +2281,7 @@ func (handler GpuInstanceProfileInfoByIdHandler) V2() (GpuInstanceProfileInfo_v2
 func (handler GpuInstanceProfileInfoByIdHandler) V3() (GpuInstanceProfileInfo_v3, Return) {
 	var info GpuInstanceProfileInfo_v3
 	info.Version = STRUCT_VERSION(info, 3)
-	ret := nvmlDeviceGetGpuInstanceProfileInfoV(handler.device, uint32(handler.profileId), (*GpuInstanceProfileInfo_v2)(unsafe.Pointer(&info)))
+	ret := nvmlDeviceGetGpuInstanceProfileInfoByIdV(handler.device, uint32(handler.profileId), (*GpuInstanceProfileInfo_v2)(unsafe.Pointer(&info)))
 	return info, ret
 }
 
@@ -2904,6 +2916,9 @@ func (l *library) GpuInstanceGetComputeInstancePossiblePlacements(gpuInstance Gp
 }
 
 func (gpuInstance nvmlGpuInstance) GetComputeInstancePossiblePlacements(info *ComputeInstanceProfileInfo) ([]ComputeInstancePlacement, Return) {
+	if info == nil {
+		return nil, ERROR_INVALID_ARGUMENT
+	}
 	var count uint32
 	ret := nvmlGpuInstanceGetComputeInstancePossiblePlacements(gpuInstance, info.Id, nil, &count)
 	if ret != SUCCESS {
@@ -2914,7 +2929,7 @@ func (gpuInstance nvmlGpuInstance) GetComputeInstancePossiblePlacements(info *Co
 	}
 	placementArray := make([]ComputeInstancePlacement, count)
 	ret = nvmlGpuInstanceGetComputeInstancePossiblePlacements(gpuInstance, info.Id, &placementArray[0], &count)
-	return placementArray, ret
+	return placementArray[:count], ret
 }
 
 // nvml.GpuInstanceCreateComputeInstanceWithPlacement()
@@ -2923,6 +2938,9 @@ func (l *library) GpuInstanceCreateComputeInstanceWithPlacement(gpuInstance GpuI
 }
 
 func (gpuInstance nvmlGpuInstance) CreateComputeInstanceWithPlacement(info *ComputeInstanceProfileInfo, placement *ComputeInstancePlacement) (ComputeInstance, Return) {
+	if info == nil {
+		return nil, ERROR_INVALID_ARGUMENT
+	}
 	var computeInstance nvmlComputeInstance
 	ret := nvmlGpuInstanceCreateComputeInstanceWithPlacement(gpuInstance, info.Id, placement, &computeInstance)
 	return computeInstance, ret
@@ -3146,6 +3164,17 @@ func (device nvmlDevice) GetLastBBXFlushTime() (uint64, uint, Return) {
 	return timestamp, durationUs, ret
 }
 
+// nvml.DeviceGetBBXTimeData_v1()
+func (l *library) DeviceGetBBXTimeData_v1(device Device) (BBXTimeData_v1, Return) {
+	return device.GetBBXTimeData_v1()
+}
+
+func (device nvmlDevice) GetBBXTimeData_v1() (BBXTimeData_v1, Return) {
+	var timeData BBXTimeData_v1
+	ret := nvmlDeviceGetBBXTimeData_v1(device, &timeData)
+	return timeData, ret
+}
+
 // nvml.DeviceGetNumaNodeId()
 func (l *library) DeviceGetNumaNodeId(device Device) (int, Return) {
 	return device.GetNumaNodeId()
@@ -3239,6 +3268,7 @@ func (l *library) DeviceGetProcessesUtilizationInfo(device Device) (ProcessesUti
 
 func (device nvmlDevice) GetProcessesUtilizationInfo() (ProcessesUtilizationInfo, Return) {
 	var processesUtilInfo ProcessesUtilizationInfo
+	processesUtilInfo.Version = STRUCT_VERSION(processesUtilInfo, 1)
 	ret := nvmlDeviceGetProcessesUtilizationInfo(device, &processesUtilInfo)
 	return processesUtilInfo, ret
 }
@@ -3314,6 +3344,7 @@ func (l *library) DeviceGetVgpuInstancesUtilizationInfo(device Device) (VgpuInst
 
 func (device nvmlDevice) GetVgpuInstancesUtilizationInfo() (VgpuInstancesUtilizationInfo, Return) {
 	var vgpuUtilInfo VgpuInstancesUtilizationInfo
+	vgpuUtilInfo.Version = STRUCT_VERSION(vgpuUtilInfo, 1)
 	ret := nvmlDeviceGetVgpuInstancesUtilizationInfo(device, &vgpuUtilInfo)
 	return vgpuUtilInfo, ret
 }
