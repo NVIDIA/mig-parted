@@ -25,6 +25,7 @@ import (
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/NVIDIA/go-nvml/pkg/nvml/mock/dgxa100"
+	nvmlmock "github.com/NVIDIA/go-nvml/pkg/nvml/mock/server"
 
 	"github.com/NVIDIA/mig-parted/internal/nvlib"
 	"github.com/NVIDIA/mig-parted/pkg/types"
@@ -38,7 +39,7 @@ func NewMockLunaServerMigConfigManager() Manager {
 
 func EnableMigMode(manager Manager, gpu int) (nvml.Return, nvml.Return) {
 	m := manager.(*nvmlMigConfigManager)
-	n := m.nvml.(*dgxa100.Server)
+	n := m.nvml.(*nvmlmock.Server)
 	r1, r2 := n.Devices[gpu].SetMigMode(nvml.DEVICE_MIG_ENABLE)
 	return r1, r2
 }
@@ -112,7 +113,7 @@ func TestSetMigConfigResolvesMigProfileOnTargetGPU(t *testing.T) {
 
 	// GPU 0 (unchanged): "1g.10gb" -> GPU_INSTANCE_PROFILE_1_SLICE_REV2 (default mock).
 	// GPU 1 (below):     "1g.10gb" -> GPU_INSTANCE_PROFILE_1_SLICE only.
-	gpu1 := server.Devices[1].(*dgxa100.Device)
+	gpu1 := server.Devices[1].(*nvmlmock.Device)
 	originalGetGpuInstanceProfileInfo := gpu1.GetGpuInstanceProfileInfoFunc
 	gpu1.GetGpuInstanceProfileInfoFunc = func(giProfileID int) (nvml.GpuInstanceProfileInfo, nvml.Return) {
 		switch giProfileID {
