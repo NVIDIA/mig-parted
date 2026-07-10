@@ -81,7 +81,6 @@ var (
 	devRoot           string
 	devRootCtrPath    string
 	nvidiaCDIHookPath string
-	systemdTimeout    float64
 )
 
 type GPUClients struct {
@@ -267,13 +266,6 @@ func main() {
 			Usage:       "Path to nvidia-cdi-hook binary on the host.",
 			Destination: &nvidiaCDIHookPath,
 			Sources:     cli.EnvVars("NVIDIA_CDI_HOOK_PATH"),
-		},
-		&cli.Float64Flag{
-			Name:        "systemd-timeout",
-			Value:       DefaultSystemdTimeout,
-			Usage:       "Timeout for systemd connection (in seconds)",
-			Destination: &systemdTimeout,
-			Sources:     cli.EnvVars("SYSTEMD_CONNECTION_TIMEOUT"),
 		},
 	}
 
@@ -531,7 +523,6 @@ func migReconfigure(ctx context.Context, migConfigValue string, clientset *kuber
 		DefaultGPUClientsNamespace: defaultGPUClientsNamespaceFlag,
 		WithReboot:                 withRebootFlag,
 		WithShutdownHostGPUClients: withShutdownHostGPUClientsFlag,
-		SystemdTimeout:             systemdTimeout,
 	}
 
 	if cdiEnabledFlag {
