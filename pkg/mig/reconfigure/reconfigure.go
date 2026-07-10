@@ -76,7 +76,6 @@ type Options struct {
 	DriverLibraryPath          string
 	NvidiaSMIPath              string
 	NvidiaCDIHookPath          string
-	SystemdTimeout             float64
 }
 
 // Reconfigure handles the MIG reconfiguration process
@@ -119,7 +118,7 @@ func (r *Reconfigure) getSystemdManager() (*systemd.Manager, error) {
 		return r.systemdManager, nil
 	}
 
-	systemdManager, err := systemd.NewManager(r.ctx, time.Duration(r.opts.SystemdTimeout)*time.Second)
+	systemdManager, err := systemd.NewManager(r.ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize systemd manager: %w", err)
 	}
