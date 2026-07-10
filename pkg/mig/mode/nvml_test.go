@@ -24,6 +24,7 @@ import (
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/NVIDIA/go-nvml/pkg/nvml/mock/dgxa100"
+	nvmlmock "github.com/NVIDIA/go-nvml/pkg/nvml/mock/server"
 )
 
 type Return = nvml.Return
@@ -83,7 +84,7 @@ func TestNvmlIsMigCapable(t *testing.T) {
 			require.Nil(t, err, "Unexpected failure from IsMigCapable")
 			require.True(t, capable)
 
-			server := manager.nvml.(*dgxa100.Server)
+			server := manager.nvml.(*nvmlmock.Server)
 			device := server.Devices[i].(*mockNvmlA100Device)
 			device.migCapable = false
 
@@ -117,7 +118,7 @@ func TestNvmlEnableDisableMig(t *testing.T) {
 			require.Nil(t, err, "Unexpected failure from GetMigMode")
 			require.Equal(t, Disabled, mode)
 
-			server := manager.nvml.(*dgxa100.Server)
+			server := manager.nvml.(*nvmlmock.Server)
 			device := server.Devices[i].(*mockNvmlA100Device)
 			device.driverBusy = true
 
