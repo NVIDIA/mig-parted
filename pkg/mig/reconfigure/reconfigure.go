@@ -27,7 +27,9 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -42,6 +44,7 @@ const (
 	dcgmExporterDeployLabel        = "nvidia.com/gpu.deploy.dcgm-exporter"
 	dcgmDeployLabel                = "nvidia.com/gpu.deploy.dcgm"
 	nvsmDeployLabel                = "nvidia.com/gpu.deploy.nvsm"
+	gpuClientDeployLabel           = "nvidia.com/gpu.deploy.client"
 
 	migStateSuccess = "success"
 	migStateFailed  = "failed"
@@ -93,6 +96,7 @@ type Reconfigure struct {
 	dcgmExporterDeployed  string
 	dcgmDeployed          string
 	nvsmDeployed          string
+	gpuClientDeployed     string
 	currentState          string
 	migModeChangeRequired bool
 	stoppedServices       []string
@@ -255,6 +259,7 @@ func (r *Reconfigure) getCurrentNodeLabels() error {
 	r.dcgmExporterDeployed = labels[dcgmExporterDeployLabel]
 	r.dcgmDeployed = labels[dcgmDeployLabel]
 	r.nvsmDeployed = labels[nvsmDeployLabel]
+	r.gpuClientDeployed = labels[gpuClientDeployLabel]
 	r.currentState = labels[migConfigStateLabel]
 
 	log.Infof("Current value of '%s=%s'\n", devicePluginDeployLabel, r.pluginDeployed)
@@ -262,6 +267,8 @@ func (r *Reconfigure) getCurrentNodeLabels() error {
 	log.Infof("Current value of '%s=%s'\n", dcgmExporterDeployLabel, r.dcgmExporterDeployed)
 	log.Infof("Current value of '%s=%s'\n", dcgmDeployLabel, r.dcgmDeployed)
 	log.Infof("Current value of '%s=%s'\n", nvsmDeployLabel, r.nvsmDeployed)
+	log.Infof("Current value of '%s=%s'\n", gpuClientDeployLabel, r.gpuClientDeployed)
+
 	log.Infof("Current value of '%s=%s'\n", migConfigStateLabel, r.currentState)
 
 	return nil
@@ -371,6 +378,9 @@ func (r *Reconfigure) shutdownKubernetesGPUClients() error {
 		dcgmDeployLabel:                r.maybeSetPaused(r.dcgmDeployed),
 		nvsmDeployLabel:                r.maybeSetPaused(r.nvsmDeployed),
 	}
+	if len(r.gpuClientDeployed) > 0 {
+		labels[gpuClientDeployLabel] = r.maybeSetPaused(r.gpuClientDeployed)
+	}
 
 	return r.setNodeLabels(labels)
 }
@@ -397,6 +407,11 @@ func (r *Reconfigure) waitForPodsToBeDeleted() error {
 	log.Info("Waiting for dcgm to shutdown")
 	if err := r.waitForPodDeletion("app=nvidia-dcgm", timeout); err != nil {
 		return fmt.Errorf("dcgm pod did not shutdown: %w", err)
+	}
+
+	log.Infof("Waiting for any daemon set pods with nodeSelector key %s to shutdown", gpuClientDeployLabel)
+	if err := r.waitForPodsWithNodeSelector(gpuClientDeployLabel, timeout); err != nil {
+		return fmt.Errorf("third-party gpu client pods did not shutdown: %w", err)
 	}
 
 	log.Info("Removing the cuda-validator pod")
@@ -508,6 +523,9 @@ func (r *Reconfigure) restartKubernetesGPUClients() error {
 		dcgmDeployLabel:                r.maybeSetTrue(r.dcgmDeployed),
 		nvsmDeployLabel:                r.maybeSetTrue(r.nvsmDeployed),
 	}
+	if len(r.gpuClientDeployed) > 0 {
+		labels[gpuClientDeployLabel] = r.maybeSetTrue(r.gpuClientDeployed)
+	}
 
 	return r.setNodeLabels(labels)
 }
@@ -538,6 +556,10 @@ func (r *Reconfigure) setState(state string) error {
 			dcgmExporterDeployLabel:        r.maybeSetTrue(r.dcgmExporterDeployed),
 			dcgmDeployLabel:                r.maybeSetTrue(r.dcgmDeployed),
 			nvsmDeployLabel:                r.maybeSetTrue(r.nvsmDeployed),
+		}
+
+		if len(r.gpuClientDeployed) > 0 {
+			labels[gpuClientDeployLabel] = r.maybeSetTrue(r.gpuClientDeployed)
 		}
 
 		if err := r.setNodeLabels(labels); err != nil {
@@ -619,6 +641,35 @@ func (r *Reconfigure) deletePod(labelSelector string) error {
 	}
 
 	return nil
+}
+
+// waitForPodsWithNodeSelector waits for all daemon set pods on the given node which has the specified key in
+// its nodeSelector to terminate.
+func (r *Reconfigure) waitForPodsWithNodeSelector(nodeSelectorKey string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(r.ctx, 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		podList, err := r.clientset.CoreV1().Pods(corev1.NamespaceAll).List(ctx, metav1.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector("spec.nodeName", r.opts.NodeName).String(),
+		})
+		if err != nil {
+			return false, fmt.Errorf("failed to list pods on node %s: %w", r.opts.NodeName, err)
+		}
+
+		matchCount := 0
+		for _, pod := range podList.Items {
+			ownerRef := metav1.GetControllerOf(&pod)
+			if ownerRef == nil || ownerRef.Kind != "DaemonSet" {
+				continue
+			}
+			if _, ok := pod.Spec.NodeSelector[nodeSelectorKey]; ok {
+				matchCount++
+			}
+		}
+
+		if matchCount > 0 {
+			log.Infof("Waiting for %d daemon set pod(s) with nodeSelector key %s to terminate", matchCount, nodeSelectorKey)
+		}
+		return matchCount == 0, nil
+	})
 }
 
 func (r *Reconfigure) runNvidiaSMI() error {
