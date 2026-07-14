@@ -50,7 +50,8 @@ func ExportMigConfigs(c *Context) (*v1.Spec, error) {
 
 	configSpecs := make(v1.MigConfigSpecSlice, len(deviceIDs))
 	for i, deviceID := range deviceIDs {
-		deviceFilter := deviceID.String()
+		// Strip any subsystem qualifier so exported configs apply to all board variants of a GPU.
+		deviceFilter := deviceID.Primary().String()
 
 		enabled := false
 		capable, err := modeManager.IsMigCapable(i)

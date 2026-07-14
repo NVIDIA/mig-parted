@@ -23,8 +23,6 @@ import (
 	"github.com/NVIDIA/go-nvml/pkg/nvml/mock/dgxa100"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/NVIDIA/mig-parted/pkg/types"
 )
 
 func TestDiscoverProfiles(t *testing.T) {
@@ -73,7 +71,7 @@ func TestIsCIProfile(t *testing.T) {
 }
 
 func TestGetHardcodedA30Profiles(t *testing.T) {
-	deviceID := types.DeviceID(deviceIDA30)
+	deviceID := deviceIDA30
 	profiles := getHardcodedA30Profiles(deviceID)
 
 	require.Len(t, profiles, 5)

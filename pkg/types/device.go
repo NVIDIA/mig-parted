@@ -19,36 +19,124 @@ package types
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // DeviceID represents a GPU Device ID as read from a GPUs PCIe config space.
-type DeviceID uint32
+type DeviceID struct {
+	Device          uint16
+	Vendor          uint16
+	SubsystemDevice uint16
+	SubsystemVendor uint16
+	HasSubsystem    bool
+}
 
 // NewDeviceID constructs a new 'DeviceID' from the device and vendor values pulled from a GPUs PCIe config space.
 func NewDeviceID(device, vendor uint16) DeviceID {
-	return DeviceID((uint32(device) << 16) | uint32(vendor))
+	return DeviceID{
+		Device: device,
+		Vendor: vendor,
+	}
+}
+
+// NewDeviceIDWithSubsystem constructs a new 'DeviceID' with subsystem values.
+func NewDeviceIDWithSubsystem(device, vendor, subDevice, subVendor uint16) DeviceID {
+	return DeviceID{
+		Device:          device,
+		Vendor:          vendor,
+		SubsystemDevice: subDevice,
+		SubsystemVendor: subVendor,
+		HasSubsystem:    true,
+	}
+}
+
+// NewDeviceIDFromPacked constructs a 'DeviceID' from a combined 32-bit device+vendor
+// value, as reported in a GPUs PCIe config space or by NVML.
+func NewDeviceIDFromPacked(packed uint32) DeviceID {
+	device, vendor := splitRawDeviceID(uint64(packed))
+	return NewDeviceID(device, vendor)
 }
 
 // NewDeviceIDFromString constructs a 'DeviceID' from its string representation.
 func NewDeviceIDFromString(str string) (DeviceID, error) {
-	deviceID, err := strconv.ParseInt(str, 0, 32)
-	if err != nil {
-		return 0, fmt.Errorf("unable to create DeviceID from string '%v': %v", str, err)
+	parts := strings.Split(str, ":")
+	if len(parts) > 2 {
+		return DeviceID{}, fmt.Errorf(
+			"invalid DeviceID format '%v': expected '<devicevendor>' or '<devicevendor>:<subdevicevendor>'",
+			str,
+		)
 	}
-	return DeviceID(deviceID), nil
+
+	deviceIDRaw, err := strconv.ParseUint(parts[0], 0, 32)
+	if err != nil {
+		return DeviceID{}, fmt.Errorf("unable to create DeviceID from string '%v': %v", str, err)
+	}
+
+	device, vendor := splitRawDeviceID(deviceIDRaw)
+
+	deviceID := DeviceID{
+		Device: device,
+		Vendor: vendor,
+	}
+
+	if len(parts) == 2 {
+		subIDRaw, err := strconv.ParseUint(parts[1], 0, 32)
+		if err != nil {
+			return DeviceID{}, fmt.Errorf("unable to create Subsystem from string '%v': %v", str, err)
+		}
+
+		subsystemDevice, subsystemVendor := splitRawDeviceID(subIDRaw)
+
+		deviceID.SubsystemDevice = subsystemDevice
+		deviceID.SubsystemVendor = subsystemVendor
+		deviceID.HasSubsystem = true
+	}
+
+	return deviceID, nil
 }
 
 // String returns a 'DeviceID' as a string.
 func (d DeviceID) String() string {
-	return fmt.Sprintf("0x%X", uint32(d))
+	primary := fmt.Sprintf("0x%04X%04X", d.Device, d.Vendor)
+	if d.HasSubsystem {
+		return fmt.Sprintf("%s:0x%04X%04X", primary, d.SubsystemDevice, d.SubsystemVendor)
+	}
+	return primary
 }
 
 // GetVendor returns the 'vendor' portion of a 'DeviceID'.
 func (d DeviceID) GetVendor() uint16 {
-	return uint16(d)
+	return d.Vendor
 }
 
 // GetDevice returns the 'device' portion of a 'DeviceID'.
 func (d DeviceID) GetDevice() uint16 {
-	return uint16(d >> 16)
+	return d.Device
+}
+
+// Primary returns a copy of the 'DeviceID' with any subsystem qualification removed.
+func (d DeviceID) Primary() DeviceID {
+	return NewDeviceID(d.Device, d.Vendor)
+}
+
+// Matches checks if a hardware GPU matches the DeviceID filter.
+// If the filter has a subsystem defined, it requires an exact match on all 4 components.
+// Otherwise, it only matches on the primary device and vendor IDs.
+func (filter DeviceID) Matches(hardware DeviceID) bool {
+	if filter.Device != hardware.Device || filter.Vendor != hardware.Vendor {
+		return false
+	}
+
+	if filter.HasSubsystem {
+		if filter.SubsystemDevice != hardware.SubsystemDevice || filter.SubsystemVendor != hardware.SubsystemVendor {
+			return false
+		}
+	}
+
+	return true
+}
+
+func splitRawDeviceID(raw uint64) (uint16, uint16) {
+	// nolint:gosec // raw is parsed as a 32-bit value, so both halves fit in a uint16
+	return uint16(raw >> 16), uint16(raw & 0xFFFF)
 }

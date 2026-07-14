@@ -38,7 +38,7 @@ func (ms *MigConfigSpec) MatchesDeviceFilter(deviceID types.DeviceID) bool {
 
 	for _, df := range deviceFilter {
 		newDeviceID, _ := types.NewDeviceIDFromString(df)
-		if newDeviceID == deviceID {
+		if newDeviceID.Matches(deviceID) {
 			return true
 		}
 	}
