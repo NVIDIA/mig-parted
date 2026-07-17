@@ -1,5 +1,10 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.14.4
+- Start hook-managed systemd services with --no-block to avoid deadlocks
+- Bump golang.org/x/net to v0.55.0
+- Bump golang version to 1.26.5
+
 ## v0.14.3
 - Select the hooks file at boot instead of at install time
 - Start driver services non-blocking during boot to avoid deadlock
