@@ -259,8 +259,8 @@ func (r *Reconfigure) Run() error {
 
 // cleanup cleans up systemd managers
 func (r *Reconfigure) cleanup() {
-	if mgr, _ := r.getSystemdManager(); mgr != nil {
-		mgr.Close()
+	if r.systemdManager != nil {
+		r.systemdManager.Close()
 	}
 }
 
