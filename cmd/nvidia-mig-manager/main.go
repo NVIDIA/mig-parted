@@ -58,6 +58,7 @@ const (
 	DefaultDriverRootCtrPath         = "/run/nvidia/driver"
 	DefaultNvidiaCDIHookPath         = "/usr/local/nvidia/toolkit/nvidia-cdi-hook"
 	DefaultGeneratedConfigFile       = "/etc/nvidia-mig-manager/generated-config.yaml"
+	DefaultSystemdTimeout            = 1.0
 )
 
 var (
