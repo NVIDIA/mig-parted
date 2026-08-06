@@ -14,6 +14,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+cmd_timeout="${cmd_timeout:-30}"
+
+function nvidia-mig-manager::service::runtime_available() {
+	local client="${1}"
+	local unit="${2}"
+	if ! command -v "${client}" > /dev/null 2>&1; then
+		echo "Skipping container cleanup via ${client}: ${client} is not installed" >&2
+		return 1
+	fi
+	systemctl -q is-active "${unit}"
+	if [ "${?}" != "0" ]; then
+		echo "Skipping container cleanup via ${client}: ${unit} is not active" >&2
+		return 1
+	fi
+	return 0
+}
+
 function nvidia-mig-manager::service::reverse_array() {
 	# first argument is the array to reverse
 	# second is the reversed array
@@ -165,20 +182,25 @@ function nvidia-mig-manager::service::kill_k8s_containers_via_docker_by_image() 
 	local images=()
 	local -n __image_names="${1}"
 
+	nvidia-mig-manager::service::runtime_available docker docker.service
+	if [ "${?}" != "0" ]; then
+		return 0
+	fi
+
 	for i in ${__image_names[@]}; do
 		images+=("${i}")
-		images+=("$(docker images --format "{{.ID}} {{.Repository}}" | grep "${i}" | cut -d' ' -f1 | tr '\n' ' ')")
+		images+=("$(timeout "${cmd_timeout}" docker images --format "{{.ID}} {{.Repository}}" | grep "${i}" | cut -d' ' -f1 | tr '\n' ' ')")
 	done
 
 	for i in ${images[@]}; do
-		local containers="$(docker ps --format "{{.ID}} {{.Image}}" | grep "${i}" | cut -d' ' -f1 | tr '\n' ' ')"
+		local containers="$(timeout "${cmd_timeout}" docker ps --format "{{.ID}} {{.Image}}" | grep "${i}" | cut -d' ' -f1 | tr '\n' ' ')"
 		if [ "${containers}" != "" ]; then
-			docker kill ${containers}
+			timeout "${cmd_timeout}" docker kill ${containers}
 			if [ "${?}" != "0" ]; then
 				return 1
 			fi
 			sleep 10
-			docker rm ${containers}
+			timeout "${cmd_timeout}" docker rm ${containers}
 			if [ "${?}" != "0" ]; then
 				return 1
 			fi
@@ -192,24 +214,29 @@ function nvidia-mig-manager::service::kill_k8s_containers_via_containerd_by_imag
 	local images=()
 	local -n __image_names="${1}"
 
+	nvidia-mig-manager::service::runtime_available ctr containerd.service
+	if [ "${?}" != "0" ]; then
+		return 0
+	fi
+
 	for i in ${__image_names[@]}; do
 		images+=("${i}")
-		images+=("$(ctr -n k8s.io image ls | grep "${i}" | tr -s ' ' | cut -d' ' -f1 | tr '\n' ' ')")
+		images+=("$(timeout "${cmd_timeout}" ctr -n k8s.io image ls | grep "${i}" | tr -s ' ' | cut -d' ' -f1 | tr '\n' ' ')")
 	done
 
 	for i in ${images[@]}; do
-		local containers="$(ctr -n k8s.io container ls "image~=${i}" -q)"
+		local containers="$(timeout "${cmd_timeout}" ctr -n k8s.io container ls "image~=${i}" -q)"
 		if [ "${containers}" != "" ]; then
-			ctr -n k8s.io task kill -a -s SIGKILL ${containers} || true
+			timeout "${cmd_timeout}" ctr -n k8s.io task kill -a -s SIGKILL ${containers} || true
 			if [ "${?}" != "0" ]; then
 				return 1
 			fi
 			sleep 10
-			ctr -n k8s.io task rm -f ${containers} || true
+			timeout "${cmd_timeout}" ctr -n k8s.io task rm -f ${containers} || true
 			if [ "${?}" != "0" ]; then
 				return 1
 			fi
-			ctr -n k8s.io container rm ${containers}
+			timeout "${cmd_timeout}" ctr -n k8s.io container rm ${containers}
 			if [ "${?}" != "0" ]; then
 				return 1
 			fi
