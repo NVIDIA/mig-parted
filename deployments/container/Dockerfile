@@ -66,7 +66,7 @@ RUN apt-get update \
  && cp /bin/busybox /busybox/busybox \
  && /busybox/busybox --install -s /busybox
 
-FROM nvcr.io/nvidia/distroless/go:v4.0.8
+FROM nvcr.io/nvidia/distroless/go:v4.0.9
 
 USER 0:0
 
