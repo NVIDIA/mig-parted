@@ -1,5 +1,11 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.14.5
+- Skip container runtime calls in hooks to avoid deadlocks
+- Add a start timeout of 480 seconds to nvidia-mig-manager.service
+- Bump k8s golang dependencies to v0.36.3
+- Bump distroless base image version to v4.0.9-dev
+
 ## v0.14.4
 - Start hook-managed systemd services with --no-block to avoid deadlocks
 - Bump golang.org/x/net to v0.55.0
