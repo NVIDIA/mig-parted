@@ -2,3 +2,5 @@
 *.swo
 dist/
 .vscode/
+/bin/
+/.licenses-cache
