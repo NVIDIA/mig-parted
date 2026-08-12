@@ -74,12 +74,26 @@ ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_MIG_CONFIG_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=utility
 
+ARG VERSION
+ARG GIT_COMMIT
+ARG BUILD_TIMESTAMP
 LABEL version="${VERSION}"
 LABEL release="N/A"
 LABEL vendor="NVIDIA"
 LABEL io.k8s.display-name="NVIDIA MIG Manager for Kubernetes"
 LABEL name="NVIDIA MIG Manager for Kubernetes"
 LABEL summary="NVIDIA MIG Manager for Kubernetes"
-LABEL description="See summary"
+LABEL description="Automates MIG configuration of NVIDIA GPUs"
+
+LABEL org.opencontainers.base.name="nvcr.io/nvidia/distroless/go"
+LABEL org.opencontainers.image.created="${BUILD_TIMESTAMP}"
+LABEL org.opencontainers.image.description="Automates MIG configuration of NVIDIA GPUs"
+LABEL org.opencontainers.image.documentation="https://docs.nvidia.com/datacenter/cloud-native/gpu-operator"
+LABEL org.opencontainers.image.revision="${GIT_COMMIT}"
+LABEL org.opencontainers.image.source="https://github.com/NVIDIA/mig-parted.git"
+LABEL org.opencontainers.image.title="NVIDIA MIG Manager for Kubernetes"
+LABEL org.opencontainers.image.url="https://catalog.ngc.nvidia.com/orgs/nvidia/cloud-native/containers/k8s-mig-manager"
+LABEL org.opencontainers.image.vendor="NVIDIA"
+LABEL org.opencontainers.image.version="${VERSION}"
 
 ENTRYPOINT ["nvidia-mig-manager"]
