@@ -28,7 +28,7 @@ CMDS := $(patsubst ./cmd/%/,%,$(sort $(dir $(wildcard ./cmd/*/))))
 CMD_TARGETS := $(patsubst %,cmd-%, $(CMDS))
 
 CHECK_TARGETS := lint
-MAKE_TARGETS := binaries build check fmt lint-internal test examples cmds coverage generate vendor check-vendor $(CHECK_TARGETS)
+MAKE_TARGETS := binaries build check fmt lint-internal test examples cmds coverage generate vendor check-vendor third-party-notices check-third-party-notices $(CHECK_TARGETS)
 
 TARGETS := $(MAKE_TARGETS) $(EXAMPLE_TARGETS) $(CMD_TARGETS)
 
@@ -80,6 +80,23 @@ vendor:
 
 check-vendor: vendor
 	git diff --quiet HEAD -- go.mod go.sum vendor
+
+GO_LICENSES = $(CURDIR)/bin/go-licenses
+
+$(GO_LICENSES): deployments/devel/go.mod deployments/devel/go.sum
+	cd deployments/devel && GOBIN=$(CURDIR)/bin GOFLAGS=-mod=readonly go install github.com/google/go-licenses/v2
+
+third-party-notices: $(GO_LICENSES)
+	@bash hack/generate-third-party-notices.sh
+
+# git diff reports nothing for an untracked path, so the tracked check has to
+# run before it or an uncommitted notices file would pass silently.
+check-third-party-notices: third-party-notices
+	@echo "- Checking if THIRD_PARTY_NOTICES.md is up to date..."
+	@git ls-files --error-unmatch THIRD_PARTY_NOTICES.md >/dev/null 2>&1 \
+		|| { echo "ERROR: THIRD_PARTY_NOTICES.md is not tracked. Run 'make third-party-notices' and commit the result."; exit 1; }
+	@git diff --exit-code HEAD -- THIRD_PARTY_NOTICES.md \
+		|| { echo "ERROR: THIRD_PARTY_NOTICES.md is stale. Run 'make third-party-notices' and commit the change."; exit 1; }
 
 COVERAGE_FILE := coverage.out
 test: build cmds
