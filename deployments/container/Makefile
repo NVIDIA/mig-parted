@@ -63,8 +63,9 @@ $(IMAGE_TARGETS): image-%: $(ARTIFACTS_ROOT)
 		$(DOCKER_BUILD_PLATFORM_OPTIONS) \
 		--tag $(IMAGE) \
 		--build-arg GOLANG_VERSION="$(GOLANG_VERSION)" \
-		--build-arg VERSION="$(vVERSION)" \
+		--build-arg VERSION="$(VERSION)" \
 		--build-arg GIT_COMMIT="$(GIT_COMMIT)" \
+		--build-arg BUILD_TIMESTAMP="$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 		--build-arg NVIDIA_CTK_VERSION=$(NVIDIA_CTK_VERSION) \
 		--build-arg CVE_UPDATES="$(CVE_UPDATES)" \
 		--build-arg GOPROXY="$(GOPROXY)" \

@@ -15,8 +15,6 @@
 MODULE := github.com/NVIDIA/mig-parted
 VERSION ?= v0.14.5
 
-vVERSION := v$(VERSION:v%=%)
-
 GOLANG_VERSION := $(shell ./hack/golang-version.sh)
 
 BUILDIMAGE_TAG ?= devel-go$(GOLANG_VERSION)
