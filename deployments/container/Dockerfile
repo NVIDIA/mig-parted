@@ -98,7 +98,7 @@ LABEL name="NVIDIA MIG Manager for Kubernetes"
 LABEL summary="NVIDIA MIG Manager for Kubernetes"
 LABEL description="Automates MIG configuration of NVIDIA GPUs"
 
-LABEL org.opencontainers.base.name="nvcr.io/nvidia/distroless/go"
+LABEL org.opencontainers.image.base.name="nvcr.io/nvidia/distroless/go"
 LABEL org.opencontainers.image.created="${BUILD_TIMESTAMP}"
 LABEL org.opencontainers.image.description="Automates MIG configuration of NVIDIA GPUs"
 LABEL org.opencontainers.image.documentation="https://docs.nvidia.com/datacenter/cloud-native/gpu-operator"
