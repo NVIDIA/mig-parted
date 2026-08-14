@@ -237,7 +237,7 @@ collapse_index() {
 }
 
 # In vendor mode go-licenses reports a URL into this repo at HEAD, which stops
-# describing released content once main moves; module@version is immutable.
+# describing released content once main moves; module path is immutable.
 annotate_modules() {
     awk -v modfile="${MODULES_TXT}" '
         BEGIN {
@@ -255,10 +255,10 @@ annotate_modules() {
                         exit 1
                     }
                     mods[++m] = f[2]
-                    disp[f[2]] = f[r] "@" f[r + 1]
+                    disp[f[2]] = f[r]
                 } else {
                     mods[++m] = f[2]
-                    disp[f[2]] = f[2] "@" f[3]
+                    disp[f[2]] = f[2]
                 }
             }
             close(modfile)
@@ -300,7 +300,7 @@ build_indexes() {
     done
 
     if cut -d, -f4 "${INDEX_FILE}" | LC_ALL=C grep -qx 'unknown'; then
-        die "could not resolve module@version for some runtime packages from ${MODULES_TXT}." \
+        die "could not resolve a module for some runtime packages from ${MODULES_TXT}." \
             "Run 'make vendor' and re-run, rather than committing a file with unattributed entries."
     fi
 
@@ -329,7 +329,7 @@ license_files_for() {
 emit_index_table() {
     local index="$1" provenance="$2" pkg url license module
     if [[ "${provenance}" == "module" ]]; then
-        printf '| Package | License | Module |\n'
+        printf '| Package | License | Dependency |\n'
     else
         printf '| Package | License | Source |\n'
     fi
@@ -356,7 +356,7 @@ emit_sections() {
         printf '### %s\n\n' "${pkg}"
         printf '* License: %s\n' "${license:-Unknown}"
         if [[ "${provenance}" == "module" ]]; then
-            printf '* Module: %s\n\n' "${module:-unknown}"
+            printf '* Dependency: %s\n\n' "${module:-unknown}"
         else
             printf '* Source: %s\n\n' "${url:-n/a}"
         fi
