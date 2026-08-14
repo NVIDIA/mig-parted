@@ -40,9 +40,3 @@ updates:
     cooldown:
       exclude:
       - github.com/NVIDIA/*
-
-  - package-ecosystem: "docker"
-    target-branch: main
-    directory: "/deployments/devel"
-    schedule:
-      interval: "daily"
