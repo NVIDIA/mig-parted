@@ -1,0 +1,56 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":disableDependencyDashboard"
+  ],
+  "forkProcessing": "enabled",
+  "ignorePaths": ["vendor/**"],
+  "enabledManagers": ["custom.regex"],
+  "recreateWhen": "always",
+  "pruneStaleBranches": true,
+  "rebaseWhen": "always",
+
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "deployments/devel/Dockerfile"
+      ],
+      "matchStrings": [
+        "FROM golang:(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "go",
+      "datasourceTemplate": "golang-version",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "deployments/container/Dockerfile"
+      ],
+      "matchStrings": [
+        "ARG GOLANG_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "go",
+      "datasourceTemplate": "golang-version",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "labels": [
+    "dependencies",
+    "renovate"
+  ],
+  "packageRules": [
+    {
+      "description": "Group all Go toolchain version bumps into a single PR",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["go"],
+      "matchDatasources": ["golang-version"],
+      "groupName": "Go toolchain",
+      "groupSlug": "go-toolchain",
+      "separateMajorMinor": false,
+      "separateMinorPatch": false
+    }
+  ]
+}
