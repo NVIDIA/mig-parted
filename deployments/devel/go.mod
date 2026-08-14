@@ -3,7 +3,7 @@ module devel
 go 1.26
 
 require (
-	github.com/NVIDIA/nvidia-container-toolkit v1.20.0-rc.1.0.20260727174247-1151f0130747
+	github.com/NVIDIA/nvidia-container-toolkit v1.20.0
 	github.com/google/go-licenses/v2 v2.0.1
 	github.com/matryer/moq v0.7.1
 )
@@ -11,7 +11,7 @@ require (
 require (
 	cyphar.com/go-pathrs v0.2.5 // indirect
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
-	github.com/NVIDIA/go-nvlib v0.11.0 // indirect
+	github.com/NVIDIA/go-nvlib v0.12.0 // indirect
 	github.com/NVIDIA/go-nvml v0.13.3-1 // indirect
 	github.com/cyphar/filepath-securejoin v0.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

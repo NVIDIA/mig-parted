@@ -4,12 +4,12 @@ cyphar.com/go-pathrs v0.2.5/go.mod h1:y8f1EMG7r+hCuFf/rXsKqMJrJAUoADZGNh5/vZPKcG
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/Masterminds/semver/v3 v3.5.0 h1:kQceYJfbupGfZOKZQg0kou0DgAKhzDg2NZPAwZ/2OOE=
 github.com/Masterminds/semver/v3 v3.5.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
-github.com/NVIDIA/go-nvlib v0.11.0 h1:J6c9deWGJ1x4yY7fKg+aOdm2v5+WmCIeCLsuaO3tRtA=
-github.com/NVIDIA/go-nvlib v0.11.0/go.mod h1:uQNH63NoDuSfn/1lixD1D1Hvhko/xdnBHmc4H1mFUlY=
+github.com/NVIDIA/go-nvlib v0.12.0 h1:LICVlUGlDnpbwQv64rOZQn11xQae1J+c+dvH9CCi7jc=
+github.com/NVIDIA/go-nvlib v0.12.0/go.mod h1:J5M/QPIJJtaipjdONqevSnfgBlkW49uVWX5cFOoQpoA=
 github.com/NVIDIA/go-nvml v0.13.3-1 h1:P76U2h88OZSiMtdhRsJjSF5DXyXUqHIXKeDicVAaae0=
 github.com/NVIDIA/go-nvml v0.13.3-1/go.mod h1:ahi2psRYoa+wYUBIrZPRO+wJs9lcvMhxSSkjjvsJJNQ=
-github.com/NVIDIA/nvidia-container-toolkit v1.20.0-rc.1.0.20260727174247-1151f0130747 h1:KZZYH691lwQDpVMAxEjCF1MkMcjtDMbNZc4SWULOyX4=
-github.com/NVIDIA/nvidia-container-toolkit v1.20.0-rc.1.0.20260727174247-1151f0130747/go.mod h1:4woEX5v29O/b5QW/WdB1cK7zyIzBzXiORZxCVuNYS7k=
+github.com/NVIDIA/nvidia-container-toolkit v1.20.0 h1:RMOgXeDM7CdPOOLc18NCTitArQFqT2NUgUBB34JijDg=
+github.com/NVIDIA/nvidia-container-toolkit v1.20.0/go.mod h1:6otYPfCJdFX96mpi3WV58tyhjvwitYwVytHIifKbdcA=
 github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM=
 github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
