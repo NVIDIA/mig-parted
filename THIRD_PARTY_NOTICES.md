@@ -74,34 +74,34 @@ compiled busybox binary is added to the image, which is licensed under GPLv2.
 
 ## Bundled Binary Dependency Index
 
-| Package | License | Source |
+| Package | License | Dependency |
 |---------|---------|--------|
-| `github.com/Masterminds/semver/v3` | MIT | https://github.com/Masterminds/semver/blob/v3.5.0/LICENSE.txt |
-| `github.com/NVIDIA/go-nvlib/pkg` | Apache-2.0 | https://github.com/NVIDIA/go-nvlib/blob/v0.11.0/LICENSE |
-| `github.com/NVIDIA/go-nvml/pkg` | Apache-2.0 | https://github.com/NVIDIA/go-nvml/blob/v0.13.3-1/LICENSE |
-| `github.com/NVIDIA/nvidia-container-toolkit` | Apache-2.0 | https://github.com/NVIDIA/nvidia-container-toolkit/blob/1151f0130747/LICENSE |
-| `github.com/cyphar/filepath-securejoin` | BSD-3-Clause / MPL-2.0 | https://github.com/cyphar/filepath-securejoin/blob/v0.7.0/COPYING.md |
-| `github.com/fsnotify/fsnotify` | BSD-3-Clause | https://github.com/fsnotify/fsnotify/blob/v1.7.0/LICENSE |
-| `github.com/google/uuid` | BSD-3-Clause | https://github.com/google/uuid/blob/v1.6.0/LICENSE |
-| `github.com/moby/sys/capability` | BSD-2-Clause | https://github.com/moby/sys/blob/capability/v0.4.0/capability/LICENSE |
-| `github.com/moby/sys/mountinfo` | Apache-2.0 | https://github.com/moby/sys/blob/mountinfo/v0.7.2/mountinfo/LICENSE |
-| `github.com/moby/sys/reexec` | Apache-2.0 | https://github.com/moby/sys/blob/reexec/v0.1.0/reexec/LICENSE |
-| `github.com/opencontainers/cgroups/devices/config` | Apache-2.0 | https://github.com/opencontainers/cgroups/blob/v0.0.7/LICENSE |
-| `github.com/opencontainers/runc` | Apache-2.0 | https://github.com/opencontainers/runc/blob/v1.4.3/LICENSE |
-| `github.com/opencontainers/runtime-spec/specs-go` | Apache-2.0 | https://github.com/opencontainers/runtime-spec/blob/v1.3.0/LICENSE |
-| `github.com/opencontainers/runtime-tools` | Apache-2.0 | https://github.com/opencontainers/runtime-tools/blob/edf4cb3d2116/LICENSE |
-| `github.com/pelletier/go-toml` | Apache-2.0 / MIT | https://github.com/pelletier/go-toml/blob/v1.9.5/LICENSE |
-| `github.com/prometheus/procfs` | Apache-2.0 | https://github.com/prometheus/procfs/blob/v0.21.1/LICENSE |
-| `github.com/sirupsen/logrus` | MIT | https://github.com/sirupsen/logrus/blob/v1.9.4/LICENSE |
-| `github.com/urfave/cli-altsrc/v3` | MIT | https://github.com/urfave/cli-altsrc/blob/v3.1.0/LICENSE |
-| `github.com/urfave/cli/v3` | MIT | https://github.com/urfave/cli/blob/v3.10.1/LICENSE |
-| `golang.org/x/mod/semver` | BSD-3-Clause | https://cs.opensource.google/go/x/mod/+/v0.38.0:LICENSE |
-| `golang.org/x/sys/unix` | BSD-3-Clause | https://cs.opensource.google/go/x/sys/+/v0.47.0:LICENSE |
-| `gopkg.in/yaml.v3` | MIT | https://github.com/go-yaml/yaml/blob/v3.0.1/LICENSE |
-| `sigs.k8s.io/yaml` | Apache-2.0 / BSD-3-Clause / MIT | https://github.com/kubernetes-sigs/yaml/blob/v1.4.0/LICENSE |
-| `sigs.k8s.io/yaml/goyaml.v2` | Apache-2.0 | https://github.com/kubernetes-sigs/yaml/blob/v1.4.0/goyaml.v2/LICENSE |
-| `tags.cncf.io/container-device-interface` | Apache-2.0 | https://github.com/cncf-tags/container-device-interface/blob/v1.1.0/LICENSE |
-| `tags.cncf.io/container-device-interface/specs-go` | Apache-2.0 | https://github.com/cncf-tags/container-device-interface/blob/specs-go/v1.1.0/specs-go/LICENSE |
+| `github.com/Masterminds/semver/v3` | MIT | `github.com/Masterminds/semver/v3` |
+| `github.com/NVIDIA/go-nvlib/pkg` | Apache-2.0 | `github.com/NVIDIA/go-nvlib` |
+| `github.com/NVIDIA/go-nvml/pkg` | Apache-2.0 | `github.com/NVIDIA/go-nvml` |
+| `github.com/NVIDIA/nvidia-container-toolkit` | Apache-2.0 | `github.com/NVIDIA/nvidia-container-toolkit` |
+| `github.com/cyphar/filepath-securejoin` | BSD-3-Clause / MPL-2.0 | `github.com/cyphar/filepath-securejoin` |
+| `github.com/fsnotify/fsnotify` | BSD-3-Clause | `github.com/fsnotify/fsnotify` |
+| `github.com/google/uuid` | BSD-3-Clause | `github.com/google/uuid` |
+| `github.com/moby/sys/capability` | BSD-2-Clause | `github.com/moby/sys/capability` |
+| `github.com/moby/sys/mountinfo` | Apache-2.0 | `github.com/moby/sys/mountinfo` |
+| `github.com/moby/sys/reexec` | Apache-2.0 | `github.com/moby/sys/reexec` |
+| `github.com/opencontainers/cgroups/devices/config` | Apache-2.0 | `github.com/opencontainers/cgroups` |
+| `github.com/opencontainers/runc` | Apache-2.0 | `github.com/opencontainers/runc` |
+| `github.com/opencontainers/runtime-spec/specs-go` | Apache-2.0 | `github.com/opencontainers/runtime-spec` |
+| `github.com/opencontainers/runtime-tools` | Apache-2.0 | `github.com/opencontainers/runtime-tools` |
+| `github.com/pelletier/go-toml` | Apache-2.0 / MIT | `github.com/pelletier/go-toml` |
+| `github.com/prometheus/procfs` | Apache-2.0 | `github.com/prometheus/procfs` |
+| `github.com/sirupsen/logrus` | MIT | `github.com/sirupsen/logrus` |
+| `github.com/urfave/cli-altsrc/v3` | MIT | `github.com/urfave/cli-altsrc/v3` |
+| `github.com/urfave/cli/v3` | MIT | `github.com/urfave/cli/v3` |
+| `golang.org/x/mod/semver` | BSD-3-Clause | `golang.org/x/mod` |
+| `golang.org/x/sys/unix` | BSD-3-Clause | `golang.org/x/sys` |
+| `gopkg.in/yaml.v3` | MIT | `gopkg.in/yaml.v3` |
+| `sigs.k8s.io/yaml` | Apache-2.0 / BSD-3-Clause / MIT | `sigs.k8s.io/yaml` |
+| `sigs.k8s.io/yaml/goyaml.v2` | Apache-2.0 | `sigs.k8s.io/yaml` |
+| `tags.cncf.io/container-device-interface` | Apache-2.0 | `tags.cncf.io/container-device-interface` |
+| `tags.cncf.io/container-device-interface/specs-go` | Apache-2.0 | `tags.cncf.io/container-device-interface/specs-go` |
 
 ## Runtime Dependency License Texts
 
@@ -6338,7 +6338,7 @@ Apache license:
 ### github.com/Masterminds/semver/v3
 
 * License: MIT
-* Source: https://github.com/Masterminds/semver/blob/v3.5.0/LICENSE.txt
+* Dependency: github.com/Masterminds/semver/v3
 
 #### LICENSE.txt
 
@@ -6369,7 +6369,7 @@ THE SOFTWARE.
 ### github.com/NVIDIA/go-nvlib/pkg
 
 * License: Apache-2.0
-* Source: https://github.com/NVIDIA/go-nvlib/blob/v0.11.0/LICENSE
+* Dependency: github.com/NVIDIA/go-nvlib
 
 #### LICENSE
 
@@ -6593,7 +6593,7 @@ the PCI ID Project at https://pci-ids.ucw.cz/.
 ### github.com/NVIDIA/go-nvml/pkg
 
 * License: Apache-2.0
-* Source: https://github.com/NVIDIA/go-nvml/blob/v0.13.3-1/LICENSE
+* Dependency: github.com/NVIDIA/go-nvml
 
 #### LICENSE
 
@@ -6807,7 +6807,7 @@ the PCI ID Project at https://pci-ids.ucw.cz/.
 ### github.com/NVIDIA/nvidia-container-toolkit
 
 * License: Apache-2.0
-* Source: https://github.com/NVIDIA/nvidia-container-toolkit/blob/1151f0130747/LICENSE
+* Dependency: github.com/NVIDIA/nvidia-container-toolkit
 
 #### LICENSE
 
@@ -7021,7 +7021,7 @@ the PCI ID Project at https://pci-ids.ucw.cz/.
 ### github.com/cyphar/filepath-securejoin
 
 * License: BSD-3-Clause / MPL-2.0
-* Source: https://github.com/cyphar/filepath-securejoin/blob/v0.7.0/COPYING.md
+* Dependency: github.com/cyphar/filepath-securejoin
 
 #### COPYING.md
 
@@ -7893,7 +7893,7 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 ### github.com/fsnotify/fsnotify
 
 * License: BSD-3-Clause
-* Source: https://github.com/fsnotify/fsnotify/blob/v1.7.0/LICENSE
+* Dependency: github.com/fsnotify/fsnotify
 
 #### LICENSE
 
@@ -7930,7 +7930,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ### github.com/google/uuid
 
 * License: BSD-3-Clause
-* Source: https://github.com/google/uuid/blob/v1.6.0/LICENSE
+* Dependency: github.com/google/uuid
 
 #### LICENSE
 
@@ -7969,7 +7969,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ### github.com/moby/sys/capability
 
 * License: BSD-2-Clause
-* Source: https://github.com/moby/sys/blob/capability/v0.4.0/capability/LICENSE
+* Dependency: github.com/moby/sys/capability
 
 #### LICENSE
 
@@ -8006,7 +8006,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ### github.com/moby/sys/mountinfo
 
 * License: Apache-2.0
-* Source: https://github.com/moby/sys/blob/mountinfo/v0.7.2/mountinfo/LICENSE
+* Dependency: github.com/moby/sys/mountinfo
 
 #### LICENSE
 
@@ -8220,7 +8220,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ### github.com/moby/sys/reexec
 
 * License: Apache-2.0
-* Source: https://github.com/moby/sys/blob/reexec/v0.1.0/reexec/LICENSE
+* Dependency: github.com/moby/sys/reexec
 
 #### LICENSE
 
@@ -8434,7 +8434,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ### github.com/opencontainers/cgroups/devices/config
 
 * License: Apache-2.0
-* Source: https://github.com/opencontainers/cgroups/blob/v0.0.7/LICENSE
+* Dependency: github.com/opencontainers/cgroups
 
 #### LICENSE
 
@@ -8647,7 +8647,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ### github.com/opencontainers/runc
 
 * License: Apache-2.0
-* Source: https://github.com/opencontainers/runc/blob/v1.4.3/LICENSE
+* Dependency: github.com/opencontainers/runc
 
 #### LICENSE
 
@@ -8873,7 +8873,7 @@ See also http://www.apache.org/dev/crypto.html and/or seek legal counsel.
 ### github.com/opencontainers/runtime-spec/specs-go
 
 * License: Apache-2.0
-* Source: https://github.com/opencontainers/runtime-spec/blob/v1.3.0/LICENSE
+* Dependency: github.com/opencontainers/runtime-spec
 
 #### LICENSE
 
@@ -9076,7 +9076,7 @@ See also http://www.apache.org/dev/crypto.html and/or seek legal counsel.
 ### github.com/opencontainers/runtime-tools
 
 * License: Apache-2.0
-* Source: https://github.com/opencontainers/runtime-tools/blob/edf4cb3d2116/LICENSE
+* Dependency: github.com/opencontainers/runtime-tools
 
 #### LICENSE
 
@@ -9279,7 +9279,7 @@ See also http://www.apache.org/dev/crypto.html and/or seek legal counsel.
 ### github.com/pelletier/go-toml
 
 * License: Apache-2.0 / MIT
-* Source: https://github.com/pelletier/go-toml/blob/v1.9.5/LICENSE
+* Dependency: github.com/pelletier/go-toml
 
 #### LICENSE
 
@@ -9538,7 +9538,7 @@ License:
 ### github.com/prometheus/procfs
 
 * License: Apache-2.0
-* Source: https://github.com/prometheus/procfs/blob/v0.21.1/LICENSE
+* Dependency: github.com/prometheus/procfs
 
 #### LICENSE
 
@@ -9764,7 +9764,7 @@ SoundCloud Ltd. (http://soundcloud.com/).
 ### github.com/sirupsen/logrus
 
 * License: MIT
-* Source: https://github.com/sirupsen/logrus/blob/v1.9.4/LICENSE
+* Dependency: github.com/sirupsen/logrus
 
 #### LICENSE
 
@@ -9797,7 +9797,7 @@ THE SOFTWARE.
 ### github.com/urfave/cli-altsrc/v3
 
 * License: MIT
-* Source: https://github.com/urfave/cli-altsrc/blob/v3.1.0/LICENSE
+* Dependency: github.com/urfave/cli-altsrc/v3
 
 #### LICENSE
 
@@ -9830,7 +9830,7 @@ SOFTWARE.
 ### github.com/urfave/cli/v3
 
 * License: MIT
-* Source: https://github.com/urfave/cli/blob/v3.10.1/LICENSE
+* Dependency: github.com/urfave/cli/v3
 
 #### LICENSE
 
@@ -9863,7 +9863,7 @@ SOFTWARE.
 ### golang.org/x/mod/semver
 
 * License: BSD-3-Clause
-* Source: https://cs.opensource.google/go/x/mod/+/v0.38.0:LICENSE
+* Dependency: golang.org/x/mod
 
 #### LICENSE
 
@@ -9902,7 +9902,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ### golang.org/x/sys/unix
 
 * License: BSD-3-Clause
-* Source: https://cs.opensource.google/go/x/sys/+/v0.47.0:LICENSE
+* Dependency: golang.org/x/sys
 
 #### LICENSE
 
@@ -9941,7 +9941,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ### gopkg.in/yaml.v3
 
 * License: MIT
-* Source: https://github.com/go-yaml/yaml/blob/v3.0.1/LICENSE
+* Dependency: gopkg.in/yaml.v3
 
 #### LICENSE
 
@@ -10022,7 +10022,7 @@ limitations under the License.
 ### sigs.k8s.io/yaml
 
 * License: Apache-2.0 / BSD-3-Clause / MIT
-* Source: https://github.com/kubernetes-sigs/yaml/blob/v1.4.0/LICENSE
+* Dependency: sigs.k8s.io/yaml
 
 #### LICENSE
 
@@ -10340,7 +10340,7 @@ Apache license:
 ### sigs.k8s.io/yaml/goyaml.v2
 
 * License: Apache-2.0
-* Source: https://github.com/kubernetes-sigs/yaml/blob/v1.4.0/goyaml.v2/LICENSE
+* Dependency: sigs.k8s.io/yaml
 
 #### LICENSE
 
@@ -10572,7 +10572,7 @@ limitations under the License.
 ### tags.cncf.io/container-device-interface
 
 * License: Apache-2.0
-* Source: https://github.com/cncf-tags/container-device-interface/blob/v1.1.0/LICENSE
+* Dependency: tags.cncf.io/container-device-interface
 
 #### LICENSE
 
@@ -10785,7 +10785,7 @@ limitations under the License.
 ### tags.cncf.io/container-device-interface/specs-go
 
 * License: Apache-2.0
-* Source: https://github.com/cncf-tags/container-device-interface/blob/specs-go/v1.1.0/specs-go/LICENSE
+* Dependency: tags.cncf.io/container-device-interface/specs-go
 
 #### LICENSE
 

@@ -113,6 +113,7 @@ prepare_workspace() {
     INDEX_FILE="$(mktemp "${t}-idx.XXXXXX")"
     TOOLS_CSV="$(mktemp "${t}-tools-csv.XXXXXX")"
     TOOLS_INDEX="$(mktemp "${t}-tools-idx.XXXXXX")"
+    TOOLS_MODULES="$(mktemp "${t}-tools-modules.XXXXXX")"
 
     # Next to the destination, not under TMPDIR: the final mv must not cross
     # filesystems, where rename(2) degrades to copy-then-unlink.
@@ -120,7 +121,7 @@ prepare_workspace() {
     out_dir="$(dirname "${OUTPUT}")"
     mkdir -p "${out_dir}"
     OUT_TMP="$(mktemp "${out_dir}/.$(basename "${OUTPUT}").XXXXXX")"
-    trap 'rm -rf "${SAVE_ROOT}"; rm -f "${COMBINED_CSV}" "${INDEX_FILE}" "${TOOLS_CSV}" "${TOOLS_INDEX}" "${OUT_TMP}"' EXIT INT TERM
+    trap 'rm -rf "${SAVE_ROOT}"; rm -f "${COMBINED_CSV}" "${INDEX_FILE}" "${TOOLS_CSV}" "${TOOLS_INDEX}" "${TOOLS_MODULES}" "${OUT_TMP}"' EXIT INT TERM
 }
 
 collect_runtime() {
@@ -154,7 +155,13 @@ collect_bundled() {
 
     read_tool_packages
 
-    ( cd "${TOOLS_DIR}" && GOFLAGS="-mod=readonly" go mod download ) >&2
+    (
+        cd "${TOOLS_DIR}"
+        GOFLAGS="-mod=readonly" go mod download
+        # Use paths, not versions: go-licenses resolves source URLs through
+        # remote repository metadata, whose tag choice can change over time.
+        GOFLAGS="-mod=readonly" go list -m -f '# {{.Path}}' all
+    ) > "${TOOLS_MODULES}"
 
     for platform in "${PLATFORMS[@]}"; do
         goos="${platform%/*}"
@@ -239,7 +246,8 @@ collapse_index() {
 # In vendor mode go-licenses reports a URL into this repo at HEAD, which stops
 # describing released content once main moves; module path is immutable.
 annotate_modules() {
-    awk -v modfile="${MODULES_TXT}" '
+    local modfile="${1:-${MODULES_TXT}}"
+    awk -v modfile="${modfile}" '
         BEGIN {
             FS = OFS = ","
             while ((getline line < modfile) > 0) {
@@ -282,7 +290,7 @@ annotate_modules() {
 build_indexes() {
     log "Generating dependency index..."
     collapse_index "${COMBINED_CSV}" | annotate_modules > "${INDEX_FILE}"
-    collapse_index "${TOOLS_CSV}" > "${TOOLS_INDEX}"
+    collapse_index "${TOOLS_CSV}" | annotate_modules "${TOOLS_MODULES}" > "${TOOLS_INDEX}"
 
     [[ -s "${INDEX_FILE}" ]] \
         || die "go-licenses produced no entries for ${PACKAGES[*]} — refusing to write empty notices file."
@@ -304,10 +312,8 @@ build_indexes() {
             "Run 'make vendor' and re-run, rather than committing a file with unattributed entries."
     fi
 
-    if cut -d, -f2 "${TOOLS_INDEX}" | LC_ALL=C grep -qx 'Unknown'; then
-        die "go-licenses could not resolve source URLs for some bundled-binary modules." \
-            "This usually means the network blocked a '?go-get=1' lookup. Re-run with" \
-            "access to the module hosts rather than committing a degraded file."
+    if cut -d, -f4 "${TOOLS_INDEX}" | LC_ALL=C grep -qx 'unknown'; then
+        die "could not resolve a module for some bundled-binary packages from ${TOOLS_DIR}/go.mod."
     fi
 }
 
@@ -416,7 +422,7 @@ EOF
 ## Bundled Binary Dependency Index
 
 EOF
-        emit_index_table "${TOOLS_INDEX}" source
+        emit_index_table "${TOOLS_INDEX}" module
 
         cat <<'EOF'
 
@@ -429,7 +435,7 @@ EOF
 ## Bundled Binary License Texts
 
 EOF
-        emit_sections "${TOOLS_INDEX}" "${LICENSES_DIR}/.tools" source
+        emit_sections "${TOOLS_INDEX}" "${LICENSES_DIR}/.tools" module
     } > "${OUT_TMP}"
     # mktemp creates 0600; set the mode before, never after, the rename.
     chmod 644 "${OUT_TMP}"
