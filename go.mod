@@ -7,7 +7,7 @@ require (
 	github.com/NVIDIA/go-nvml v0.13.3-1
 	github.com/coreos/go-systemd/v22 v22.7.0
 	github.com/sirupsen/logrus v1.10.0
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	github.com/urfave/cli/v3 v3.11.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.36.3
