@@ -39,12 +39,12 @@ require (
 	github.com/urfave/cli-altsrc/v3 v3.1.0 // indirect
 	github.com/urfave/cli/v3 v3.10.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/mod v0.38.0 // indirect
-	golang.org/x/net v0.56.0 // indirect
-	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/mod v0.40.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.38.0 // indirect
-	golang.org/x/tools v0.47.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/tools v0.49.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.90.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
