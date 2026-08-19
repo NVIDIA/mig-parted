@@ -1,5 +1,20 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.15.0
+- Use the GI profile ID from the target device when reporting the current MIG config
+- Add support for bouncing third-party GPU client pods during a MIG config apply
+- Support optional subsystem ID matching in device filters
+- Ship a static busybox shell in the mig-parted image
+- Surface service.sh failures in the nvidia-mig-manager unit status
+- Migrate to urfave/cli/v3
+- Bump NVIDIA Container Toolkit version to v1.20.0
+- Bump distroless base image version to v4.1.1
+- Bump CUDA base image version to 13.3.1-base-ubi8
+- Bump github.com/NVIDIA/go-nvlib to v0.12.0
+- Bump github.com/NVIDIA/go-nvml to v0.13.3-1
+- Bump k8s golang dependencies to v0.36.3
+- Bump golang version to 1.26.6
+
 ## v0.14.5
 - Skip container runtime calls in hooks to avoid deadlocks
 - Add a start timeout of 480 seconds to nvidia-mig-manager.service
