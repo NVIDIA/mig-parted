@@ -27,30 +27,85 @@ import (
 	"github.com/coreos/go-systemd/v22/dbus"
 )
 
+// systemdConnectTimeout bounds how long NewManager waits for the systemd D-Bus
+// connection (dial plus auth handshake) to be established. On hosts without a
+// running systemd/D-Bus daemon the system bus socket may still exist - for
+// example when /run/dbus/system_bus_socket is bind-mounted from the host - but
+// never answer, in which case the underlying auth handshake would otherwise
+// block forever. Bounding it turns that indefinite hang into a fast, actionable
+// error.
+const systemdConnectTimeout = 10 * time.Second
+
 // Manager handles systemd operations using the D-Bus API
 type Manager struct {
 	ctx context.Context
 
-	conn *dbus.Conn
+	conn   *dbus.Conn
+	cancel context.CancelFunc
 }
 
-// NewManager creates a new Manager instance
+// NewManager creates a new Manager instance connected to the systemd system
+// bus. It fails fast, rather than blocking indefinitely, when the D-Bus socket
+// exists but no systemd daemon is answering (as happens on systemd-less hosts
+// such as Talos Linux).
 func NewManager(ctx context.Context) (*Manager, error) {
-	conn, err := dbus.NewSystemConnectionContext(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to systemd D-Bus: %w", err)
-	}
+	return newManagerWithTimeout(ctx, systemdConnectTimeout)
+}
 
-	return &Manager{
-		ctx:  ctx,
-		conn: conn,
-	}, nil
+// newManagerWithTimeout is the testable core of NewManager, with the connection
+// timeout injected so tests do not have to wait for the production default.
+func newManagerWithTimeout(ctx context.Context, timeout time.Duration) (*Manager, error) {
+	// Derive a cancelable context for the connection. go-systemd/godbus tie the
+	// lifetime of the connection to this context and, crucially, spawn a watcher
+	// goroutine that closes the underlying socket as soon as the context is done.
+	// We rely on that to unblock a stuck auth handshake: if the dial does not
+	// complete within the timeout we cancel the context, the socket is closed,
+	// and the blocked read returns an error instead of hanging forever.
+	connCtx, cancel := context.WithCancel(ctx)
+
+	type result struct {
+		conn *dbus.Conn
+		err  error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		conn, err := dbus.NewSystemConnectionContext(connCtx)
+		ch <- result{conn: conn, err: err}
+	}()
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case res := <-ch:
+		if res.err != nil {
+			cancel()
+			return nil, fmt.Errorf("failed to connect to systemd D-Bus: %w", res.err)
+		}
+		// Success: the connection (and connCtx) must outlive this call, so we do
+		// not cancel here. cancel is retained and invoked by Close().
+		return &Manager{
+			ctx:    ctx,
+			conn:   res.conn,
+			cancel: cancel,
+		}, nil
+	case <-timer.C:
+		// The dial is stuck: the socket exists but nothing is answering, as on a
+		// systemd-less host. Cancel the connection context so the godbus watcher
+		// closes the socket and unblocks the goroutine above, then report a clear
+		// error instead of hanging.
+		cancel()
+		return nil, fmt.Errorf("timed out after %s connecting to systemd D-Bus: the system bus socket exists but is not responding (is this a systemd-less host?)", timeout)
+	}
 }
 
 // Close closes the D-Bus connection
 func (sm *Manager) Close() error {
 	if sm.conn != nil {
 		sm.conn.Close()
+	}
+	if sm.cancel != nil {
+		sm.cancel()
 	}
 	return nil
 }
