@@ -168,6 +168,7 @@ func (r *Reconfigure) Run() error {
 	}
 
 	if err := r.waitForPodsToBeDeleted(); err != nil {
+		_ = r.setState(migStateFailed)
 		return fmt.Errorf("failed to wait for pods to be deleted: %w", err)
 	}
 
@@ -228,6 +229,7 @@ func (r *Reconfigure) Run() error {
 	}
 
 	if err := r.restartValidatorPod(); err != nil {
+		_ = r.setState(migStateFailed)
 		return fmt.Errorf("failed to restart validator pod: %w", err)
 	}
 
