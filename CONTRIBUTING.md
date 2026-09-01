@@ -3,6 +3,8 @@
 Want to contribute to the NVIDIA `mig-parted` project? Awesome!
 We only require you to sign your work as described in the following section.
 
+All contributions must adhere to the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Sign your work
 
 The sign-off is a simple signature at the end of the description for the patch.
