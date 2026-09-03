@@ -102,13 +102,7 @@ type Reconfigure struct {
 	stoppedServices       []string
 }
 
-// New creates a new Reconfigure instance.
-//
-// The connection to the host's systemd D-Bus is established lazily (see
-// systemdMgr), not here. Constructing a Reconfigure never dials D-Bus, so a
-// reconfiguration that does not touch host systemd - the common case, and the
-// only workable case on systemd-less hosts such as Talos Linux - never blocks
-// on an unresponsive system bus socket.
+// New creates a new Reconfigure instance
 func New(ctx context.Context, clientset *kubernetes.Clientset, migPartedBinary []string, opts *Options) (*Reconfigure, error) {
 	return &Reconfigure{
 		ctx:             ctx,
@@ -118,14 +112,7 @@ func New(ctx context.Context, clientset *kubernetes.Clientset, migPartedBinary [
 	}, nil
 }
 
-// getSystemdManager lazily establishes and caches the connection to the host's systemd
-// D-Bus. It is only ever called from code paths that genuinely need systemd:
-// persisting the host mig-manager state file (which triggers a daemon-reload)
-// and stopping/starting host GPU client services. On hosts where none of those
-// run - notably when WITH_SHUTDOWN_HOST_GPU_CLIENTS is false and no host state
-// file exists - the D-Bus socket is never dialed, so a systemd-less host does
-// not hang and the MIG geometry change (applied by the nvidia-mig-parted
-// binary, not via systemd) still completes.
+// getSystemdManager lazily establishes and caches the connection to the host's systemd D-Bus
 func (r *Reconfigure) getSystemdManager() (*systemd.Manager, error) {
 	if r.systemdManager != nil {
 		return r.systemdManager, nil

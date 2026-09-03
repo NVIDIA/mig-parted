@@ -22,11 +22,6 @@ import (
 	"testing"
 )
 
-// TestNewDoesNotConnectSystemd pins the core of the systemd-less-host fix:
-// constructing a Reconfigure must not dial the host's systemd D-Bus. On hosts
-// where the system bus socket exists but nothing answers (e.g. Talos Linux),
-// an eager connection here would block forever, so the connection has to be
-// established lazily instead.
 func TestNewDoesNotConnectSystemd(t *testing.T) {
 	opts := &Options{
 		NodeName:          "test-node",
@@ -45,12 +40,7 @@ func TestNewDoesNotConnectSystemd(t *testing.T) {
 	}
 }
 
-// TestSystemdMgrErrorIsNotCached verifies that when the lazy systemd connection
-// fails, the error is surfaced and nothing is cached, so a later call can try
-// again rather than reusing a broken (nil) manager.
 func TestSystemdMgrErrorIsNotCached(t *testing.T) {
-	// Point D-Bus at a socket that does not exist so the dial fails immediately
-	// (the missing-socket path returns fast, well before the connect timeout).
 	missing := "unix:path=" + filepath.Join(t.TempDir(), "does-not-exist")
 	t.Setenv("DBUS_SYSTEM_BUS_ADDRESS", missing)
 	t.Setenv("DBUS_LAUNCHD_SESSION_BUS_SOCKET", filepath.Join(t.TempDir(), "does-not-exist"))
@@ -72,9 +62,6 @@ func TestSystemdMgrErrorIsNotCached(t *testing.T) {
 	}
 }
 
-// TestCleanupWithNilManager ensures the deferred cleanup is safe when a
-// reconfiguration completes without ever needing systemd (the common
-// systemd-less-host path, where the manager is never created).
 func TestCleanupWithNilManager(t *testing.T) {
 	r := &Reconfigure{}
 	r.cleanup() // must not panic

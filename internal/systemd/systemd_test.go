@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,20 +26,12 @@ import (
 	"time"
 )
 
-// setBusAddress points the D-Bus client library at socketPath for the duration
-// of the test. godbus resolves the system bus address from different
-// environment variables depending on the platform (DBUS_SYSTEM_BUS_ADDRESS on
-// Linux, DBUS_LAUNCHD_SESSION_BUS_SOCKET on macOS), so we set both to keep the
-// test portable between the CI runners and local development machines.
 func setBusAddress(t *testing.T, socketPath string) {
 	t.Helper()
 	t.Setenv("DBUS_SYSTEM_BUS_ADDRESS", "unix:path="+socketPath)
 	t.Setenv("DBUS_LAUNCHD_SESSION_BUS_SOCKET", socketPath)
 }
 
-// shortSocketPath returns a socket path in a fresh temp dir kept short enough to
-// stay under the ~104 byte sun_path limit for unix domain sockets (t.TempDir()
-// embeds the test name and can overflow that limit on macOS).
 func shortSocketPath(t *testing.T) string {
 	t.Helper()
 	dir, err := os.MkdirTemp("", "migp")
@@ -50,10 +42,6 @@ func shortSocketPath(t *testing.T) string {
 	return filepath.Join(dir, "s")
 }
 
-// TestNewManagerWithTimeoutUnresponsiveSocket reproduces the systemd-less-host
-// failure mode: a system bus socket that exists (something is listening) but
-// never answers the D-Bus auth handshake. Before the fix this blocked forever;
-// NewManager must instead fail fast once the connect timeout elapses.
 func TestNewManagerWithTimeoutUnresponsiveSocket(t *testing.T) {
 	socketPath := shortSocketPath(t)
 
@@ -100,11 +88,7 @@ func TestNewManagerWithTimeoutUnresponsiveSocket(t *testing.T) {
 	}
 }
 
-// TestNewManagerWithTimeoutMissingSocket verifies that a missing socket fails
-// immediately via the dial error path, well before the connect timeout - i.e.
-// the timeout is a backstop, not the primary error path.
 func TestNewManagerWithTimeoutMissingSocket(t *testing.T) {
-	// A path that does not exist: the dial fails right away.
 	setBusAddress(t, filepath.Join(t.TempDir(), "does-not-exist"))
 
 	const timeout = 10 * time.Second
@@ -127,8 +111,6 @@ func TestNewManagerWithTimeoutMissingSocket(t *testing.T) {
 	}
 }
 
-// TestManagerCloseNil ensures Close is safe on a zero-value Manager (no
-// connection, no cancel func), matching how cleanup paths may call it.
 func TestManagerCloseNil(t *testing.T) {
 	var mgr Manager
 	if err := mgr.Close(); err != nil {
