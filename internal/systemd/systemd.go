@@ -27,30 +27,62 @@ import (
 	"github.com/coreos/go-systemd/v22/dbus"
 )
 
+// systemdConnectTimeout limits how long NewManager waits for the systemd D-Bus
+// connection (dial plus auth handshake) to be established
+const systemdConnectTimeout = 10 * time.Second
+
 // Manager handles systemd operations using the D-Bus API
 type Manager struct {
 	ctx context.Context
 
-	conn *dbus.Conn
+	conn   *dbus.Conn
+	cancel context.CancelFunc
 }
 
-// NewManager creates a new Manager instance
 func NewManager(ctx context.Context) (*Manager, error) {
-	conn, err := dbus.NewSystemConnectionContext(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to systemd D-Bus: %w", err)
-	}
+	return newManagerWithTimeout(ctx, systemdConnectTimeout)
+}
 
-	return &Manager{
-		ctx:  ctx,
-		conn: conn,
-	}, nil
+func newManagerWithTimeout(ctx context.Context, timeout time.Duration) (*Manager, error) {
+	connCtx, cancel := context.WithCancel(ctx)
+
+	type result struct {
+		conn *dbus.Conn
+		err  error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		conn, err := dbus.NewSystemConnectionContext(connCtx)
+		ch <- result{conn: conn, err: err}
+	}()
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case res := <-ch:
+		if res.err != nil {
+			cancel()
+			return nil, fmt.Errorf("failed to connect to systemd D-Bus: %w", res.err)
+		}
+		return &Manager{
+			ctx:    ctx,
+			conn:   res.conn,
+			cancel: cancel,
+		}, nil
+	case <-timer.C:
+		cancel()
+		return nil, fmt.Errorf("timed out after %s connecting to systemd D-Bus: the system bus socket exists but is not responding (is this a systemd-less host?)", timeout)
+	}
 }
 
 // Close closes the D-Bus connection
 func (sm *Manager) Close() error {
 	if sm.conn != nil {
 		sm.conn.Close()
+	}
+	if sm.cancel != nil {
+		sm.cancel()
 	}
 	return nil
 }
