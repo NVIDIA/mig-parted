@@ -80,16 +80,15 @@ func (m MigConfig) Contains(profile string) bool {
 }
 
 // Equals checks if two 'MigConfig's are equal.
-// Equality is determined by comparing the profiles contained in each 'MigConfig'.
+// Profiles with zero instances are equivalent to omitted profiles.
 func (m MigConfig) Equals(config MigConfig) bool {
-	if len(m) != len(config) {
-		return false
-	}
 	for k, v := range m {
-		if !config.Contains(k) {
+		if v != config[k] {
 			return false
 		}
-		if v != config[k] {
+	}
+	for k, v := range config {
+		if v != m[k] {
 			return false
 		}
 	}
