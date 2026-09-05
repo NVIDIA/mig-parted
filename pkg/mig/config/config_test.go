@@ -276,3 +276,22 @@ func TestIteratePermutationsUntilSuccess(t *testing.T) {
 		})
 	}
 }
+
+// Zero-count profiles are accepted by config validation and omitted when creating
+// instances. Comparing the resulting hardware configuration must omit them too.
+func TestGetSetMigConfigWithZeroCount(t *testing.T) {
+	types.SetMockNVdevlib()
+	desired := types.MigConfig{"1g.5gb": 2, "2g.10gb": 0}
+	require.NoError(t, desired.AssertValidFormat())
+
+	manager := NewMockLunaServerMigConfigManager()
+	ret, activation := EnableMigMode(manager, 0)
+	require.Equal(t, nvml.SUCCESS, ret)
+	require.Equal(t, nvml.SUCCESS, activation)
+	require.NoError(t, manager.SetMigConfig(0, desired))
+
+	current, err := manager.GetMigConfig(0)
+	require.NoError(t, err)
+	require.Equal(t, types.MigConfig{"1g.5gb": 2}, current)
+	require.True(t, current.Equals(desired), "applied config must match the requested config")
+}
