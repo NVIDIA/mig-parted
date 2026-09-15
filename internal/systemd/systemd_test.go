@@ -126,6 +126,10 @@ func TestManagerCloseNil(t *testing.T) {
 }
 
 func TestManagerRace(t *testing.T) {
+	if os.Getenv("WITH_SHUTDOWN_HOST_GPU_CLIENTS") == "false" {
+		t.Skip()
+	}
+
 	const timeout = 1 * time.Second
 
 	var conn *dbus.Conn
@@ -152,6 +156,10 @@ func TestManagerRace(t *testing.T) {
 }
 
 func TestCancelDbus(t *testing.T) {
+	if os.Getenv("WITH_SHUTDOWN_HOST_GPU_CLIENTS") == "false" {
+		t.Skip()
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	conn, err := dbus.NewSystemConnectionContext(ctx)

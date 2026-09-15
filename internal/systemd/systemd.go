@@ -51,7 +51,7 @@ func NewManager(ctx context.Context) (*Manager, error) {
 
 func newManagerWithTimeout(ctx context.Context, timeout time.Duration, connect func(context.Context) (*dbus.Conn, error)) (*Manager, error) {
 	connCtx, cancel := context.WithCancel(ctx)
-	ch := make(chan result, 1)
+	ch := make(chan result)
 
 	if connect == nil {
 		connect = dbus.NewSystemConnectionContext
