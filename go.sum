@@ -1,7 +1,7 @@
 github.com/NVIDIA/go-nvlib v0.12.0 h1:LICVlUGlDnpbwQv64rOZQn11xQae1J+c+dvH9CCi7jc=
 github.com/NVIDIA/go-nvlib v0.12.0/go.mod h1:J5M/QPIJJtaipjdONqevSnfgBlkW49uVWX5cFOoQpoA=
-github.com/NVIDIA/go-nvml v0.13.3-1 h1:P76U2h88OZSiMtdhRsJjSF5DXyXUqHIXKeDicVAaae0=
-github.com/NVIDIA/go-nvml v0.13.3-1/go.mod h1:ahi2psRYoa+wYUBIrZPRO+wJs9lcvMhxSSkjjvsJJNQ=
+github.com/NVIDIA/go-nvml v0.13.4-0 h1:o3jp9u2x1R9ShFE3v+Aesp55XOSIQFMJz/VGNUcJaNE=
+github.com/NVIDIA/go-nvml v0.13.4-0/go.mod h1:id63qwpoDWpFXwnwM6psDCSqW4BmNu6mWpr4YeQtPGo=
 github.com/coreos/go-systemd/v22 v22.7.0 h1:LAEzFkke61DFROc7zNLX/WA2i5J8gYqe0rSj9KI28KA=
 github.com/coreos/go-systemd/v22 v22.7.0/go.mod h1:xNUYtjHu2EDXbsxz1i41wouACIwT7Ybq9o0BQhMwD0w=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
