@@ -66,7 +66,11 @@ RUN apt-get update \
  && cp /bin/busybox /busybox/busybox \
  && /busybox/busybox --install -s /busybox
 
+<<<<<<< HEAD
 FROM nvcr.io/nvidia/distroless/go:v4.1.1
+=======
+FROM nvcr.io/nvidia/distroless/go:v4.1.4
+>>>>>>> e3cb0acf (Bump nvidia/distroless/go in /deployments/container)
 
 USER 0:0
 
