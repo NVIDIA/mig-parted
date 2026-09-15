@@ -8,7 +8,7 @@ require (
 	github.com/coreos/go-systemd/v22 v22.7.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
-	github.com/urfave/cli/v3 v3.11.0
+	github.com/urfave/cli/v3 v3.12.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.37.0
 	k8s.io/apimachinery v0.37.0
