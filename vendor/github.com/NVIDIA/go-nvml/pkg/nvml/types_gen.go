@@ -73,6 +73,19 @@ type Memory_v2 struct {
 	Used     uint64
 }
 
+type SetMemoryLimits_v1 struct {
+	NameSpace *int8
+	SoftLimit uint64
+	HardLimit uint64
+}
+
+type GetMemoryLimits_v1 struct {
+	NameSpace   *int8
+	SoftLimit   uint64
+	HardLimit   uint64
+	CurrentUsed uint64
+}
+
 type BAR1Memory struct {
 	Bar1Total uint64
 	Bar1Free  uint64
@@ -242,6 +255,98 @@ type Pdi struct {
 	Value   uint64
 }
 
+<<<<<<< HEAD
+=======
+type PmgrPwrTuple struct {
+	PwrmW uint32
+}
+
+type RailMetrics struct {
+	FreqkHz uint32
+	UtilPct uint64
+}
+
+type CoreRailMetrics struct {
+	Rails [2]RailMetrics
+}
+
+type PwrModelMetricsDlppm1xPerf struct {
+	Perfms uint32
+}
+
+type PwrModelMetricsDlppm1x struct {
+	BValid      uint8
+	CoreRail    CoreRailMetrics
+	FbRail      RailMetrics
+	TgpPwrTuple PmgrPwrTuple
+	PerfMetrics PwrModelMetricsDlppm1xPerf
+}
+
+type PwrModelMetricsDlppm1xDramclkEstimates struct {
+	EstimatedMetrics    [8]PwrModelMetricsDlppm1x
+	NumEstimatedMetrics uint8
+	Pad_cgo_0           [7]byte
+}
+
+type ObservedMetrics struct {
+	InitialDramclkEst [3]PwrModelMetricsDlppm1xDramclkEstimates
+	BValid            uint8
+	CoreRail          CoreRailMetrics
+	FbRail            RailMetrics
+	TgpPwrTuple       PmgrPwrTuple
+	PerfMetrics       PwrModelMetricsDlppm1xPerf
+}
+
+type PerfMetricsDlppc2xSample struct {
+	ObservedMetrics ObservedMetrics
+}
+
+type PwrModelMetricsSamplePfpp1x struct {
+	FreqkHz     [16]uint32
+	EstTgpPwrmW uint32
+}
+
+type PwrModelOperatingPointPfpp1x struct {
+	FreqkHz uint32
+	PwrmW   uint32
+}
+
+type PwrModelMetricsPfpp1x struct {
+	NumVfPoints         uint8
+	EstimatedMetrics    [32]PwrModelMetricsSamplePfpp1x
+	BValid              uint8
+	MaxPerfPerWattPoint PwrModelOperatingPointPfpp1x
+	FmaxAtVmaxPoint     PwrModelOperatingPointPfpp1x
+	TgpHeadroommW       uint32
+}
+
+type PerfMetricsPfpp1xSample struct {
+	EstimatedMetrics PwrModelMetricsPfpp1x
+}
+
+type PerfMetricControllerSample struct {
+	ControllerType uint32
+	Pad_cgo_0      [4]byte
+	Data           [2208]byte
+}
+
+type PerfMetricsSample struct {
+	NumControllerData uint8
+	Pad_cgo_0         [7]byte
+	ControllerData    [4]PerfMetricControllerSample
+}
+
+type PerfMetricsSamples_v1 struct {
+	NumSamples uint32
+	Pad_cgo_0  [4]byte
+	Samples    [13]PerfMetricsSample
+}
+
+type BBXTimeData_v1 struct {
+	TimeRun uint32
+}
+
+>>>>>>> f2a8e6d9 (Bump github.com/NVIDIA/go-nvml from 0.13.3-1 to 0.13.4-0)
 type DramEncryptionInfo_v1 struct {
 	Version         uint32
 	EncryptionState uint32
@@ -475,6 +580,14 @@ type PowerValue_v2 struct {
 	Version      uint32
 	PowerScope   uint8
 	PowerValueMw uint32
+}
+
+type AdaptiveTgpModeInfo_v1 struct {
+	InBandEnableRequest   uint32
+	FeatureAllowedByAdmin uint32
+	AdminOverrideEnabled  uint32
+	EnablementStatus      uint32
+	AdjustedLimitMw       uint32
 }
 
 type nvmlVgpuTypeId uint32
@@ -883,6 +996,30 @@ type nvmlEventData struct {
 	ComputeInstanceId uint32
 }
 
+type GetContextCount_v1 struct {
+	Count uint32
+}
+
+type GetContextInfo_v1 struct {
+	Index                              uint32
+	NvmlGpuOperationalEventContextType uint32
+	SourceEventContextType             uint32
+	DataSize                           uint32
+	DataFormatVersion                  uint16
+	Pad_cgo_0                          [2]byte
+}
+
+type GetContextData_v1 struct {
+	Data     *byte
+	Index    uint32
+	DataSize uint32
+}
+
+type GetGpuOperationalEventContextLegacyXid_v1 struct {
+	Index   uint32
+	XidCode uint32
+}
+
 type SystemEventSet struct {
 	Handle *_Ctype_struct_nvmlSystemEventSet_st
 }
@@ -1094,6 +1231,75 @@ type GpuFabricInfoV struct {
 	Pad_cgo_0     [3]byte
 }
 
+<<<<<<< HEAD
+=======
+type GpuFabricClique_v1 struct {
+	Type uint8
+	Id   uint32
+}
+
+type GpuFabricInfo_v4 struct {
+	ClusterUuid   [16]uint8
+	Status        uint32
+	Cliques       [64]GpuFabricClique_v1
+	NumCliques    uint32
+	State         uint8
+	HealthMask    uint32
+	HealthSummary uint8
+	Pad_cgo_0     [3]byte
+}
+
+type GpuOperationalEventConfig_v1 struct {
+	Uuid        [96]int8
+	MinLogLevel uint32
+	MinSeverity uint32
+}
+
+type EventSetWaitData_v3 struct {
+	TimeoutMs         uint32
+	DataType          uint32
+	Uuid              [96]int8
+	SourceModule      [16]int8
+	EventType         uint64
+	EventData         uint64
+	GroupCursor       uint64
+	InstanceId        uint64
+	TimestampUsec     uint64
+	TraceId           uint64
+	GpuInstanceId     uint32
+	ComputeInstanceId uint32
+	Severity          uint32
+	CategoryId        uint32
+	ModuleEventCode   uint32
+	Scope             uint32
+	Originator        uint32
+	ModuleInstance    uint32
+	ChipletId         uint32
+	LogLevel          uint32
+	Attributes        uint32
+	GroupCperSize     uint32
+	GroupAttributes   uint32
+	GroupSize         uint8
+	GroupIndex        uint8
+	Pad_cgo_0         [2]byte
+}
+
+type CPERCursorHandle uint64
+
+type CPERCursor_v1 struct {
+	CperTypeMask uint32
+	Uuid         [80]int8
+	Handle       uint64
+}
+
+type GetCPER_v1 struct {
+	Cursor     CPERCursor_v1
+	Buffer     *uint8
+	BufferSize uint32
+	Pad_cgo_0  [4]byte
+}
+
+>>>>>>> f2a8e6d9 (Bump github.com/NVIDIA/go-nvml from 0.13.3-1 to 0.13.4-0)
 type SystemDriverBranchInfo_v1 struct {
 	Version uint32
 	Branch  [80]uint8
@@ -1158,6 +1364,12 @@ type NvlinkSetBwMode struct {
 	Pad_cgo_0 [3]byte
 }
 
+type NvlinkSetBwModeAsync_v1 struct {
+	BSetBest           uint32
+	BwMode             uint32
+	AsyncPollTimeoutMs uint32
+}
+
 type NvLinkInfo_v1 struct {
 	Version       uint32
 	IsNvleEnabled uint32
@@ -1185,6 +1397,20 @@ type NvLinkInfo struct {
 	Version       uint32
 	IsNvleEnabled uint32
 	FirmwareInfo  NvlinkFirmwareInfo
+}
+
+type NvlinkTelemetrySample_v1 struct {
+	LinkId      uint32
+	SampleType  uint32
+	SampleCount uint32
+	Samples     *uint64
+	NvmlReturn  uint32
+	Pad_cgo_0   [4]byte
+}
+
+type NvlinkTelemetrySamples_v1 struct {
+	TelemetryCount   uint32
+	TelemetrySamples *NvlinkTelemetrySample_v1
 }
 
 type VgpuVersion struct {
@@ -1365,7 +1591,11 @@ type nvmlGpmMetricsGetType struct {
 	NumMetrics uint32
 	Sample1    nvmlGpmSample
 	Sample2    nvmlGpmSample
+<<<<<<< HEAD
 	Metrics    [210]GpmMetric
+=======
+	Metrics    [477]GpmMetric
+>>>>>>> f2a8e6d9 (Bump github.com/NVIDIA/go-nvml from 0.13.3-1 to 0.13.4-0)
 }
 
 type GpmSupport struct {
@@ -1459,4 +1689,16 @@ type PowerSmoothingState_v1 struct {
 type PowerSmoothingState struct {
 	Version uint32
 	State   uint32
+}
+
+type EccBankRemapperHistogram_v1 struct {
+	MaxSpareGroupCount uint32
+	NoSpareGroupCount  uint32
+}
+
+type EccBankRemapperStatus_v1 struct {
+	ActiveRemappings   uint32
+	InactiveRemappings uint32
+	BPending           uint32
+	Histogram          EccBankRemapperHistogram_v1
 }

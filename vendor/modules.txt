@@ -5,7 +5,11 @@ github.com/NVIDIA/go-nvlib/pkg/nvpci
 github.com/NVIDIA/go-nvlib/pkg/nvpci/bytes
 github.com/NVIDIA/go-nvlib/pkg/nvpci/mmio
 github.com/NVIDIA/go-nvlib/pkg/pciids
+<<<<<<< HEAD
 # github.com/NVIDIA/go-nvml v0.13.0-1
+=======
+# github.com/NVIDIA/go-nvml v0.13.4-0
+>>>>>>> f2a8e6d9 (Bump github.com/NVIDIA/go-nvml from 0.13.3-1 to 0.13.4-0)
 ## explicit; go 1.20
 github.com/NVIDIA/go-nvml/pkg/dl
 github.com/NVIDIA/go-nvml/pkg/nvml

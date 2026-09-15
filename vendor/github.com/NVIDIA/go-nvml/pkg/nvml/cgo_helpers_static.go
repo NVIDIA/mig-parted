@@ -73,3 +73,51 @@ func unpackPCharString(str string) (*C.char, *struct{}) {
 	h := (*stringHeader)(unsafe.Pointer(&str))
 	return (*C.char)(h.Data), cgoAllocsUnknown
 }
+<<<<<<< HEAD
+=======
+
+func malloc(size uintptr) unsafe.Pointer {
+	return C.malloc(C.size_t(size))
+}
+
+func free(ptr unsafe.Pointer) {
+	C.free(ptr)
+}
+
+// int8SliceToString converts a NUL-terminated C char array (typed as []int8)
+// into a Go string, stopping at the first NUL.
+func int8SliceToString(s []int8) string {
+	buf := make([]byte, len(s))
+	for i, c := range s {
+		buf[i] = byte(c)
+	}
+	return string(buf[:clen(buf)])
+}
+
+// stringToInt8Slice copies s into out as a NUL-terminated C string. At most
+// len(out)-1 bytes are written so the final byte is always a NUL terminator;
+// remaining bytes in out are zeroed.
+func stringToInt8Slice(s string, out []int8) {
+	n := len(s)
+	if n > len(out)-1 {
+		n = len(out) - 1
+	}
+	for i := 0; i < n; i++ {
+		out[i] = int8(s[i])
+	}
+	for i := n; i < len(out); i++ {
+		out[i] = 0
+	}
+}
+
+func int8PtrToString(p *int8) string {
+	goString := C.GoString((*C.char)(unsafe.Pointer(p)))
+	return goString
+}
+
+func stringToCPtr(s string) unsafe.Pointer {
+	cstr := C.CString(s)
+	p := unsafe.Pointer(cstr)
+	return p
+}
+>>>>>>> f2a8e6d9 (Bump github.com/NVIDIA/go-nvml from 0.13.3-1 to 0.13.4-0)

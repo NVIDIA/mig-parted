@@ -20,7 +20,11 @@ type GpmMetricsGetType struct {
 	NumMetrics uint32
 	Sample1    GpmSample
 	Sample2    GpmSample
+<<<<<<< HEAD
 	Metrics    [210]GpmMetric
+=======
+	Metrics    [477]GpmMetric
+>>>>>>> f2a8e6d9 (Bump github.com/NVIDIA/go-nvml from 0.13.3-1 to 0.13.4-0)
 }
 
 func (g *GpmMetricsGetType) convert() *nvmlGpmMetricsGetType {
