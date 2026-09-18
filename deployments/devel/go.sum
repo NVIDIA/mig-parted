@@ -8,8 +8,8 @@ github.com/NVIDIA/go-nvlib v0.12.0 h1:LICVlUGlDnpbwQv64rOZQn11xQae1J+c+dvH9CCi7j
 github.com/NVIDIA/go-nvlib v0.12.0/go.mod h1:J5M/QPIJJtaipjdONqevSnfgBlkW49uVWX5cFOoQpoA=
 github.com/NVIDIA/go-nvml v0.13.4-0 h1:o3jp9u2x1R9ShFE3v+Aesp55XOSIQFMJz/VGNUcJaNE=
 github.com/NVIDIA/go-nvml v0.13.4-0/go.mod h1:id63qwpoDWpFXwnwM6psDCSqW4BmNu6mWpr4YeQtPGo=
-github.com/NVIDIA/nvidia-container-toolkit v1.20.1-0.20260914195404-24761af0847d h1:EohfuePTDH9WnCmpFx2b7UpeqrNYXtBAilRDUUVtnig=
-github.com/NVIDIA/nvidia-container-toolkit v1.20.1-0.20260914195404-24761af0847d/go.mod h1:OQJdjp+WlM4jh1ItpNWkHOy3gc2CuNhjEDkYynybelg=
+github.com/NVIDIA/nvidia-container-toolkit v1.20.1 h1:DsE0Pnu2XAl7IC00W2tmld7i/GerwnZGzRbmChj295Q=
+github.com/NVIDIA/nvidia-container-toolkit v1.20.1/go.mod h1:8Wes3Zi3GAXHt3mYynZo3yPof02+3GwpCArqS/qaq/A=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
@@ -126,8 +126,8 @@ golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL
 golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=
 golang.org/x/lint v0.0.0-20190227174305-5b3e6a55c961/go.mod h1:wehouNa3lNwaWXcvxsM5YxQ5yQlVC4a0KAMCusXpPoU=
 golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3/go.mod h1:6SW0HCj/g11FgYtHlgUYUwCkIfeOF89ocIRzGO/8vkc=
-golang.org/x/mod v0.40.0 h1:hUv+3cXcdRHz08UmSiOob7sadHig73uo5bkXxQ/tvUs=
-golang.org/x/mod v0.40.0/go.mod h1:0/weTWkPWGBikyTWAX3dkjVztMmBA5hM0DH6BElSupE=
+golang.org/x/mod v0.41.0 h1:qJmnOUb4YB+FsEuM3HcWucdZASCPGhsX6uljO6pog0c=
+golang.org/x/mod v0.41.0/go.mod h1:Ek9pY8RKWXwsWvd3rQiHYtMqkjSUV+s1Rj7j4H5Ur6o=
 golang.org/x/net v0.0.0-20180724234803-3673e40ba225/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
 golang.org/x/net v0.0.0-20180826012351-8a410e7b638d/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
 golang.org/x/net v0.0.0-20190213061140-3a22650c66bd/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
