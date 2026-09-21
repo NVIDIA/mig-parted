@@ -13,7 +13,7 @@
 # limitations under the License.
 
 MODULE := github.com/NVIDIA/mig-parted
-VERSION ?= v0.15.0
+VERSION ?= v0.15.1
 
 GOLANG_VERSION := $(shell ./hack/golang-version.sh)
 

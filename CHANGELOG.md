@@ -1,5 +1,13 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.15.1
+- Set the MIG config state to failed when the pod-deletion wait or validator restart fails
+- Bump NVIDIA Container Toolkit version to v1.20.1
+- Bump distroless base image version to v4.1.4
+- Bump github.com/NVIDIA/go-nvml to v0.13.4-0
+- Bump k8s golang dependencies to v0.36.4
+- Bump golang version to 1.27.1
+
 ## v0.15.0
 - Use the GI profile ID from the target device when reporting the current MIG config
 - Add support for bouncing third-party GPU client pods during a MIG config apply
