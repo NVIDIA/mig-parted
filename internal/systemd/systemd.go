@@ -27,30 +27,79 @@ import (
 	"github.com/coreos/go-systemd/v22/dbus"
 )
 
+// systemdConnectTimeout limits how long NewManager waits for the systemd D-Bus
+// connection (dial plus auth handshake) to be established
+const systemdConnectTimeout = 10 * time.Second
+
 // Manager handles systemd operations using the D-Bus API
 type Manager struct {
 	ctx context.Context
 
-	conn *dbus.Conn
+	conn   *dbus.Conn
+	cancel context.CancelFunc
 }
 
-// NewManager creates a new Manager instance
+type result struct {
+	conn *dbus.Conn
+	err  error
+}
+
+// NewManager creates a new Manager instance with a timeout on the systemd connection
 func NewManager(ctx context.Context) (*Manager, error) {
-	conn, err := dbus.NewSystemConnectionContext(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to systemd D-Bus: %w", err)
+	return newManagerWithTimeout(ctx, systemdConnectTimeout, nil)
+}
+
+func newManagerWithTimeout(ctx context.Context, timeout time.Duration, connect func(context.Context) (*dbus.Conn, error)) (*Manager, error) {
+	connCtx, cancel := context.WithCancel(ctx)
+	ch := make(chan result)
+
+	if connect == nil {
+		connect = dbus.NewSystemConnectionContext
 	}
 
-	return &Manager{
-		ctx:  ctx,
-		conn: conn,
-	}, nil
+	go func() {
+		// Block until connected or canceled
+		conn, err := connect(connCtx)
+		res := result{conn: conn, err: err}
+		select {
+		case ch <- res:
+			// Connected within time limit
+		case <-connCtx.Done():
+			// Explicitly drain connection if obtained after timeout
+			if conn != nil {
+				conn.Close()
+			}
+		}
+	}()
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case res := <-ch:
+		if res.err != nil {
+			cancel()
+			return nil, fmt.Errorf("failed to connect to systemd D-Bus: %w", res.err)
+		}
+		return &Manager{
+			ctx:    ctx,
+			conn:   res.conn,
+			cancel: cancel,
+		}, nil
+	case <-timer.C:
+		// Canceling the connection context both disconnects a late result and aborts an ongoing connection attempt
+		cancel()
+		return nil, fmt.Errorf("timed out after %s connecting to systemd D-Bus: the system bus socket exists but is not responding (is this a systemd-less host?)", timeout)
+	}
 }
 
 // Close closes the D-Bus connection
 func (sm *Manager) Close() error {
 	if sm.conn != nil {
 		sm.conn.Close()
+	}
+	if sm.cancel != nil {
+		sm.cancel()
 	}
 	return nil
 }
