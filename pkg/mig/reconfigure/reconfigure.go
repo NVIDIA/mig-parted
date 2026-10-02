@@ -104,23 +104,32 @@ type Reconfigure struct {
 
 // New creates a new Reconfigure instance
 func New(ctx context.Context, clientset *kubernetes.Clientset, migPartedBinary []string, opts *Options) (*Reconfigure, error) {
-	if len(opts.HostRootMount) > 0 {
-		hostSystemBusAddress := fmt.Sprintf("unix:path=%s/run/dbus/system_bus_socket", opts.HostRootMount)
-		_ = os.Setenv("DBUS_SYSTEM_BUS_ADDRESS", hostSystemBusAddress)
-	}
-
-	systemdManager, err := systemd.NewManager(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize systemd manager: %w", err)
-	}
-
 	return &Reconfigure{
 		ctx:             ctx,
 		clientset:       clientset,
 		migPartedBinary: migPartedBinary,
 		opts:            opts,
-		systemdManager:  systemdManager,
 	}, nil
+}
+
+// getSystemdManager lazily establishes and caches the connection to the host's systemd D-Bus
+func (r *Reconfigure) getSystemdManager() (*systemd.Manager, error) {
+	if r.systemdManager != nil {
+		return r.systemdManager, nil
+	}
+
+	if len(r.opts.HostRootMount) > 0 {
+		hostSystemBusAddress := fmt.Sprintf("unix:path=%s/run/dbus/system_bus_socket", r.opts.HostRootMount)
+		_ = os.Setenv("DBUS_SYSTEM_BUS_ADDRESS", hostSystemBusAddress)
+	}
+
+	systemdManager, err := systemd.NewManager(r.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize systemd manager: %w", err)
+	}
+
+	r.systemdManager = systemdManager
+	return systemdManager, nil
 }
 
 // Run executes the complete MIG reconfiguration process
@@ -334,7 +343,12 @@ Environment="MIG_PARTED_SELECTED_CONFIG=%s"
 		return fmt.Errorf("failed to write config to state file: %w", err)
 	}
 
-	return r.systemdManager.ReloadDaemon()
+	mgr, err := r.getSystemdManager()
+	if err != nil {
+		return err
+	}
+
+	return mgr.ReloadDaemon()
 }
 
 // checkMigModeChangeRequired checks if MIG mode change is required
@@ -431,10 +445,15 @@ func (r *Reconfigure) waitForPodsToBeDeleted() error {
 
 // shutdownHostGPUClients shuts down host GPU clients
 func (r *Reconfigure) shutdownHostGPUClients() error {
+	mgr, err := r.getSystemdManager()
+	if err != nil {
+		return err
+	}
+
 	log.Info("Shutting down all GPU clients on the host by stopping their systemd services")
 
 	services := strings.Split(r.opts.HostGPUClientServices, ",")
-	stoppedServices, err := r.systemdManager.StopSystemdServices(services)
+	stoppedServices, err := mgr.StopSystemdServices(services)
 	if err != nil {
 		return fmt.Errorf("failed to stop host systemd services: %w", err)
 	}
@@ -752,6 +771,11 @@ func (r *Reconfigure) createCDISpec() error {
 }
 
 func (r *Reconfigure) hostStartSystemdServices() error {
+	mgr, err := r.getSystemdManager()
+	if err != nil {
+		return err
+	}
+
 	services := r.stoppedServices
 	var restartServices []string
 	if len(services) == 0 {
@@ -759,7 +783,7 @@ func (r *Reconfigure) hostStartSystemdServices() error {
 		services = strings.Split(r.opts.HostGPUClientServices, ",")
 
 		for _, service := range services {
-			serviceStatus, err := r.systemdManager.GetServiceStatus(service)
+			serviceStatus, err := mgr.GetServiceStatus(service)
 			if err != nil {
 				log.Infof("failed to get service status: %v\n", err)
 				continue
@@ -785,5 +809,5 @@ func (r *Reconfigure) hostStartSystemdServices() error {
 		restartServices = r.stoppedServices
 	}
 
-	return r.systemdManager.StartSystemdServices(restartServices)
+	return mgr.StartSystemdServices(restartServices)
 }
