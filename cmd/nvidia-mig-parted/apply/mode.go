@@ -108,6 +108,13 @@ func ApplyMigMode(c *Context) error {
 		return nil
 	})
 
+	devicesToReset := make([]int, 0)
+	for i, isPending := range pending {
+		if isPending {
+			devicesToReset = append(devicesToReset, i)
+		}
+	}
+
 	if nvidiaModuleLoaded {
 		util.TryNvmlShutdown(c.Nvml)
 	}
@@ -120,12 +127,12 @@ func ApplyMigMode(c *Context) error {
 		return nil
 	}
 
-	log.Debugf("At least one mode change pending")
-	log.Debugf("Resetting all GPUs...")
-	output, err := util.ResetAllGPUs()
+	log.Debugf("%d change[s] pending", len(devicesToReset))
+	log.Debugf("Resetting affected GPUs...")
+	output, err := util.ResetGPUs(devicesToReset)
 	if err != nil {
 		log.Errorf("\n%v", output)
-		return fmt.Errorf("error resetting all GPUs: %v", err)
+		return fmt.Errorf("error resetting affected GPUs: %v", err)
 	}
 	log.Debugf("\n%v", output)
 
