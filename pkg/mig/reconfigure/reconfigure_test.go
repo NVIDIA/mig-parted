@@ -17,8 +17,55 @@
 package reconfigure
 
 import (
+	"context"
+	"path/filepath"
 	"testing"
 )
+
+func TestNewDoesNotConnectSystemd(t *testing.T) {
+	opts := &Options{
+		NodeName:          "test-node",
+		SelectedMigConfig: "all-disabled",
+	}
+
+	r, err := New(context.Background(), nil, []string{"nvidia-mig-parted"}, opts)
+	if err != nil {
+		t.Fatalf("New returned an unexpected error: %v", err)
+	}
+	if r == nil {
+		t.Fatal("New returned a nil Reconfigure")
+	}
+	if r.systemdManager != nil {
+		t.Error("New must not establish a systemd D-Bus connection; systemdManager should be nil")
+	}
+}
+
+func TestSystemdMgrErrorIsNotCached(t *testing.T) {
+	missing := "unix:path=" + filepath.Join(t.TempDir(), "does-not-exist")
+	t.Setenv("DBUS_SYSTEM_BUS_ADDRESS", missing)
+	t.Setenv("DBUS_LAUNCHD_SESSION_BUS_SOCKET", filepath.Join(t.TempDir(), "does-not-exist"))
+
+	r := &Reconfigure{
+		ctx:  context.Background(),
+		opts: &Options{},
+	}
+
+	mgr, err := r.getSystemdManager()
+	if err == nil {
+		t.Fatal("expected an error when the systemd D-Bus socket is unavailable, got nil")
+	}
+	if mgr != nil {
+		t.Errorf("expected a nil manager on error, got %v", mgr)
+	}
+	if r.systemdManager != nil {
+		t.Error("a failed connection must not be cached; systemdManager should remain nil")
+	}
+}
+
+func TestCleanupWithNilManager(t *testing.T) {
+	r := &Reconfigure{}
+	r.cleanup() // must not panic
+}
 
 func TestMaybeSetPaused(t *testing.T) {
 	reconfigure := &Reconfigure{}
