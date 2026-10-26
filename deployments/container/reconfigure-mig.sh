@@ -576,7 +576,7 @@ if [ "${?}" != "0" ] && [ "${WITH_REBOOT}" = "true" ]; then
 		echo "Exiting so as not to reboot multiple times unexpectedly"
 		exit_failed
 	fi
-	chroot ${HOST_ROOT_MOUNT} reboot
+	chroot "${HOST_ROOT_MOUNT}" /bin/sh -c 'exec reboot'
 	exit 0
 fi
 

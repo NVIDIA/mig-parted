@@ -203,7 +203,7 @@ func (r *Reconfigure) Run() error {
 			}
 
 			log.Info("Rebooting the node...")
-			cmd := exec.Command("chroot", r.opts.HostRootMount, "reboot")
+			cmd := exec.Command("chroot", r.opts.HostRootMount, "/bin/sh", "-c", "exec reboot")
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
