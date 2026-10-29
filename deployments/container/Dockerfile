@@ -58,15 +58,19 @@ RUN go install -ldflags "-extldflags=-Wl,-z,lazy -s -w" \
 # Build a static busybox layout: one binary plus applet symlinks (sh, rm,
 # ln, sleep, cat, ...) so PATH-resolved commands in init-container wrappers
 # and lifecycle hooks keep working on the non-*-dev* distroless base.
-FROM debian:trixie-slim AS shell
-RUN apt-get update \
- && apt-get install -y --no-install-recommends busybox-static \
- && rm -rf /var/lib/apt/lists/* \
- && mkdir /busybox \
+FROM busybox:1.37.0-musl AS shell
+RUN mkdir /busybox \
  && cp /bin/busybox /busybox/busybox \
  && /busybox/busybox --install -s /busybox
 
-FROM nvcr.io/nvidia/distroless/go:v4.1.4
+# Fail the build if busybox prefers applets (CONFIG_FEATURE_PREFER_APPLETS=y).
+# See:
+#   https://github.com/NVIDIA/k8s-driver-manager/issues/299
+#   https://github.com/NVIDIA/mig-parted/issues/553
+COPY hack/check-busybox-prefer-applets.sh /tmp/check-busybox-prefer-applets.sh
+RUN /tmp/check-busybox-prefer-applets.sh /busybox/busybox
+
+FROM nvcr.io/nvidia/distroless/go:v4.1.8
 
 USER 0:0
 
