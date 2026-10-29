@@ -9,7 +9,7 @@
   "enabledManagers": ["custom.regex"],
   "recreateWhen": "always",
   "pruneStaleBranches": true,
-  "rebaseWhen": "always",
+  "rebaseWhen": "behind-base-branch",
 
   "customManagers": [
     {
