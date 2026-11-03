@@ -153,18 +153,15 @@ To build from source, please follow one of the methods below.
 ```
 docker run \
     --rm \
-    -v $(pwd):/dest \
-    golang:1.20.1 \
-    sh -c "
+    -v "$(pwd):/dest" \
+    -e GOBIN=/dest \
+    golang:1 \
     go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted@latest
-    mv /go/bin/nvidia-mig-parted /dest/nvidia-mig-parted
-    "
 ```
 
-#### Run `go get` and `go install` directly:
+#### Run `go install` directly:
 ```
-GO111MODULE=off go get -u github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
-GOBIN=$(pwd)    go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted
+GOBIN="$(pwd)" go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted@latest
 ```
 
 #### Clone the repo and build it:
