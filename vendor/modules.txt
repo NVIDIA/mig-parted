@@ -169,10 +169,14 @@ gopkg.in/inf.v0
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit; go 1.15
 gopkg.in/yaml.v2
+<<<<<<< HEAD
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
 # k8s.io/api v0.36.4
+=======
+# k8s.io/api v0.37.2
+>>>>>>> 26904131 (Bump the k8sio group with 3 updates)
 ## explicit; go 1.26.0
 k8s.io/api/admissionregistration/v1
 k8s.io/api/admissionregistration/v1alpha1
@@ -229,7 +233,11 @@ k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
 k8s.io/api/storagemigration/v1beta1
+<<<<<<< HEAD
 # k8s.io/apimachinery v0.36.4
+=======
+# k8s.io/apimachinery v0.37.2
+>>>>>>> 26904131 (Bump the k8sio group with 3 updates)
 ## explicit; go 1.26.0
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
@@ -288,7 +296,11 @@ k8s.io/apimachinery/pkg/version
 k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/reflect
+<<<<<<< HEAD
 # k8s.io/client-go v0.36.4
+=======
+# k8s.io/client-go v0.37.2
+>>>>>>> 26904131 (Bump the k8sio group with 3 updates)
 ## explicit; go 1.26.0
 k8s.io/client-go/applyconfigurations/admissionregistration/v1
 k8s.io/client-go/applyconfigurations/admissionregistration/v1alpha1
