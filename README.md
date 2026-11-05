@@ -285,5 +285,7 @@ EOF
 
 ## Contributions
 [Read the document on contributions](CONTRIBUTING.md). 
-You can contribute by opening a [pull request](https://help.github.com/en/articles/about-pull-requests).
 Contributions must adhere to the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Support and Getting Help
+You can join our [community Slack](https://inviter.co/dsx-ai-factory). Your feedback is appreciated.
