@@ -70,7 +70,7 @@ RUN mkdir /busybox \
 COPY hack/check-busybox-prefer-applets.sh /tmp/check-busybox-prefer-applets.sh
 RUN /tmp/check-busybox-prefer-applets.sh /busybox/busybox
 
-FROM nvcr.io/nvidia/distroless/go:v4.1.8
+FROM nvcr.io/nvidia/distroless/go:v4.2.0
 
 USER 0:0
 
