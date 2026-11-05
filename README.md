@@ -81,6 +81,10 @@ mig-configs:
         "2g.10gb": 1
         "3g.20gb": 1
 ```
+
+Each entry requires `devices` and an explicit boolean `mig-enabled` value.
+Set `mig-enabled: false` to disable MIG; null or empty values are invalid.
+
 Each of the sections under `mig-configs` is user-defined, with custom labels
 used to refer to them. For example, the `all-disabled` label refers to the MIG
 configuration that disables MIG for all GPUs on the node. Likewise, the
