@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"strings"
 
+	nvdevlib "github.com/NVIDIA/go-nvlib/pkg/nvlib/device"
 	"github.com/NVIDIA/go-nvlib/pkg/nvpci"
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 
@@ -39,14 +40,27 @@ func GetGPUDeviceIDs() ([]types.DeviceID, error) {
 }
 
 func ResetAllGPUs() (string, error) {
+	deviceIDs, err := GetGPUDeviceIDs()
+	if err != nil {
+		return "", fmt.Errorf("error enumerating GPUs: %v", err)
+	}
+	devicesToReset := make([]int, len(deviceIDs))
+	for i := range deviceIDs {
+		devicesToReset[i] = i
+	}
+	return ResetGPUs(devicesToReset)
+}
+
+func ResetGPUs(devicesToReset []int) (string, error) {
 	nvidiaModuleLoaded, err := IsNvidiaModuleLoaded()
 	if err != nil {
 		return "", fmt.Errorf("error checking if nvidia module loaded: %v", err)
 	}
+
 	if nvidiaModuleLoaded {
-		return nvmlResetAllGPUs()
+		return nvmlResetGPUs(devicesToReset)
 	}
-	return pciResetAllGPUs()
+	return pciResetGPUs(devicesToReset)
 }
 
 func pciVisitGPUs(visit func(*nvpci.NvidiaPCIDevice) error) error {
@@ -100,18 +114,21 @@ func nvmlGetGPUDeviceIDs() ([]types.DeviceID, error) {
 	return ids, nil
 }
 
-func pciResetAllGPUs() (string, error) {
-	err := pciVisitGPUs(func(gpu *nvpci.NvidiaPCIDevice) error {
-		err := gpu.Reset()
+func pciResetGPUs(devicesToReset []int) (string, error) {
+	nvpciLib := nvpci.New()
+	for _, index := range devicesToReset {
+		gpu, err := nvpciLib.GetGPUByIndex(index)
 		if err != nil {
-			return fmt.Errorf("error resetting GPU %v: %v", gpu.Address, err)
+			return "", fmt.Errorf("error getting GPU %d: %v", index, err)
 		}
-		return nil
-	})
-	return "", err
+		if err := gpu.Reset(); err != nil {
+			return "", fmt.Errorf("error resetting GPU %v: %v", gpu.Address, err)
+		}
+	}
+	return "", nil
 }
 
-func nvmlGetGPUPciBusIds() ([]string, error) {
+func nvmlGetGPUPciBusIds(devicesToReset []int) ([]string, error) {
 	nvmlLib := nvml.New()
 	err := NvmlInit(nvmlLib)
 	if err != nil {
@@ -120,28 +137,19 @@ func nvmlGetGPUPciBusIds() ([]string, error) {
 	defer TryNvmlShutdown(nvmlLib)
 
 	var ids []string
-	err = pciVisitGPUs(func(gpu *nvpci.NvidiaPCIDevice) error {
-		if !gpu.Is3DController() {
-			return nil
+	for _, index := range devicesToReset {
+		gpu, err := nvmlGetGPUByIndex(nvmlLib, index)
+		if err != nil {
+			return nil, err
 		}
-
-		_, ret := nvmlLib.DeviceGetHandleByPciBusId(gpu.Address)
-		if ret != nvml.SUCCESS {
-			return nil
-		}
-
 		ids = append(ids, gpu.Address)
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	return ids, nil
 }
 
-func nvmlResetAllGPUs() (string, error) {
-	pciBusIDs, err := nvmlGetGPUPciBusIds()
+func nvmlResetGPUs(devicesToReset []int) (string, error) {
+	pciBusIDs, err := nvmlGetGPUPciBusIds(devicesToReset)
 	if err != nil {
 		return "", fmt.Errorf("error getting GPU pci bus IDs: %v", err)
 	}
@@ -153,4 +161,31 @@ func nvmlResetAllGPUs() (string, error) {
 	cmd := exec.Command("nvidia-smi", "-r", "-i", strings.Join(pciBusIDs, ",")) //nolint:gosec
 	output, err := cmd.CombinedOutput()
 	return string(output), err
+}
+
+func nvmlGetGPUByIndex(nvmlLib nvml.Interface, index int) (*nvpci.NvidiaPCIDevice, error) {
+	device, ret := nvmlLib.DeviceGetHandleByIndex(index)
+	if ret != nvml.SUCCESS {
+		return nil, fmt.Errorf("error getting GPU %d: %v", index, ret)
+	}
+
+	nvdev, err := nvdevlib.New(nvmlLib).NewDevice(device)
+	if err != nil {
+		return nil, fmt.Errorf("error wrapping GPU %d: %v", index, err)
+	}
+
+	address, err := nvdev.GetPCIBusID()
+	if err != nil {
+		return nil, fmt.Errorf("error getting PCI bus ID for GPU %d: %v", index, err)
+	}
+
+	gpu, err := nvpci.New().GetGPUByPciBusID(address)
+	if err != nil {
+		return nil, fmt.Errorf("error getting PCI device %s for GPU %d: %v", address, index, err)
+	}
+	if gpu == nil {
+		return nil, fmt.Errorf("no GPU found at %s for GPU %d", address, index)
+	}
+
+	return gpu, nil
 }
