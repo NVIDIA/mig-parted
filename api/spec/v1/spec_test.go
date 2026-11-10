@@ -393,3 +393,28 @@ func TestMigConfigSpec(t *testing.T) {
 		})
 	}
 }
+
+func TestMigConfigSpecRequiresBooleanMigEnabled(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{name: "null JSON", input: `{"devices":"all","mig-enabled":null}`, wantErr: true},
+		{name: "null YAML", input: "devices: all\nmig-enabled: null\n", wantErr: true},
+		{name: "empty YAML value", input: "devices: all\nmig-enabled:\n", wantErr: true},
+		{name: "disabled", input: "devices: all\nmig-enabled: false\n"},
+		{name: "enabled", input: "devices: all\nmig-enabled: true\nmig-devices: {1g.5gb: 7}\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var spec MigConfigSpec
+			err := yaml.Unmarshal([]byte(tc.input), &spec)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}

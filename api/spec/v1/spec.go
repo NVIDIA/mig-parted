@@ -148,12 +148,15 @@ func (s *MigConfigSpec) UnmarshalJSON(b []byte) error {
 			}
 			return fmt.Errorf("(%v, %v)", err1, err2)
 		case "mig-enabled":
-			var enabled bool
+			var enabled *bool
 			err := json.Unmarshal(v, &enabled)
 			if err != nil {
 				return err
 			}
-			result.MigEnabled = enabled
+			if enabled == nil {
+				return fmt.Errorf("missing boolean value for '%v'", k)
+			}
+			result.MigEnabled = *enabled
 		case "mig-devices":
 			devices := make(types.MigConfig)
 			err := json.Unmarshal(v, &devices)
