@@ -128,11 +128,27 @@ func (c *Context) AssertMigMode() error {
 	if err != nil {
 		return fmt.Errorf("error fetching MIG state: %v", err)
 	}
-	for i := range c.MigState.Devices {
-		if current.Devices[i].MigMode != c.MigState.Devices[i].MigMode {
+
+	// Pair the checkpoint with the node by UUID, the way RestoreMode and
+	// RestoreConfig both do. Indexing current.Devices by the checkpoint's own
+	// position reads past the end whenever the checkpoint holds more devices
+	// than the node has MIG-capable GPUs, and compares two unrelated GPUs
+	// whenever the two lists are not in the same order.
+	currentByUUID := make(map[string]types.DeviceState, len(current.Devices))
+	for _, device := range current.Devices {
+		currentByUUID[device.UUID] = device
+	}
+
+	for _, device := range c.MigState.Devices {
+		currentDevice, ok := currentByUUID[device.UUID]
+		if !ok {
+			return fmt.Errorf("device '%v' from the checkpoint is not a MIG-capable GPU on this node", device.UUID)
+		}
+		if currentDevice.MigMode != device.MigMode {
 			return fmt.Errorf("current mode different than mode being asserted")
 		}
 	}
+
 	return nil
 }
 
