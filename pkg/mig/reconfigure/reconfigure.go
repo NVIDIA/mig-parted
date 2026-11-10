@@ -798,7 +798,10 @@ func (r *Reconfigure) hostStartSystemdServices() error {
 				continue
 			}
 
-			if serviceStatus.Active || serviceStatus.Enabled || serviceStatus.Type == "oneshot" {
+			// A service the host has disabled is left alone and an enabled,
+			// inactive one is restarted, the way StopSystemdServices and
+			// host_start_systemd_services in reconfigure-mig.sh both classify them.
+			if serviceStatus.Active || !serviceStatus.Enabled || serviceStatus.Type == "oneshot" {
 				continue
 			}
 
