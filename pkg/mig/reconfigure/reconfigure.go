@@ -28,6 +28,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
@@ -45,6 +46,8 @@ const (
 	dcgmDeployLabel                = "nvidia.com/gpu.deploy.dcgm"
 	nvsmDeployLabel                = "nvidia.com/gpu.deploy.nvsm"
 	gpuClientDeployLabel           = "nvidia.com/gpu.deploy.client"
+	operatorValidatorDeployLabel   = "nvidia.com/gpu.deploy.operator-validator"
+	validatorPaused                = "paused-for-mig-change"
 
 	migStateSuccess = "success"
 	migStateFailed  = "failed"
@@ -97,6 +100,7 @@ type Reconfigure struct {
 	dcgmDeployed          string
 	nvsmDeployed          string
 	gpuClientDeployed     string
+	validatorDeployed     string
 	currentState          string
 	migModeChangeRequired bool
 	stoppedServices       []string
@@ -237,11 +241,6 @@ func (r *Reconfigure) Run() error {
 		}
 	}
 
-	if err := r.restartValidatorPod(); err != nil {
-		_ = r.setState(migStateFailed)
-		return fmt.Errorf("failed to restart validator pod: %w", err)
-	}
-
 	if err := r.restartKubernetesGPUClients(); err != nil {
 		_ = r.setState(migStateFailed)
 		return fmt.Errorf("failed to restart Kubernetes GPU clients: %w", err)
@@ -271,6 +270,7 @@ func (r *Reconfigure) getCurrentNodeLabels() error {
 	r.dcgmDeployed = labels[dcgmDeployLabel]
 	r.nvsmDeployed = labels[nvsmDeployLabel]
 	r.gpuClientDeployed = labels[gpuClientDeployLabel]
+	r.validatorDeployed = labels[operatorValidatorDeployLabel]
 	r.currentState = labels[migConfigStateLabel]
 
 	log.Infof("Current value of '%s=%s'\n", devicePluginDeployLabel, r.pluginDeployed)
@@ -397,6 +397,9 @@ func (r *Reconfigure) shutdownKubernetesGPUClients() error {
 	if len(r.gpuClientDeployed) > 0 {
 		labels[gpuClientDeployLabel] = r.maybeSetPaused(r.gpuClientDeployed)
 	}
+	if len(r.validatorDeployed) > 0 {
+		labels[operatorValidatorDeployLabel] = r.maybeSetPaused(r.validatorDeployed)
+	}
 
 	return r.setNodeLabels(labels)
 }
@@ -404,6 +407,12 @@ func (r *Reconfigure) shutdownKubernetesGPUClients() error {
 // waitForPodsToBeDeleted waits for GPU client pods to be deleted
 func (r *Reconfigure) waitForPodsToBeDeleted() error {
 	timeout := 5 * time.Minute
+
+	// Stop the creator before draining workloads it may have created during shutdown.
+	log.Info("Waiting for operator-validator to shutdown")
+	if err := r.waitForPodDeletion("app=nvidia-operator-validator", timeout); err != nil {
+		return fmt.Errorf("operator-validator pod did not shutdown: %w", err)
+	}
 
 	log.Infof("Waiting for the device-plugin to shutdown")
 	if err := r.waitForPodDeletion("app=nvidia-device-plugin-daemonset", timeout); err != nil {
@@ -551,14 +560,14 @@ func (r *Reconfigure) restartKubernetesGPUClients() error {
 	return r.setNodeLabels(labels)
 }
 
-// restartValidatorPod restarts the validator pod
-func (r *Reconfigure) restartValidatorPod() error {
-	log.Info("Restarting validator pod to re-run all validations")
-	return r.deletePod("app=nvidia-operator-validator")
-}
-
 // setState sets the final state and exits
 func (r *Reconfigure) setState(state string) error {
+	// Restore bootstrap validation even if restarting another GPU client fails.
+	if len(r.validatorDeployed) > 0 {
+		if err := RestoreValidator(r.ctx, r.clientset, r.opts.NodeName); err != nil {
+			return err
+		}
+	}
 
 	if r.opts.WithShutdownHostGPUClients && !NoRestartHostSystemdServicesOnExit {
 		log.Info("Restarting any GPU clients previously shutdown on the host by restarting their systemd services")
@@ -603,7 +612,7 @@ func (r *Reconfigure) maybeSetPaused(currentValue string) string {
 	if currentValue == "false" {
 		return "false"
 	}
-	return "paused-for-mig-change"
+	return validatorPaused
 }
 
 func (r *Reconfigure) maybeSetTrue(currentValue string) string {
@@ -632,7 +641,7 @@ func (r *Reconfigure) setNodeLabels(labels map[string]string) error {
 }
 
 func (r *Reconfigure) waitForPodDeletion(labelSelector string, timeout time.Duration) error {
-	return wait.PollUntilContextTimeout(r.ctx, time.Second, timeout, false, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextTimeout(r.ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 		pods, err := r.clientset.CoreV1().Pods(r.opts.DefaultGPUClientsNamespace).List(ctx, metav1.ListOptions{
 			FieldSelector: "spec.nodeName=" + r.opts.NodeName,
 			LabelSelector: labelSelector,
@@ -656,12 +665,12 @@ func (r *Reconfigure) deletePod(labelSelector string) error {
 	}
 
 	for _, pod := range podList.Items {
-		if err := podClient.Delete(r.ctx, pod.Name, metav1.DeleteOptions{}); err != nil {
+		if err := podClient.Delete(r.ctx, pod.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("failed to delete pod %s/%s: %w", pod.Namespace, pod.Name, err)
 		}
 	}
 
-	return nil
+	return r.waitForPodDeletion(labelSelector, 5*time.Minute)
 }
 
 // waitForPodsWithNodeSelector waits for all daemon set pods on the given node which has the specified key in
