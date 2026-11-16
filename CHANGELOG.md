@@ -1,5 +1,15 @@
 # NVIDIA MIG Manager Changelog
 
+## v0.15.2
+- Use the official busybox image instead of the busybox-static Debian package
+- Bump NVIDIA Container Toolkit version to v1.20.2
+- Bump distroless base image version to v4.2.1
+- Bump CUDA base image version to 13.4.3-base-ubi8
+- Bump github.com/NVIDIA/go-nvlib to v0.13.0
+- Bump github.com/NVIDIA/go-nvml to v0.13.4-1
+- Bump golang.org/x/net to v0.62.0 for CVE fixes
+- Bump golang version to 1.27.4
+
 ## v0.15.1
 - Set the MIG config state to failed when the pod-deletion wait or validator restart fails
 - Bump NVIDIA Container Toolkit version to v1.20.1
