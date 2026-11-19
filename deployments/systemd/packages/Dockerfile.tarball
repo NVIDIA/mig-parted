@@ -82,7 +82,6 @@ COPY ./deployments/systemd/packages/tarball/install.sh ${DESTDIR}
 COPY ./deployments/systemd/hooks.sh ${DESTDIR}
 COPY ./deployments/systemd/hooks-default.yaml ${DESTDIR}
 COPY ./deployments/systemd/hooks-minimal.yaml ${DESTDIR}
-COPY ./deployments/systemd/config-default.yaml ${DESTDIR}
 COPY ./deployments/systemd/nvidia-mig-manager.service ${DESTDIR}
 COPY ./deployments/systemd/nvidia-gpu-reset.target ${DESTDIR}
 COPY ./deployments/systemd/nvidia-mig-parted.sh ${DESTDIR}

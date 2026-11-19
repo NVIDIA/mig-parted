@@ -24,7 +24,6 @@ source ${CURRDIR}/utils.sh
 nvidia-mig-manager::service::select_hooks_file
 
 CONFIG_FILE="${CURRDIR}/config.yaml"
-DEFAULT_CONFIG_FILE="${CURRDIR}/config-default.yaml"
 
 # Remove legacy symlink (older packages created config.yaml -> config-default.yaml).
 # Writing to a symlink on successful config generation would overwrite config-default.yaml.
@@ -41,9 +40,6 @@ if nvidia-mig-parted generate-config -f "${CONFIG_FILE}.tmp"; then
 	} > "${CONFIG_FILE}"
 elif [ -f "${CONFIG_FILE}" ]; then
 	echo "Warning: Config generation failed, using existing ${CONFIG_FILE}" >&2
-elif [ -f "${DEFAULT_CONFIG_FILE}" ]; then
-	echo "Warning: Config generation failed, using fallback ${DEFAULT_CONFIG_FILE}" >&2
-	cp "${DEFAULT_CONFIG_FILE}" "${CONFIG_FILE}"
 else
 	echo "Error: No config available and generation failed" >&2
 	exit 1
