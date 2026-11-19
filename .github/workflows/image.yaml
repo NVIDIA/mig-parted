@@ -35,7 +35,7 @@ jobs:
       id-token: write
       packages: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         name: Check out code
       - name: Calculate build vars
         id: vars
@@ -57,14 +57,14 @@ jobs:
 
           echo "PUSH_ON_BUILD=${GENERATE_ARTIFACTS}" >> $GITHUB_ENV
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Go Proxy
         id: setup-go-proxy
-        uses: nv-gha-runners/setup-artifactory-go-proxy@main
+        uses: nv-gha-runners/setup-artifactory-go-proxy@a15ec16ff434e8ca3b0f76919f902080e66ebc14 # main
       - name: Build image
         env:
           IMAGE_NAME: ghcr.io/${LOWERCASE_REPO_OWNER}/k8s-mig-manager
@@ -80,7 +80,7 @@ jobs:
     needs: [ image ]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         name: Check out code
       - name: Calculate build vars
         id: vars
@@ -100,7 +100,7 @@ jobs:
           echo "GENERATE_ARTIFACTS=${GENERATE_ARTIFACTS}" >> $GITHUB_ENV
       - name: Login to GitHub Container Registry
         if: ${{ env.GENERATE_ARTIFACTS == 'true' }}
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
