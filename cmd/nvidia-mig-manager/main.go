@@ -18,7 +18,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,7 +39,6 @@ import (
 
 	"github.com/NVIDIA/mig-parted/internal/info"
 	"github.com/NVIDIA/mig-parted/pkg/mig/builder"
-	"github.com/NVIDIA/mig-parted/pkg/mig/discovery"
 	"github.com/NVIDIA/mig-parted/pkg/mig/reconfigure"
 )
 
@@ -363,44 +361,32 @@ func writeGeneratedConfig() ([]byte, error) {
 	return configYAML, nil
 }
 
-// setupMigConfig uses custom config if provided, otherwise generates MIG config from hardware.
-// If dynamic generation fails with ErrNoProfilesDiscovered, falls back to DEFAULT_CONFIG_FILE.
-func setupMigConfig(ctx context.Context, clientset *kubernetes.Clientset) (string, error) {
-	// Use custom config if provided
-	if configFileFlag != "" {
-		if _, err := os.Stat(configFileFlag); err != nil {
-			return "", fmt.Errorf("failed to read custom config %s: %w", configFileFlag, err)
-		}
-		log.Infof("Using custom config: %s", configFileFlag)
-		return configFileFlag, nil
+// migConfigPath returns the path of the MIG config to apply: the custom
+// config if one is set, otherwise the generated config.
+func migConfigPath() (string, error) {
+	if configFileFlag == "" {
+		return DefaultGeneratedConfigFile, nil
 	}
+	if _, err := os.Stat(configFileFlag); err != nil {
+		return "", fmt.Errorf("failed to read custom config %s: %w", configFileFlag, err)
+	}
+	log.Infof("Using custom config: %s", configFileFlag)
+	return configFileFlag, nil
+}
 
-	// Generate config from hardware
+// publishGeneratedConfig generates the MIG config from hardware and publishes
+// it to the per-node ConfigMap.
+func publishGeneratedConfig(ctx context.Context, clientset *kubernetes.Clientset) error {
 	log.Info("Generating MIG configuration from hardware...")
 	configYAML, err := writeGeneratedConfig()
 	if err != nil {
-		if errors.Is(err, discovery.ErrNoProfilesDiscovered) {
-			log.Warn("No MIG profiles discovered. Checking for default config")
-			defaultPath := os.Getenv("DEFAULT_CONFIG_FILE")
-			if defaultPath != "" {
-				var statErr error
-				if _, statErr = os.Stat(defaultPath); statErr == nil { //nolint:gosec // path from trusted env var set by operator
-					log.Infof("Using default config: %s", defaultPath)
-					return defaultPath, nil
-				}
-				log.Warnf("Default config file %s not found: %v", defaultPath, statErr)
-			}
-			return "", fmt.Errorf("dynamic generation failed and no default config available: %w", err)
-		}
-		return "", fmt.Errorf("failed to generate MIG config: %w", err)
+		return fmt.Errorf("failed to generate MIG config: %w", err)
 	}
-
 	log.Infof("Generated config: %s", DefaultGeneratedConfigFile)
 	if err := createNodeConfigMap(ctx, clientset, nodeNameFlag, configYAML); err != nil {
-		return "", fmt.Errorf("failed to create node ConfigMap: %w", err)
+		return fmt.Errorf("failed to create node ConfigMap: %w", err)
 	}
-
-	return DefaultGeneratedConfigFile, nil
+	return nil
 }
 
 func start(ctx context.Context, c *cli.Command) error {
@@ -414,10 +400,17 @@ func start(ctx context.Context, c *cli.Command) error {
 		return fmt.Errorf("error building kubernetes clientset from config: %w", err)
 	}
 
-	// Setup MIG configuration (generate from hardware or use custom config)
-	configPath, err := setupMigConfig(ctx, clientset)
+	configPath, err := migConfigPath()
 	if err != nil {
-		return fmt.Errorf("failed to setup MIG config: %w", err)
+		return err
+	}
+	// Always publish generated MIG config to a ConfigMap.
+	// When a custom config is set, generation failures are considered non-fatal.
+	if err := publishGeneratedConfig(ctx, clientset); err != nil {
+		if configFileFlag == "" {
+			return err
+		}
+		log.Warnf("Failed to publish generated MIG config, continuing because a custom config is set: %v", err)
 	}
 
 	// Update configFileFlag for rest of mig-manager code
