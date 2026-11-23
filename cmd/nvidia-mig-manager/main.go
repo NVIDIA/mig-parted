@@ -397,7 +397,7 @@ func setupMigConfig(ctx context.Context, clientset *kubernetes.Clientset) (strin
 
 	log.Infof("Generated config: %s", DefaultGeneratedConfigFile)
 	if err := createNodeConfigMap(ctx, clientset, nodeNameFlag, configYAML); err != nil {
-		log.Warnf("Failed to create node ConfigMap: %v", err)
+		return "", fmt.Errorf("failed to create node ConfigMap: %w", err)
 	}
 
 	return DefaultGeneratedConfigFile, nil
