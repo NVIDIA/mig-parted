@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.20.2
 	github.com/google/go-licenses/v2 v2.0.1
-	github.com/matryer/moq v0.7.1
+	github.com/matryer/moq v0.8.1
 )
 
 require (
