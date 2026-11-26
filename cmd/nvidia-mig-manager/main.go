@@ -414,6 +414,13 @@ func start(ctx context.Context, c *cli.Command) error {
 		return fmt.Errorf("error building kubernetes clientset from config: %w", err)
 	}
 
+	// Recover a validator paused by an interrupted change before GPU discovery or
+	// config setup can fail. Startup prerequisites must be validated independently
+	// of operator-validator so that a paused validator cannot block this recovery.
+	if err := reconfigure.RestoreValidator(ctx, clientset, nodeNameFlag); err != nil {
+		return err
+	}
+
 	// Setup MIG configuration (generate from hardware or use custom config)
 	configPath, err := setupMigConfig(ctx, clientset)
 	if err != nil {

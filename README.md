@@ -266,6 +266,42 @@ mig-configs:
 EOF
 ```
 
+## Recovering MIG Manager after an interrupted change
+
+MIG Manager pauses `nvidia.com/gpu.deploy.operator-validator` while changing MIG
+configuration. It waits for the validator to stop before deleting and draining
+its CUDA and plugin validation workloads, and restores the validator afterward.
+An explicitly disabled validator (`false`) remains disabled.
+
+If MIG Manager is interrupted while the validator is paused, normal manager
+startup restores a validator labeled `paused-for-mig-change` before discovering
+GPUs or setting up the MIG configuration. Other label values are preserved. If
+restoration fails, startup returns an error so Kubernetes can restart the
+container. This uses the manager's existing node `get`/`patch` permissions and
+does not require a separate recovery invocation.
+
+The GPU Operator deployment must validate MIG Manager's prerequisites
+independently of the operator-validator pod:
+
+1. Run `nvidia-validator` in MIG Manager init containers to validate the driver
+   (`COMPONENT=driver`) and then the toolkit (`COMPONENT=toolkit`), with
+   `WITH_WAIT=true` and the required mounts, runtime configuration, and RBAC.
+2. Share the resulting readiness files and driver settings with the main
+   container through a pod-local `emptyDir`, rather than the operator-validator's
+   host readiness directory.
+3. Have the main entrypoint source the locally generated `driver-ready` settings
+   and start MIG Manager without waiting for operator-validator readiness files.
+
+These deployment changes belong in GPU Operator. Updating the MIG Manager image
+alone does not remove the existing startup waits: if operator-validator is
+paused, those waits can prevent the manager from reaching automatic recovery.
+The init containers validate prerequisites when the pod starts; they do not
+rerun when only the main container restarts.
+
+Startup recovery only reenables validation. The manager still performs the
+normal pause-and-drain sequence before applying another configuration. Only one
+MIG Manager should manage a node at a time.
+
 ## Known Issues
 
 - `mig-parted` will fail to perform a GPU reset, and therefore toggle the MIG mode on GPUs where a reset is required,
